@@ -1,8 +1,0 @@
-com.yamahub.app-pngs-0 D:\###Users\teerorist\AndroidStudioProjects\YamaHUB\app\build\generated\res\pngs\debug
-com.yamahub.app-updated_navigation_xml-1 D:\###Users\teerorist\AndroidStudioProjects\YamaHUB\app\build\generated\updated_navigation_xml\debug
-com.yamahub.app-packageDebugResources-2 D:\###Users\teerorist\AndroidStudioProjects\YamaHUB\app\build\intermediates\incremental\debug\packageDebugResources\merged.dir
-com.yamahub.app-packageDebugResources-3 D:\###Users\teerorist\AndroidStudioProjects\YamaHUB\app\build\intermediates\incremental\debug\packageDebugResources\stripped.dir
-com.yamahub.app-debug-4 D:\###Users\teerorist\AndroidStudioProjects\YamaHUB\app\build\intermediates\merged_res\debug\mergeDebugResources
-com.yamahub.app-debug-5 D:\###Users\teerorist\AndroidStudioProjects\YamaHUB\app\src\debug\res
-com.yamahub.app-main-6 D:\###Users\teerorist\AndroidStudioProjects\YamaHUB\app\src\main\res
-gradleHome-0 D:\###Users\teerorist\.gradle
