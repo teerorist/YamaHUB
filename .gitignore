@@ -15,6 +15,10 @@ Andro/.cxx/
 Andro/*.apk
 Andro/*.ap_
 Andro/*.aab
+Andro/app/.gradle/
+Andro/app/.idea/
+Andro/app/build/
+
 
 # === PlatformIO / ESP ===
 ESP/.pio/
