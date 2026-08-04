@@ -1,1 +1,28 @@
+# Hardware (zostawiamy jak było)
 Hardware/
+
+# === Android ===
+Andro/.gradle/
+Andro/.idea/
+Andro/build/
+Andro/app/build/
+Andro/local.properties
+Andro/*.iml
+Andro/.DS_Store
+Andro/captures/
+Andro/.externalNativeBuild/
+Andro/.cxx/
+Andro/*.apk
+Andro/*.ap_
+Andro/*.aab
+
+# === PlatformIO / ESP ===
+ESP/.pio/
+ESP/.vscode/
+ESP/.DS_Store
+
+# Ogólne
+*.log
+*.tmp
+.DS_Store
+Thumbs.db
