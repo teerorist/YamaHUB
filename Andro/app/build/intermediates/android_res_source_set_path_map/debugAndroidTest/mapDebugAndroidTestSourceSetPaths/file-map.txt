@@ -1,0 +1,5 @@
+com.yamahub.app.test.app-updated_navigation_xml-0 D:\###Users\teerorist\AndroidStudioProjects\YamaHUB\app\build\generated\updated_navigation_xml\debugAndroidTest
+com.yamahub.app.test.app-packageDebugAndroidTestResources-1 D:\###Users\teerorist\AndroidStudioProjects\YamaHUB\app\build\intermediates\incremental\debugAndroidTest\packageDebugAndroidTestResources\merged.dir
+com.yamahub.app.test.app-packageDebugAndroidTestResources-2 D:\###Users\teerorist\AndroidStudioProjects\YamaHUB\app\build\intermediates\incremental\debugAndroidTest\packageDebugAndroidTestResources\stripped.dir
+com.yamahub.app.test.app-debugAndroidTest-3 D:\###Users\teerorist\AndroidStudioProjects\YamaHUB\app\build\intermediates\merged_res\debugAndroidTest\mergeDebugAndroidTestResources
+gradleHome-0 D:\###Users\teerorist\.gradle

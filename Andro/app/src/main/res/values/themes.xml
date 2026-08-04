@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <style name="Theme.YamaHUB" parent="android:Theme.Material.NoActionBar">
+        <!-- Kolor tła splash screena dla Androida 12+ -->
+        <item name="android:windowSplashScreenBackground">@color/dark_background</item>
+        <!-- Ikona na środku (opcjonalnie, domyślnie bierze ikone appki) -->
+        <item name="android:windowSplashScreenAnimatedIcon">@drawable/ic_launcher_foreground</item>
+    </style>
+</resources>

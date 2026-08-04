@@ -1,0 +1,432 @@
+-- Merging decision tree log ---
+manifest
+ADDED from D:\###Users\teerorist\AndroidStudioProjects\YamaHUB\app\src\main\AndroidManifest.xml:2:1-42:12
+INJECTED from D:\###Users\teerorist\AndroidStudioProjects\YamaHUB\app\src\main\AndroidManifest.xml:2:1-42:12
+INJECTED from D:\###Users\teerorist\AndroidStudioProjects\YamaHUB\app\src\main\AndroidManifest.xml:2:1-42:12
+INJECTED from D:\###Users\teerorist\AndroidStudioProjects\YamaHUB\app\src\main\AndroidManifest.xml:2:1-42:12
+MERGED from [androidx.compose.material3:material3-android:1.4.0] D:\###Users\teerorist\.gradle\caches\9.5.0\transforms\bc8d4f46c9861b27e5dc8bee388630e1\transformed\material3\AndroidManifest.xml:17:1-22:12
+MERGED from [androidx.compose.material:material-android:1.10.4] D:\###Users\teerorist\.gradle\caches\9.5.0\transforms\7f582e7791a5a8f111a1854be46d8ccb\transformed\material\AndroidManifest.xml:2:1-7:12
+MERGED from [androidx.compose.material:material-ripple-android:1.10.4] D:\###Users\teerorist\.gradle\caches\9.5.0\transforms\43d95056a1aa8cf3db75fa36fce7bcd4\transformed\material-ripple\AndroidManifest.xml:2:1-7:12
+MERGED from [androidx.compose.foundation:foundation-android:1.10.4] D:\###Users\teerorist\.gradle\caches\9.5.0\transforms\0ad59104dc63d6005a708fdc2b763d2e\transformed\foundation\AndroidManifest.xml:2:1-7:12
+MERGED from [androidx.compose.animation:animation-android:1.10.4] D:\###Users\teerorist\.gradle\caches\9.5.0\transforms\10ff37ca569b76143bfd17f31e9529c8\transformed\animation\AndroidManifest.xml:2:1-7:12
+MERGED from [androidx.compose.foundation:foundation-layout-android:1.10.4] D:\###Users\teerorist\.gradle\caches\9.5.0\transforms\cdc0fec35e46349bdec4679af8780a2e\transformed\foundation-layout\AndroidManifest.xml:2:1-7:12
+MERGED from [androidx.compose.animation:animation-core-android:1.10.4] D:\###Users\teerorist\.gradle\caches\9.5.0\transforms\ae11486f6449718e18ab1bb4fc01500b\transformed\animation-core\AndroidManifest.xml:2:1-7:12
+MERGED from [androidx.compose.ui:ui-tooling-data-android:1.10.4] D:\###Users\teerorist\.gradle\caches\9.5.0\transforms\717586f101fb1f1356db113fa8f34399\transformed\ui-tooling-data\AndroidManifest.xml:2:1-7:12
+MERGED from [androidx.compose.ui:ui-unit-android:1.10.4] D:\###Users\teerorist\.gradle\caches\9.5.0\transforms\51f28074707aa365425eb50d64aeda20\transformed\ui-unit\AndroidManifest.xml:2:1-7:12
+MERGED from [androidx.compose.ui:ui-geometry-android:1.10.4] D:\###Users\teerorist\.gradle\caches\9.5.0\transforms\bc8fecc5bb5e1fb58baef8f907173c69\transformed\ui-geometry\AndroidManifest.xml:2:1-7:12
+MERGED from [androidx.compose.ui:ui-util-android:1.10.4] D:\###Users\teerorist\.gradle\caches\9.5.0\transforms\c8897baf59c48cb63925f694f8226fb3\transformed\ui-util\AndroidManifest.xml:2:1-7:12
+MERGED from [androidx.compose.ui:ui-text-android:1.10.4] D:\###Users\teerorist\.gradle\caches\9.5.0\transforms\b011b371b0c5996da0c54ddb5c8b3beb\transformed\ui-text\AndroidManifest.xml:2:1-7:12
+MERGED from [androidx.compose.ui:ui-tooling-preview-android:1.10.4] D:\###Users\teerorist\.gradle\caches\9.5.0\transforms\92a05e3c02c86ce2c78b266d0396f227\transformed\ui-tooling-preview\AndroidManifest.xml:17:1-22:12
+MERGED from [androidx.compose.ui:ui-tooling-android:1.10.4] D:\###Users\teerorist\.gradle\caches\9.5.0\transforms\d1614914aec021238714d79015f4dec7\transformed\ui-tooling\AndroidManifest.xml:17:1-28:12
+MERGED from [androidx.compose.ui:ui-graphics-android:1.10.4] D:\###Users\teerorist\.gradle\caches\9.5.0\transforms\72cd545d3de1748e9db5032692010cad\transformed\ui-graphics\AndroidManifest.xml:2:1-7:12
+MERGED from [androidx.compose.ui:ui-test-manifest:1.10.4] D:\###Users\teerorist\.gradle\caches\9.5.0\transforms\56e2c45e1d1c9f1bfcfc98b059ae1a5d\transformed\ui-test-manifest-1.10.4\AndroidManifest.xml:17:1-29:12
+MERGED from [androidx.activity:activity:1.8.2] D:\###Users\teerorist\.gradle\caches\9.5.0\transforms\c3140a6cd7bc00aa80b594542ffc8b39\transformed\activity-1.8.2\AndroidManifest.xml:17:1-22:12
+MERGED from [androidx.activity:activity-ktx:1.8.2] D:\###Users\teerorist\.gradle\caches\9.5.0\transforms\36bae094c660796d8f40414a503701f4\transformed\activity-ktx-1.8.2\AndroidManifest.xml:2:1-7:12
+MERGED from [androidx.activity:activity-compose:1.8.2] D:\###Users\teerorist\.gradle\caches\9.5.0\transforms\45a3ad17e9b6eb8076629d2bdc7e5b27\transformed\activity-compose-1.8.2\AndroidManifest.xml:2:1-7:12
+MERGED from [androidx.compose.material:material-icons-extended-android:1.7.8] D:\###Users\teerorist\.gradle\caches\9.5.0\transforms\8e0457745803af7fd621b2b413edde8d\transformed\material-icons-extended-release\AndroidManifest.xml:2:1-7:12
+MERGED from [androidx.compose.material:material-icons-core-android:1.7.8] D:\###Users\teerorist\.gradle\caches\9.5.0\transforms\2e690386a7ec98f9fbeafc29ec2c80b4\transformed\material-icons-core-release\AndroidManifest.xml:2:1-7:12
+MERGED from [androidx.compose.ui:ui-android:1.10.4] D:\###Users\teerorist\.gradle\caches\9.5.0\transforms\bd964f596a399e2531ad34e61441d9e0\transformed\ui\AndroidManifest.xml:2:1-7:12
+MERGED from [androidx.compose.runtime:runtime-annotation-android:1.10.4] D:\###Users\teerorist\.gradle\caches\9.5.0\transforms\2966b04ccd147768ba431c3413bcd4c8\transformed\runtime-annotation\AndroidManifest.xml:2:1-7:12
+MERGED from [androidx.compose.runtime:runtime-retain-android:1.10.4] D:\###Users\teerorist\.gradle\caches\9.5.0\transforms\c478f9c69b62a4b2f5e7ab739ec05d96\transformed\runtime-retain\AndroidManifest.xml:2:1-7:12
+MERGED from [androidx.compose.runtime:runtime-saveable-android:1.10.4] D:\###Users\teerorist\.gradle\caches\9.5.0\transforms\ef0c6c9f32274ac629da7624385cbd2f\transformed\runtime-saveable\AndroidManifest.xml:2:1-7:12
+MERGED from [androidx.emoji2:emoji2:1.4.0] D:\###Users\teerorist\.gradle\caches\9.5.0\transforms\40d82c3a59ba4710e35b1df2ec3f69e5\transformed\emoji2-1.4.0\AndroidManifest.xml:17:1-35:12
+MERGED from [androidx.autofill:autofill:1.0.0] D:\###Users\teerorist\.gradle\caches\9.5.0\transforms\80c204d4a50f63890e5285ed0562f438\transformed\autofill-1.0.0\AndroidManifest.xml:17:1-24:12
+MERGED from [androidx.transition:transition:1.6.0] D:\###Users\teerorist\.gradle\caches\9.5.0\transforms\20c9953c834131225748714575476836\transformed\transition-1.6.0\AndroidManifest.xml:2:1-7:12
+MERGED from [androidx.window:window-core-android:1.5.0] D:\###Users\teerorist\.gradle\caches\9.5.0\transforms\6d05479545c828c6e0f214055d41c755\transformed\window-core\AndroidManifest.xml:2:1-7:12
+MERGED from [androidx.window:window:1.5.0] D:\###Users\teerorist\.gradle\caches\9.5.0\transforms\667d7d16a6f5d5603560c42d6de6c140\transformed\window-1.5.0\AndroidManifest.xml:17:1-31:12
+MERGED from [androidx.graphics:graphics-path:1.0.1] D:\###Users\teerorist\.gradle\caches\9.5.0\transforms\1e8600660cee0820f447b98e38de54d4\transformed\graphics-path-1.0.1\AndroidManifest.xml:2:1-7:12
+MERGED from [androidx.customview:customview-poolingcontainer:1.0.0] D:\###Users\teerorist\.gradle\caches\9.5.0\transforms\0b674e44eab7a062ba92dfe82a13c888\transformed\customview-poolingcontainer-1.0.0\AndroidManifest.xml:17:1-23:12
+MERGED from [androidx.dynamicanimation:dynamicanimation:1.0.0] D:\###Users\teerorist\.gradle\caches\9.5.0\transforms\e607e16fda6ec36a36b654c2fd4aedaa\transformed\dynamicanimation-1.0.0\AndroidManifest.xml:17:1-22:12
+MERGED from [androidx.legacy:legacy-support-core-utils:1.0.0] D:\###Users\teerorist\.gradle\caches\9.5.0\transforms\42fe3f7df6f0ba4f9eaa49723cf1cea0\transformed\legacy-support-core-utils-1.0.0\AndroidManifest.xml:17:1-22:12
+MERGED from [androidx.loader:loader:1.0.0] D:\###Users\teerorist\.gradle\caches\9.5.0\transforms\35f514fb184fddfeaffea41698994c34\transformed\loader-1.0.0\AndroidManifest.xml:17:1-22:12
+MERGED from [androidx.lifecycle:lifecycle-livedata-core-ktx:2.9.4] D:\###Users\teerorist\.gradle\caches\9.5.0\transforms\52f35a07f3dfcd895573305f1dbaa8b7\transformed\lifecycle-livedata-core-ktx-2.9.4\AndroidManifest.xml:2:1-7:12
+MERGED from [androidx.lifecycle:lifecycle-livedata-core:2.9.4] D:\###Users\teerorist\.gradle\caches\9.5.0\transforms\734fad62db1c7ae2cb43921b6d978174\transformed\lifecycle-livedata-core-2.9.4\AndroidManifest.xml:17:1-22:12
+MERGED from [androidx.lifecycle:lifecycle-livedata:2.9.4] D:\###Users\teerorist\.gradle\caches\9.5.0\transforms\1f498817936bd843f6b9d8c8ff5a97c8\transformed\lifecycle-livedata-2.9.4\AndroidManifest.xml:17:1-22:12
+MERGED from [androidx.lifecycle:lifecycle-viewmodel:2.9.4] D:\###Users\teerorist\.gradle\caches\9.5.0\transforms\b4084ac3a6b0dad8e536fd1f81b36a79\transformed\lifecycle-viewmodel-2.9.4\AndroidManifest.xml:2:1-5:12
+MERGED from [androidx.lifecycle:lifecycle-viewmodel-android:2.9.4] D:\###Users\teerorist\.gradle\caches\9.5.0\transforms\1745110e61c79eace003b8862bb8f87d\transformed\lifecycle-viewmodel-release\AndroidManifest.xml:17:1-22:12
+MERGED from [androidx.lifecycle:lifecycle-runtime-ktx-android:2.9.4] D:\###Users\teerorist\.gradle\caches\9.5.0\transforms\e1a411aebcc52b14db14694cf13e71cc\transformed\lifecycle-runtime-ktx\AndroidManifest.xml:2:1-7:12
+MERGED from [androidx.lifecycle:lifecycle-viewmodel-savedstate-android:2.9.4] D:\###Users\teerorist\.gradle\caches\9.5.0\transforms\0c70759fc98aa8b443824ccdfd4d4a40\transformed\lifecycle-viewmodel-savedstate-release\AndroidManifest.xml:17:1-22:12
+MERGED from [androidx.savedstate:savedstate-android:1.3.2] D:\###Users\teerorist\.gradle\caches\9.5.0\transforms\0657e6fede088e4f240eb271fd66af6c\transformed\savedstate-release\AndroidManifest.xml:17:1-22:12
+MERGED from [androidx.savedstate:savedstate-ktx:1.3.2] D:\###Users\teerorist\.gradle\caches\9.5.0\transforms\d9e6c517ef4f7d4daed257d097eb6f1f\transformed\savedstate-ktx-1.3.2\AndroidManifest.xml:2:1-7:12
+MERGED from [androidx.savedstate:savedstate-compose-android:1.3.2] D:\###Users\teerorist\.gradle\caches\9.5.0\transforms\932918b90ab1b84d8cdaa698a26df7fb\transformed\savedstate-compose\AndroidManifest.xml:2:1-7:12
+MERGED from [androidx.core:core-ktx:1.16.0] D:\###Users\teerorist\.gradle\caches\9.5.0\transforms\e0c4ef36a0b0b63e263472a4ffe16e3f\transformed\core-ktx-1.16.0\AndroidManifest.xml:2:1-7:12
+MERGED from [androidx.core:core:1.16.0] D:\###Users\teerorist\.gradle\caches\9.5.0\transforms\c6c9dfbf7c22ae7e5be8e34a16eee553\transformed\core-1.16.0\AndroidManifest.xml:17:1-30:12
+MERGED from [androidx.lifecycle:lifecycle-runtime-android:2.9.4] D:\###Users\teerorist\.gradle\caches\9.5.0\transforms\3d3592c95a88b33217fc045b1b7bd272\transformed\lifecycle-runtime-release\AndroidManifest.xml:17:1-22:12
+MERGED from [androidx.lifecycle:lifecycle-process:2.9.4] D:\###Users\teerorist\.gradle\caches\9.5.0\transforms\e0634dc979bf7101f1a9810e9149f40c\transformed\lifecycle-process-2.9.4\AndroidManifest.xml:17:1-35:12
+MERGED from [androidx.lifecycle:lifecycle-viewmodel-ktx:2.9.4] D:\###Users\teerorist\.gradle\caches\9.5.0\transforms\4bf6a301eb18fe558947f10424db3e3f\transformed\lifecycle-viewmodel-ktx-2.9.4\AndroidManifest.xml:2:1-7:12
+MERGED from [androidx.lifecycle:lifecycle-runtime-compose-android:2.9.4] D:\###Users\teerorist\.gradle\caches\9.5.0\transforms\b97b52a1c33d4beb01234773c9eda3dd\transformed\lifecycle-runtime-compose-release\AndroidManifest.xml:2:1-7:12
+MERGED from [androidx.compose.runtime:runtime-android:1.10.4] D:\###Users\teerorist\.gradle\caches\9.5.0\transforms\a1bf3c63a2134a4e0f3fcdb367d7c6c6\transformed\runtime\AndroidManifest.xml:2:1-7:12
+MERGED from [androidx.annotation:annotation-experimental:1.4.1] D:\###Users\teerorist\.gradle\caches\9.5.0\transforms\18c95768826d8092b393d2f20845dbbf\transformed\annotation-experimental-1.4.1\AndroidManifest.xml:2:1-7:12
+MERGED from [androidx.versionedparcelable:versionedparcelable:1.1.1] D:\###Users\teerorist\.gradle\caches\9.5.0\transforms\bdf539e25c14d4d542e47ecc59e2d31c\transformed\versionedparcelable-1.1.1\AndroidManifest.xml:17:1-27:12
+MERGED from [androidx.core:core-viewtree:1.0.0] D:\###Users\teerorist\.gradle\caches\9.5.0\transforms\75eec845c220b61ccd55c920a33b75fa\transformed\core-viewtree-1.0.0\AndroidManifest.xml:2:1-7:12
+MERGED from [androidx.profileinstaller:profileinstaller:1.4.0] D:\###Users\teerorist\.gradle\caches\9.5.0\transforms\d7c4bf5b4822db4cf9353408a196befc\transformed\profileinstaller-1.4.0\AndroidManifest.xml:17:1-55:12
+MERGED from [androidx.startup:startup-runtime:1.1.1] D:\###Users\teerorist\.gradle\caches\9.5.0\transforms\439496074f38a9028aa857b05a423906\transformed\startup-runtime-1.1.1\AndroidManifest.xml:17:1-33:12
+MERGED from [androidx.tracing:tracing:1.2.0] D:\###Users\teerorist\.gradle\caches\9.5.0\transforms\a5cd60823bf9a33076e783a30f776ee6\transformed\tracing-1.2.0\AndroidManifest.xml:17:1-22:12
+MERGED from [androidx.interpolator:interpolator:1.0.0] D:\###Users\teerorist\.gradle\caches\9.5.0\transforms\13ed2fa8c98081a832b61ae018a55c5c\transformed\interpolator-1.0.0\AndroidManifest.xml:17:1-22:12
+MERGED from [androidx.documentfile:documentfile:1.0.0] D:\###Users\teerorist\.gradle\caches\9.5.0\transforms\2fbe2951d460d1c6c52ce94cfed4368c\transformed\documentfile-1.0.0\AndroidManifest.xml:17:1-22:12
+MERGED from [androidx.localbroadcastmanager:localbroadcastmanager:1.0.0] D:\###Users\teerorist\.gradle\caches\9.5.0\transforms\edabea639f286fa7167444cab16149bc\transformed\localbroadcastmanager-1.0.0\AndroidManifest.xml:17:1-22:12
+MERGED from [androidx.print:print:1.0.0] D:\###Users\teerorist\.gradle\caches\9.5.0\transforms\23cda6486fabae41c8b4848ba43fede8\transformed\print-1.0.0\AndroidManifest.xml:17:1-22:12
+MERGED from [androidx.arch.core:core-runtime:2.2.0] D:\###Users\teerorist\.gradle\caches\9.5.0\transforms\1e0dd78e498853873b4cfd240884a318\transformed\core-runtime-2.2.0\AndroidManifest.xml:17:1-22:12
+	package
+		INJECTED from D:\###Users\teerorist\AndroidStudioProjects\YamaHUB\app\src\main\AndroidManifest.xml
+	android:versionName
+		INJECTED from D:\###Users\teerorist\AndroidStudioProjects\YamaHUB\app\src\main\AndroidManifest.xml
+	xmlns:tools
+		ADDED from D:\###Users\teerorist\AndroidStudioProjects\YamaHUB\app\src\main\AndroidManifest.xml:3:5-51
+	android:versionCode
+		INJECTED from D:\###Users\teerorist\AndroidStudioProjects\YamaHUB\app\src\main\AndroidManifest.xml
+	xmlns:android
+		ADDED from D:\###Users\teerorist\AndroidStudioProjects\YamaHUB\app\src\main\AndroidManifest.xml:2:11-69
+uses-permission#android.permission.BLUETOOTH
+ADDED from D:\###Users\teerorist\AndroidStudioProjects\YamaHUB\app\src\main\AndroidManifest.xml:5:5-95
+	android:maxSdkVersion
+		ADDED from D:\###Users\teerorist\AndroidStudioProjects\YamaHUB\app\src\main\AndroidManifest.xml:5:66-92
+	android:name
+		ADDED from D:\###Users\teerorist\AndroidStudioProjects\YamaHUB\app\src\main\AndroidManifest.xml:5:22-65
+uses-permission#android.permission.BLUETOOTH_ADMIN
+ADDED from D:\###Users\teerorist\AndroidStudioProjects\YamaHUB\app\src\main\AndroidManifest.xml:6:5-101
+	android:maxSdkVersion
+		ADDED from D:\###Users\teerorist\AndroidStudioProjects\YamaHUB\app\src\main\AndroidManifest.xml:6:72-98
+	android:name
+		ADDED from D:\###Users\teerorist\AndroidStudioProjects\YamaHUB\app\src\main\AndroidManifest.xml:6:22-71
+uses-permission#android.permission.BLUETOOTH_SCAN
+ADDED from D:\###Users\teerorist\AndroidStudioProjects\YamaHUB\app\src\main\AndroidManifest.xml:9:5-120
+	android:usesPermissionFlags
+		ADDED from D:\###Users\teerorist\AndroidStudioProjects\YamaHUB\app\src\main\AndroidManifest.xml:9:71-117
+	android:name
+		ADDED from D:\###Users\teerorist\AndroidStudioProjects\YamaHUB\app\src\main\AndroidManifest.xml:9:22-70
+uses-permission#android.permission.BLUETOOTH_CONNECT
+ADDED from D:\###Users\teerorist\AndroidStudioProjects\YamaHUB\app\src\main\AndroidManifest.xml:10:5-76
+	android:name
+		ADDED from D:\###Users\teerorist\AndroidStudioProjects\YamaHUB\app\src\main\AndroidManifest.xml:10:22-73
+uses-permission#android.permission.ACCESS_FINE_LOCATION
+ADDED from D:\###Users\teerorist\AndroidStudioProjects\YamaHUB\app\src\main\AndroidManifest.xml:13:5-79
+	android:name
+		ADDED from D:\###Users\teerorist\AndroidStudioProjects\YamaHUB\app\src\main\AndroidManifest.xml:13:22-76
+uses-permission#android.permission.ACCESS_COARSE_LOCATION
+ADDED from D:\###Users\teerorist\AndroidStudioProjects\YamaHUB\app\src\main\AndroidManifest.xml:14:5-81
+	android:name
+		ADDED from D:\###Users\teerorist\AndroidStudioProjects\YamaHUB\app\src\main\AndroidManifest.xml:14:22-78
+uses-permission#android.permission.POST_NOTIFICATIONS
+ADDED from D:\###Users\teerorist\AndroidStudioProjects\YamaHUB\app\src\main\AndroidManifest.xml:16:5-77
+	android:name
+		ADDED from D:\###Users\teerorist\AndroidStudioProjects\YamaHUB\app\src\main\AndroidManifest.xml:16:22-74
+uses-feature#android.hardware.bluetooth_le
+ADDED from D:\###Users\teerorist\AndroidStudioProjects\YamaHUB\app\src\main\AndroidManifest.xml:18:5-90
+	android:required
+		ADDED from D:\###Users\teerorist\AndroidStudioProjects\YamaHUB\app\src\main\AndroidManifest.xml:18:64-87
+	android:name
+		ADDED from D:\###Users\teerorist\AndroidStudioProjects\YamaHUB\app\src\main\AndroidManifest.xml:18:19-63
+application
+ADDED from D:\###Users\teerorist\AndroidStudioProjects\YamaHUB\app\src\main\AndroidManifest.xml:19:5-40:19
+INJECTED from D:\###Users\teerorist\AndroidStudioProjects\YamaHUB\app\src\main\AndroidManifest.xml:19:5-40:19
+MERGED from [androidx.compose.ui:ui-tooling-android:1.10.4] D:\###Users\teerorist\.gradle\caches\9.5.0\transforms\d1614914aec021238714d79015f4dec7\transformed\ui-tooling\AndroidManifest.xml:22:5-26:19
+MERGED from [androidx.compose.ui:ui-tooling-android:1.10.4] D:\###Users\teerorist\.gradle\caches\9.5.0\transforms\d1614914aec021238714d79015f4dec7\transformed\ui-tooling\AndroidManifest.xml:22:5-26:19
+MERGED from [androidx.compose.ui:ui-test-manifest:1.10.4] D:\###Users\teerorist\.gradle\caches\9.5.0\transforms\56e2c45e1d1c9f1bfcfc98b059ae1a5d\transformed\ui-test-manifest-1.10.4\AndroidManifest.xml:22:5-27:19
+MERGED from [androidx.compose.ui:ui-test-manifest:1.10.4] D:\###Users\teerorist\.gradle\caches\9.5.0\transforms\56e2c45e1d1c9f1bfcfc98b059ae1a5d\transformed\ui-test-manifest-1.10.4\AndroidManifest.xml:22:5-27:19
+MERGED from [androidx.emoji2:emoji2:1.4.0] D:\###Users\teerorist\.gradle\caches\9.5.0\transforms\40d82c3a59ba4710e35b1df2ec3f69e5\transformed\emoji2-1.4.0\AndroidManifest.xml:23:5-33:19
+MERGED from [androidx.emoji2:emoji2:1.4.0] D:\###Users\teerorist\.gradle\caches\9.5.0\transforms\40d82c3a59ba4710e35b1df2ec3f69e5\transformed\emoji2-1.4.0\AndroidManifest.xml:23:5-33:19
+MERGED from [androidx.window:window:1.5.0] D:\###Users\teerorist\.gradle\caches\9.5.0\transforms\667d7d16a6f5d5603560c42d6de6c140\transformed\window-1.5.0\AndroidManifest.xml:22:5-29:19
+MERGED from [androidx.window:window:1.5.0] D:\###Users\teerorist\.gradle\caches\9.5.0\transforms\667d7d16a6f5d5603560c42d6de6c140\transformed\window-1.5.0\AndroidManifest.xml:22:5-29:19
+MERGED from [androidx.core:core:1.16.0] D:\###Users\teerorist\.gradle\caches\9.5.0\transforms\c6c9dfbf7c22ae7e5be8e34a16eee553\transformed\core-1.16.0\AndroidManifest.xml:28:5-89
+MERGED from [androidx.core:core:1.16.0] D:\###Users\teerorist\.gradle\caches\9.5.0\transforms\c6c9dfbf7c22ae7e5be8e34a16eee553\transformed\core-1.16.0\AndroidManifest.xml:28:5-89
+MERGED from [androidx.lifecycle:lifecycle-process:2.9.4] D:\###Users\teerorist\.gradle\caches\9.5.0\transforms\e0634dc979bf7101f1a9810e9149f40c\transformed\lifecycle-process-2.9.4\AndroidManifest.xml:23:5-33:19
+MERGED from [androidx.lifecycle:lifecycle-process:2.9.4] D:\###Users\teerorist\.gradle\caches\9.5.0\transforms\e0634dc979bf7101f1a9810e9149f40c\transformed\lifecycle-process-2.9.4\AndroidManifest.xml:23:5-33:19
+MERGED from [androidx.versionedparcelable:versionedparcelable:1.1.1] D:\###Users\teerorist\.gradle\caches\9.5.0\transforms\bdf539e25c14d4d542e47ecc59e2d31c\transformed\versionedparcelable-1.1.1\AndroidManifest.xml:24:5-25:19
+MERGED from [androidx.versionedparcelable:versionedparcelable:1.1.1] D:\###Users\teerorist\.gradle\caches\9.5.0\transforms\bdf539e25c14d4d542e47ecc59e2d31c\transformed\versionedparcelable-1.1.1\AndroidManifest.xml:24:5-25:19
+MERGED from [androidx.profileinstaller:profileinstaller:1.4.0] D:\###Users\teerorist\.gradle\caches\9.5.0\transforms\d7c4bf5b4822db4cf9353408a196befc\transformed\profileinstaller-1.4.0\AndroidManifest.xml:23:5-53:19
+MERGED from [androidx.profileinstaller:profileinstaller:1.4.0] D:\###Users\teerorist\.gradle\caches\9.5.0\transforms\d7c4bf5b4822db4cf9353408a196befc\transformed\profileinstaller-1.4.0\AndroidManifest.xml:23:5-53:19
+MERGED from [androidx.startup:startup-runtime:1.1.1] D:\###Users\teerorist\.gradle\caches\9.5.0\transforms\439496074f38a9028aa857b05a423906\transformed\startup-runtime-1.1.1\AndroidManifest.xml:25:5-31:19
+MERGED from [androidx.startup:startup-runtime:1.1.1] D:\###Users\teerorist\.gradle\caches\9.5.0\transforms\439496074f38a9028aa857b05a423906\transformed\startup-runtime-1.1.1\AndroidManifest.xml:25:5-31:19
+	android:extractNativeLibs
+		INJECTED from D:\###Users\teerorist\AndroidStudioProjects\YamaHUB\app\src\main\AndroidManifest.xml
+	android:appComponentFactory
+		ADDED from [androidx.core:core:1.16.0] D:\###Users\teerorist\.gradle\caches\9.5.0\transforms\c6c9dfbf7c22ae7e5be8e34a16eee553\transformed\core-1.16.0\AndroidManifest.xml:28:18-86
+	android:supportsRtl
+		ADDED from D:\###Users\teerorist\AndroidStudioProjects\YamaHUB\app\src\main\AndroidManifest.xml:26:9-35
+	android:label
+		ADDED from D:\###Users\teerorist\AndroidStudioProjects\YamaHUB\app\src\main\AndroidManifest.xml:24:9-41
+	android:fullBackupContent
+		ADDED from D:\###Users\teerorist\AndroidStudioProjects\YamaHUB\app\src\main\AndroidManifest.xml:22:9-54
+	android:roundIcon
+		ADDED from D:\###Users\teerorist\AndroidStudioProjects\YamaHUB\app\src\main\AndroidManifest.xml:25:9-54
+	android:icon
+		ADDED from D:\###Users\teerorist\AndroidStudioProjects\YamaHUB\app\src\main\AndroidManifest.xml:23:9-43
+	android:allowBackup
+		ADDED from D:\###Users\teerorist\AndroidStudioProjects\YamaHUB\app\src\main\AndroidManifest.xml:20:9-35
+	android:theme
+		ADDED from D:\###Users\teerorist\AndroidStudioProjects\YamaHUB\app\src\main\AndroidManifest.xml:27:9-45
+	android:dataExtractionRules
+		ADDED from D:\###Users\teerorist\AndroidStudioProjects\YamaHUB\app\src\main\AndroidManifest.xml:21:9-65
+activity#com.yamahub.app.MainActivity
+ADDED from D:\###Users\teerorist\AndroidStudioProjects\YamaHUB\app\src\main\AndroidManifest.xml:28:9-39:20
+	android:label
+		ADDED from D:\###Users\teerorist\AndroidStudioProjects\YamaHUB\app\src\main\AndroidManifest.xml:31:13-45
+	android:windowSoftInputMode
+		ADDED from D:\###Users\teerorist\AndroidStudioProjects\YamaHUB\app\src\main\AndroidManifest.xml:33:13-55
+	android:exported
+		ADDED from D:\###Users\teerorist\AndroidStudioProjects\YamaHUB\app\src\main\AndroidManifest.xml:30:13-36
+	android:theme
+		ADDED from D:\###Users\teerorist\AndroidStudioProjects\YamaHUB\app\src\main\AndroidManifest.xml:32:13-49
+	android:name
+		ADDED from D:\###Users\teerorist\AndroidStudioProjects\YamaHUB\app\src\main\AndroidManifest.xml:29:13-41
+intent-filter#action:name:android.intent.action.MAIN+category:name:android.intent.category.LAUNCHER
+ADDED from D:\###Users\teerorist\AndroidStudioProjects\YamaHUB\app\src\main\AndroidManifest.xml:34:13-38:29
+action#android.intent.action.MAIN
+ADDED from D:\###Users\teerorist\AndroidStudioProjects\YamaHUB\app\src\main\AndroidManifest.xml:35:17-69
+	android:name
+		ADDED from D:\###Users\teerorist\AndroidStudioProjects\YamaHUB\app\src\main\AndroidManifest.xml:35:25-66
+category#android.intent.category.LAUNCHER
+ADDED from D:\###Users\teerorist\AndroidStudioProjects\YamaHUB\app\src\main\AndroidManifest.xml:37:17-77
+	android:name
+		ADDED from D:\###Users\teerorist\AndroidStudioProjects\YamaHUB\app\src\main\AndroidManifest.xml:37:27-74
+uses-sdk
+INJECTED from D:\###Users\teerorist\AndroidStudioProjects\YamaHUB\app\src\main\AndroidManifest.xml reason: use-sdk injection requested
+INJECTED from D:\###Users\teerorist\AndroidStudioProjects\YamaHUB\app\src\main\AndroidManifest.xml
+INJECTED from D:\###Users\teerorist\AndroidStudioProjects\YamaHUB\app\src\main\AndroidManifest.xml
+MERGED from [androidx.compose.material3:material3-android:1.4.0] D:\###Users\teerorist\.gradle\caches\9.5.0\transforms\bc8d4f46c9861b27e5dc8bee388630e1\transformed\material3\AndroidManifest.xml:20:5-44
+MERGED from [androidx.compose.material3:material3-android:1.4.0] D:\###Users\teerorist\.gradle\caches\9.5.0\transforms\bc8d4f46c9861b27e5dc8bee388630e1\transformed\material3\AndroidManifest.xml:20:5-44
+MERGED from [androidx.compose.material:material-android:1.10.4] D:\###Users\teerorist\.gradle\caches\9.5.0\transforms\7f582e7791a5a8f111a1854be46d8ccb\transformed\material\AndroidManifest.xml:5:5-44
+MERGED from [androidx.compose.material:material-android:1.10.4] D:\###Users\teerorist\.gradle\caches\9.5.0\transforms\7f582e7791a5a8f111a1854be46d8ccb\transformed\material\AndroidManifest.xml:5:5-44
+MERGED from [androidx.compose.material:material-ripple-android:1.10.4] D:\###Users\teerorist\.gradle\caches\9.5.0\transforms\43d95056a1aa8cf3db75fa36fce7bcd4\transformed\material-ripple\AndroidManifest.xml:5:5-44
+MERGED from [androidx.compose.material:material-ripple-android:1.10.4] D:\###Users\teerorist\.gradle\caches\9.5.0\transforms\43d95056a1aa8cf3db75fa36fce7bcd4\transformed\material-ripple\AndroidManifest.xml:5:5-44
+MERGED from [androidx.compose.foundation:foundation-android:1.10.4] D:\###Users\teerorist\.gradle\caches\9.5.0\transforms\0ad59104dc63d6005a708fdc2b763d2e\transformed\foundation\AndroidManifest.xml:5:5-44
+MERGED from [androidx.compose.foundation:foundation-android:1.10.4] D:\###Users\teerorist\.gradle\caches\9.5.0\transforms\0ad59104dc63d6005a708fdc2b763d2e\transformed\foundation\AndroidManifest.xml:5:5-44
+MERGED from [androidx.compose.animation:animation-android:1.10.4] D:\###Users\teerorist\.gradle\caches\9.5.0\transforms\10ff37ca569b76143bfd17f31e9529c8\transformed\animation\AndroidManifest.xml:5:5-44
+MERGED from [androidx.compose.animation:animation-android:1.10.4] D:\###Users\teerorist\.gradle\caches\9.5.0\transforms\10ff37ca569b76143bfd17f31e9529c8\transformed\animation\AndroidManifest.xml:5:5-44
+MERGED from [androidx.compose.foundation:foundation-layout-android:1.10.4] D:\###Users\teerorist\.gradle\caches\9.5.0\transforms\cdc0fec35e46349bdec4679af8780a2e\transformed\foundation-layout\AndroidManifest.xml:5:5-44
+MERGED from [androidx.compose.foundation:foundation-layout-android:1.10.4] D:\###Users\teerorist\.gradle\caches\9.5.0\transforms\cdc0fec35e46349bdec4679af8780a2e\transformed\foundation-layout\AndroidManifest.xml:5:5-44
+MERGED from [androidx.compose.animation:animation-core-android:1.10.4] D:\###Users\teerorist\.gradle\caches\9.5.0\transforms\ae11486f6449718e18ab1bb4fc01500b\transformed\animation-core\AndroidManifest.xml:5:5-44
+MERGED from [androidx.compose.animation:animation-core-android:1.10.4] D:\###Users\teerorist\.gradle\caches\9.5.0\transforms\ae11486f6449718e18ab1bb4fc01500b\transformed\animation-core\AndroidManifest.xml:5:5-44
+MERGED from [androidx.compose.ui:ui-tooling-data-android:1.10.4] D:\###Users\teerorist\.gradle\caches\9.5.0\transforms\717586f101fb1f1356db113fa8f34399\transformed\ui-tooling-data\AndroidManifest.xml:5:5-44
+MERGED from [androidx.compose.ui:ui-tooling-data-android:1.10.4] D:\###Users\teerorist\.gradle\caches\9.5.0\transforms\717586f101fb1f1356db113fa8f34399\transformed\ui-tooling-data\AndroidManifest.xml:5:5-44
+MERGED from [androidx.compose.ui:ui-unit-android:1.10.4] D:\###Users\teerorist\.gradle\caches\9.5.0\transforms\51f28074707aa365425eb50d64aeda20\transformed\ui-unit\AndroidManifest.xml:5:5-44
+MERGED from [androidx.compose.ui:ui-unit-android:1.10.4] D:\###Users\teerorist\.gradle\caches\9.5.0\transforms\51f28074707aa365425eb50d64aeda20\transformed\ui-unit\AndroidManifest.xml:5:5-44
+MERGED from [androidx.compose.ui:ui-geometry-android:1.10.4] D:\###Users\teerorist\.gradle\caches\9.5.0\transforms\bc8fecc5bb5e1fb58baef8f907173c69\transformed\ui-geometry\AndroidManifest.xml:5:5-44
+MERGED from [androidx.compose.ui:ui-geometry-android:1.10.4] D:\###Users\teerorist\.gradle\caches\9.5.0\transforms\bc8fecc5bb5e1fb58baef8f907173c69\transformed\ui-geometry\AndroidManifest.xml:5:5-44
+MERGED from [androidx.compose.ui:ui-util-android:1.10.4] D:\###Users\teerorist\.gradle\caches\9.5.0\transforms\c8897baf59c48cb63925f694f8226fb3\transformed\ui-util\AndroidManifest.xml:5:5-44
+MERGED from [androidx.compose.ui:ui-util-android:1.10.4] D:\###Users\teerorist\.gradle\caches\9.5.0\transforms\c8897baf59c48cb63925f694f8226fb3\transformed\ui-util\AndroidManifest.xml:5:5-44
+MERGED from [androidx.compose.ui:ui-text-android:1.10.4] D:\###Users\teerorist\.gradle\caches\9.5.0\transforms\b011b371b0c5996da0c54ddb5c8b3beb\transformed\ui-text\AndroidManifest.xml:5:5-44
+MERGED from [androidx.compose.ui:ui-text-android:1.10.4] D:\###Users\teerorist\.gradle\caches\9.5.0\transforms\b011b371b0c5996da0c54ddb5c8b3beb\transformed\ui-text\AndroidManifest.xml:5:5-44
+MERGED from [androidx.compose.ui:ui-tooling-preview-android:1.10.4] D:\###Users\teerorist\.gradle\caches\9.5.0\transforms\92a05e3c02c86ce2c78b266d0396f227\transformed\ui-tooling-preview\AndroidManifest.xml:20:5-44
+MERGED from [androidx.compose.ui:ui-tooling-preview-android:1.10.4] D:\###Users\teerorist\.gradle\caches\9.5.0\transforms\92a05e3c02c86ce2c78b266d0396f227\transformed\ui-tooling-preview\AndroidManifest.xml:20:5-44
+MERGED from [androidx.compose.ui:ui-tooling-android:1.10.4] D:\###Users\teerorist\.gradle\caches\9.5.0\transforms\d1614914aec021238714d79015f4dec7\transformed\ui-tooling\AndroidManifest.xml:20:5-44
+MERGED from [androidx.compose.ui:ui-tooling-android:1.10.4] D:\###Users\teerorist\.gradle\caches\9.5.0\transforms\d1614914aec021238714d79015f4dec7\transformed\ui-tooling\AndroidManifest.xml:20:5-44
+MERGED from [androidx.compose.ui:ui-graphics-android:1.10.4] D:\###Users\teerorist\.gradle\caches\9.5.0\transforms\72cd545d3de1748e9db5032692010cad\transformed\ui-graphics\AndroidManifest.xml:5:5-44
+MERGED from [androidx.compose.ui:ui-graphics-android:1.10.4] D:\###Users\teerorist\.gradle\caches\9.5.0\transforms\72cd545d3de1748e9db5032692010cad\transformed\ui-graphics\AndroidManifest.xml:5:5-44
+MERGED from [androidx.compose.ui:ui-test-manifest:1.10.4] D:\###Users\teerorist\.gradle\caches\9.5.0\transforms\56e2c45e1d1c9f1bfcfc98b059ae1a5d\transformed\ui-test-manifest-1.10.4\AndroidManifest.xml:20:5-44
+MERGED from [androidx.compose.ui:ui-test-manifest:1.10.4] D:\###Users\teerorist\.gradle\caches\9.5.0\transforms\56e2c45e1d1c9f1bfcfc98b059ae1a5d\transformed\ui-test-manifest-1.10.4\AndroidManifest.xml:20:5-44
+MERGED from [androidx.activity:activity:1.8.2] D:\###Users\teerorist\.gradle\caches\9.5.0\transforms\c3140a6cd7bc00aa80b594542ffc8b39\transformed\activity-1.8.2\AndroidManifest.xml:20:5-44
+MERGED from [androidx.activity:activity:1.8.2] D:\###Users\teerorist\.gradle\caches\9.5.0\transforms\c3140a6cd7bc00aa80b594542ffc8b39\transformed\activity-1.8.2\AndroidManifest.xml:20:5-44
+MERGED from [androidx.activity:activity-ktx:1.8.2] D:\###Users\teerorist\.gradle\caches\9.5.0\transforms\36bae094c660796d8f40414a503701f4\transformed\activity-ktx-1.8.2\AndroidManifest.xml:5:5-44
+MERGED from [androidx.activity:activity-ktx:1.8.2] D:\###Users\teerorist\.gradle\caches\9.5.0\transforms\36bae094c660796d8f40414a503701f4\transformed\activity-ktx-1.8.2\AndroidManifest.xml:5:5-44
+MERGED from [androidx.activity:activity-compose:1.8.2] D:\###Users\teerorist\.gradle\caches\9.5.0\transforms\45a3ad17e9b6eb8076629d2bdc7e5b27\transformed\activity-compose-1.8.2\AndroidManifest.xml:5:5-44
+MERGED from [androidx.activity:activity-compose:1.8.2] D:\###Users\teerorist\.gradle\caches\9.5.0\transforms\45a3ad17e9b6eb8076629d2bdc7e5b27\transformed\activity-compose-1.8.2\AndroidManifest.xml:5:5-44
+MERGED from [androidx.compose.material:material-icons-extended-android:1.7.8] D:\###Users\teerorist\.gradle\caches\9.5.0\transforms\8e0457745803af7fd621b2b413edde8d\transformed\material-icons-extended-release\AndroidManifest.xml:5:5-44
+MERGED from [androidx.compose.material:material-icons-extended-android:1.7.8] D:\###Users\teerorist\.gradle\caches\9.5.0\transforms\8e0457745803af7fd621b2b413edde8d\transformed\material-icons-extended-release\AndroidManifest.xml:5:5-44
+MERGED from [androidx.compose.material:material-icons-core-android:1.7.8] D:\###Users\teerorist\.gradle\caches\9.5.0\transforms\2e690386a7ec98f9fbeafc29ec2c80b4\transformed\material-icons-core-release\AndroidManifest.xml:5:5-44
+MERGED from [androidx.compose.material:material-icons-core-android:1.7.8] D:\###Users\teerorist\.gradle\caches\9.5.0\transforms\2e690386a7ec98f9fbeafc29ec2c80b4\transformed\material-icons-core-release\AndroidManifest.xml:5:5-44
+MERGED from [androidx.compose.ui:ui-android:1.10.4] D:\###Users\teerorist\.gradle\caches\9.5.0\transforms\bd964f596a399e2531ad34e61441d9e0\transformed\ui\AndroidManifest.xml:5:5-44
+MERGED from [androidx.compose.ui:ui-android:1.10.4] D:\###Users\teerorist\.gradle\caches\9.5.0\transforms\bd964f596a399e2531ad34e61441d9e0\transformed\ui\AndroidManifest.xml:5:5-44
+MERGED from [androidx.compose.runtime:runtime-annotation-android:1.10.4] D:\###Users\teerorist\.gradle\caches\9.5.0\transforms\2966b04ccd147768ba431c3413bcd4c8\transformed\runtime-annotation\AndroidManifest.xml:5:5-44
+MERGED from [androidx.compose.runtime:runtime-annotation-android:1.10.4] D:\###Users\teerorist\.gradle\caches\9.5.0\transforms\2966b04ccd147768ba431c3413bcd4c8\transformed\runtime-annotation\AndroidManifest.xml:5:5-44
+MERGED from [androidx.compose.runtime:runtime-retain-android:1.10.4] D:\###Users\teerorist\.gradle\caches\9.5.0\transforms\c478f9c69b62a4b2f5e7ab739ec05d96\transformed\runtime-retain\AndroidManifest.xml:5:5-44
+MERGED from [androidx.compose.runtime:runtime-retain-android:1.10.4] D:\###Users\teerorist\.gradle\caches\9.5.0\transforms\c478f9c69b62a4b2f5e7ab739ec05d96\transformed\runtime-retain\AndroidManifest.xml:5:5-44
+MERGED from [androidx.compose.runtime:runtime-saveable-android:1.10.4] D:\###Users\teerorist\.gradle\caches\9.5.0\transforms\ef0c6c9f32274ac629da7624385cbd2f\transformed\runtime-saveable\AndroidManifest.xml:5:5-44
+MERGED from [androidx.compose.runtime:runtime-saveable-android:1.10.4] D:\###Users\teerorist\.gradle\caches\9.5.0\transforms\ef0c6c9f32274ac629da7624385cbd2f\transformed\runtime-saveable\AndroidManifest.xml:5:5-44
+MERGED from [androidx.emoji2:emoji2:1.4.0] D:\###Users\teerorist\.gradle\caches\9.5.0\transforms\40d82c3a59ba4710e35b1df2ec3f69e5\transformed\emoji2-1.4.0\AndroidManifest.xml:21:5-44
+MERGED from [androidx.emoji2:emoji2:1.4.0] D:\###Users\teerorist\.gradle\caches\9.5.0\transforms\40d82c3a59ba4710e35b1df2ec3f69e5\transformed\emoji2-1.4.0\AndroidManifest.xml:21:5-44
+MERGED from [androidx.autofill:autofill:1.0.0] D:\###Users\teerorist\.gradle\caches\9.5.0\transforms\80c204d4a50f63890e5285ed0562f438\transformed\autofill-1.0.0\AndroidManifest.xml:20:5-22:41
+MERGED from [androidx.autofill:autofill:1.0.0] D:\###Users\teerorist\.gradle\caches\9.5.0\transforms\80c204d4a50f63890e5285ed0562f438\transformed\autofill-1.0.0\AndroidManifest.xml:20:5-22:41
+MERGED from [androidx.transition:transition:1.6.0] D:\###Users\teerorist\.gradle\caches\9.5.0\transforms\20c9953c834131225748714575476836\transformed\transition-1.6.0\AndroidManifest.xml:5:5-44
+MERGED from [androidx.transition:transition:1.6.0] D:\###Users\teerorist\.gradle\caches\9.5.0\transforms\20c9953c834131225748714575476836\transformed\transition-1.6.0\AndroidManifest.xml:5:5-44
+MERGED from [androidx.window:window-core-android:1.5.0] D:\###Users\teerorist\.gradle\caches\9.5.0\transforms\6d05479545c828c6e0f214055d41c755\transformed\window-core\AndroidManifest.xml:5:5-44
+MERGED from [androidx.window:window-core-android:1.5.0] D:\###Users\teerorist\.gradle\caches\9.5.0\transforms\6d05479545c828c6e0f214055d41c755\transformed\window-core\AndroidManifest.xml:5:5-44
+MERGED from [androidx.window:window:1.5.0] D:\###Users\teerorist\.gradle\caches\9.5.0\transforms\667d7d16a6f5d5603560c42d6de6c140\transformed\window-1.5.0\AndroidManifest.xml:20:5-44
+MERGED from [androidx.window:window:1.5.0] D:\###Users\teerorist\.gradle\caches\9.5.0\transforms\667d7d16a6f5d5603560c42d6de6c140\transformed\window-1.5.0\AndroidManifest.xml:20:5-44
+MERGED from [androidx.graphics:graphics-path:1.0.1] D:\###Users\teerorist\.gradle\caches\9.5.0\transforms\1e8600660cee0820f447b98e38de54d4\transformed\graphics-path-1.0.1\AndroidManifest.xml:5:5-44
+MERGED from [androidx.graphics:graphics-path:1.0.1] D:\###Users\teerorist\.gradle\caches\9.5.0\transforms\1e8600660cee0820f447b98e38de54d4\transformed\graphics-path-1.0.1\AndroidManifest.xml:5:5-44
+MERGED from [androidx.customview:customview-poolingcontainer:1.0.0] D:\###Users\teerorist\.gradle\caches\9.5.0\transforms\0b674e44eab7a062ba92dfe82a13c888\transformed\customview-poolingcontainer-1.0.0\AndroidManifest.xml:20:5-21:38
+MERGED from [androidx.customview:customview-poolingcontainer:1.0.0] D:\###Users\teerorist\.gradle\caches\9.5.0\transforms\0b674e44eab7a062ba92dfe82a13c888\transformed\customview-poolingcontainer-1.0.0\AndroidManifest.xml:20:5-21:38
+MERGED from [androidx.dynamicanimation:dynamicanimation:1.0.0] D:\###Users\teerorist\.gradle\caches\9.5.0\transforms\e607e16fda6ec36a36b654c2fd4aedaa\transformed\dynamicanimation-1.0.0\AndroidManifest.xml:20:5-44
+MERGED from [androidx.dynamicanimation:dynamicanimation:1.0.0] D:\###Users\teerorist\.gradle\caches\9.5.0\transforms\e607e16fda6ec36a36b654c2fd4aedaa\transformed\dynamicanimation-1.0.0\AndroidManifest.xml:20:5-44
+MERGED from [androidx.legacy:legacy-support-core-utils:1.0.0] D:\###Users\teerorist\.gradle\caches\9.5.0\transforms\42fe3f7df6f0ba4f9eaa49723cf1cea0\transformed\legacy-support-core-utils-1.0.0\AndroidManifest.xml:20:5-44
+MERGED from [androidx.legacy:legacy-support-core-utils:1.0.0] D:\###Users\teerorist\.gradle\caches\9.5.0\transforms\42fe3f7df6f0ba4f9eaa49723cf1cea0\transformed\legacy-support-core-utils-1.0.0\AndroidManifest.xml:20:5-44
+MERGED from [androidx.loader:loader:1.0.0] D:\###Users\teerorist\.gradle\caches\9.5.0\transforms\35f514fb184fddfeaffea41698994c34\transformed\loader-1.0.0\AndroidManifest.xml:20:5-44
+MERGED from [androidx.loader:loader:1.0.0] D:\###Users\teerorist\.gradle\caches\9.5.0\transforms\35f514fb184fddfeaffea41698994c34\transformed\loader-1.0.0\AndroidManifest.xml:20:5-44
+MERGED from [androidx.lifecycle:lifecycle-livedata-core-ktx:2.9.4] D:\###Users\teerorist\.gradle\caches\9.5.0\transforms\52f35a07f3dfcd895573305f1dbaa8b7\transformed\lifecycle-livedata-core-ktx-2.9.4\AndroidManifest.xml:5:5-44
+MERGED from [androidx.lifecycle:lifecycle-livedata-core-ktx:2.9.4] D:\###Users\teerorist\.gradle\caches\9.5.0\transforms\52f35a07f3dfcd895573305f1dbaa8b7\transformed\lifecycle-livedata-core-ktx-2.9.4\AndroidManifest.xml:5:5-44
+MERGED from [androidx.lifecycle:lifecycle-livedata-core:2.9.4] D:\###Users\teerorist\.gradle\caches\9.5.0\transforms\734fad62db1c7ae2cb43921b6d978174\transformed\lifecycle-livedata-core-2.9.4\AndroidManifest.xml:20:5-44
+MERGED from [androidx.lifecycle:lifecycle-livedata-core:2.9.4] D:\###Users\teerorist\.gradle\caches\9.5.0\transforms\734fad62db1c7ae2cb43921b6d978174\transformed\lifecycle-livedata-core-2.9.4\AndroidManifest.xml:20:5-44
+MERGED from [androidx.lifecycle:lifecycle-livedata:2.9.4] D:\###Users\teerorist\.gradle\caches\9.5.0\transforms\1f498817936bd843f6b9d8c8ff5a97c8\transformed\lifecycle-livedata-2.9.4\AndroidManifest.xml:20:5-44
+MERGED from [androidx.lifecycle:lifecycle-livedata:2.9.4] D:\###Users\teerorist\.gradle\caches\9.5.0\transforms\1f498817936bd843f6b9d8c8ff5a97c8\transformed\lifecycle-livedata-2.9.4\AndroidManifest.xml:20:5-44
+MERGED from [androidx.lifecycle:lifecycle-viewmodel:2.9.4] D:\###Users\teerorist\.gradle\caches\9.5.0\transforms\b4084ac3a6b0dad8e536fd1f81b36a79\transformed\lifecycle-viewmodel-2.9.4\AndroidManifest.xml:4:5-43
+MERGED from [androidx.lifecycle:lifecycle-viewmodel:2.9.4] D:\###Users\teerorist\.gradle\caches\9.5.0\transforms\b4084ac3a6b0dad8e536fd1f81b36a79\transformed\lifecycle-viewmodel-2.9.4\AndroidManifest.xml:4:5-43
+MERGED from [androidx.lifecycle:lifecycle-viewmodel-android:2.9.4] D:\###Users\teerorist\.gradle\caches\9.5.0\transforms\1745110e61c79eace003b8862bb8f87d\transformed\lifecycle-viewmodel-release\AndroidManifest.xml:20:5-44
+MERGED from [androidx.lifecycle:lifecycle-viewmodel-android:2.9.4] D:\###Users\teerorist\.gradle\caches\9.5.0\transforms\1745110e61c79eace003b8862bb8f87d\transformed\lifecycle-viewmodel-release\AndroidManifest.xml:20:5-44
+MERGED from [androidx.lifecycle:lifecycle-runtime-ktx-android:2.9.4] D:\###Users\teerorist\.gradle\caches\9.5.0\transforms\e1a411aebcc52b14db14694cf13e71cc\transformed\lifecycle-runtime-ktx\AndroidManifest.xml:5:5-44
+MERGED from [androidx.lifecycle:lifecycle-runtime-ktx-android:2.9.4] D:\###Users\teerorist\.gradle\caches\9.5.0\transforms\e1a411aebcc52b14db14694cf13e71cc\transformed\lifecycle-runtime-ktx\AndroidManifest.xml:5:5-44
+MERGED from [androidx.lifecycle:lifecycle-viewmodel-savedstate-android:2.9.4] D:\###Users\teerorist\.gradle\caches\9.5.0\transforms\0c70759fc98aa8b443824ccdfd4d4a40\transformed\lifecycle-viewmodel-savedstate-release\AndroidManifest.xml:20:5-44
+MERGED from [androidx.lifecycle:lifecycle-viewmodel-savedstate-android:2.9.4] D:\###Users\teerorist\.gradle\caches\9.5.0\transforms\0c70759fc98aa8b443824ccdfd4d4a40\transformed\lifecycle-viewmodel-savedstate-release\AndroidManifest.xml:20:5-44
+MERGED from [androidx.savedstate:savedstate-android:1.3.2] D:\###Users\teerorist\.gradle\caches\9.5.0\transforms\0657e6fede088e4f240eb271fd66af6c\transformed\savedstate-release\AndroidManifest.xml:20:5-44
+MERGED from [androidx.savedstate:savedstate-android:1.3.2] D:\###Users\teerorist\.gradle\caches\9.5.0\transforms\0657e6fede088e4f240eb271fd66af6c\transformed\savedstate-release\AndroidManifest.xml:20:5-44
+MERGED from [androidx.savedstate:savedstate-ktx:1.3.2] D:\###Users\teerorist\.gradle\caches\9.5.0\transforms\d9e6c517ef4f7d4daed257d097eb6f1f\transformed\savedstate-ktx-1.3.2\AndroidManifest.xml:5:5-44
+MERGED from [androidx.savedstate:savedstate-ktx:1.3.2] D:\###Users\teerorist\.gradle\caches\9.5.0\transforms\d9e6c517ef4f7d4daed257d097eb6f1f\transformed\savedstate-ktx-1.3.2\AndroidManifest.xml:5:5-44
+MERGED from [androidx.savedstate:savedstate-compose-android:1.3.2] D:\###Users\teerorist\.gradle\caches\9.5.0\transforms\932918b90ab1b84d8cdaa698a26df7fb\transformed\savedstate-compose\AndroidManifest.xml:5:5-44
+MERGED from [androidx.savedstate:savedstate-compose-android:1.3.2] D:\###Users\teerorist\.gradle\caches\9.5.0\transforms\932918b90ab1b84d8cdaa698a26df7fb\transformed\savedstate-compose\AndroidManifest.xml:5:5-44
+MERGED from [androidx.core:core-ktx:1.16.0] D:\###Users\teerorist\.gradle\caches\9.5.0\transforms\e0c4ef36a0b0b63e263472a4ffe16e3f\transformed\core-ktx-1.16.0\AndroidManifest.xml:5:5-44
+MERGED from [androidx.core:core-ktx:1.16.0] D:\###Users\teerorist\.gradle\caches\9.5.0\transforms\e0c4ef36a0b0b63e263472a4ffe16e3f\transformed\core-ktx-1.16.0\AndroidManifest.xml:5:5-44
+MERGED from [androidx.core:core:1.16.0] D:\###Users\teerorist\.gradle\caches\9.5.0\transforms\c6c9dfbf7c22ae7e5be8e34a16eee553\transformed\core-1.16.0\AndroidManifest.xml:20:5-44
+MERGED from [androidx.core:core:1.16.0] D:\###Users\teerorist\.gradle\caches\9.5.0\transforms\c6c9dfbf7c22ae7e5be8e34a16eee553\transformed\core-1.16.0\AndroidManifest.xml:20:5-44
+MERGED from [androidx.lifecycle:lifecycle-runtime-android:2.9.4] D:\###Users\teerorist\.gradle\caches\9.5.0\transforms\3d3592c95a88b33217fc045b1b7bd272\transformed\lifecycle-runtime-release\AndroidManifest.xml:20:5-44
+MERGED from [androidx.lifecycle:lifecycle-runtime-android:2.9.4] D:\###Users\teerorist\.gradle\caches\9.5.0\transforms\3d3592c95a88b33217fc045b1b7bd272\transformed\lifecycle-runtime-release\AndroidManifest.xml:20:5-44
+MERGED from [androidx.lifecycle:lifecycle-process:2.9.4] D:\###Users\teerorist\.gradle\caches\9.5.0\transforms\e0634dc979bf7101f1a9810e9149f40c\transformed\lifecycle-process-2.9.4\AndroidManifest.xml:21:5-44
+MERGED from [androidx.lifecycle:lifecycle-process:2.9.4] D:\###Users\teerorist\.gradle\caches\9.5.0\transforms\e0634dc979bf7101f1a9810e9149f40c\transformed\lifecycle-process-2.9.4\AndroidManifest.xml:21:5-44
+MERGED from [androidx.lifecycle:lifecycle-viewmodel-ktx:2.9.4] D:\###Users\teerorist\.gradle\caches\9.5.0\transforms\4bf6a301eb18fe558947f10424db3e3f\transformed\lifecycle-viewmodel-ktx-2.9.4\AndroidManifest.xml:5:5-44
+MERGED from [androidx.lifecycle:lifecycle-viewmodel-ktx:2.9.4] D:\###Users\teerorist\.gradle\caches\9.5.0\transforms\4bf6a301eb18fe558947f10424db3e3f\transformed\lifecycle-viewmodel-ktx-2.9.4\AndroidManifest.xml:5:5-44
+MERGED from [androidx.lifecycle:lifecycle-runtime-compose-android:2.9.4] D:\###Users\teerorist\.gradle\caches\9.5.0\transforms\b97b52a1c33d4beb01234773c9eda3dd\transformed\lifecycle-runtime-compose-release\AndroidManifest.xml:5:5-44
+MERGED from [androidx.lifecycle:lifecycle-runtime-compose-android:2.9.4] D:\###Users\teerorist\.gradle\caches\9.5.0\transforms\b97b52a1c33d4beb01234773c9eda3dd\transformed\lifecycle-runtime-compose-release\AndroidManifest.xml:5:5-44
+MERGED from [androidx.compose.runtime:runtime-android:1.10.4] D:\###Users\teerorist\.gradle\caches\9.5.0\transforms\a1bf3c63a2134a4e0f3fcdb367d7c6c6\transformed\runtime\AndroidManifest.xml:5:5-44
+MERGED from [androidx.compose.runtime:runtime-android:1.10.4] D:\###Users\teerorist\.gradle\caches\9.5.0\transforms\a1bf3c63a2134a4e0f3fcdb367d7c6c6\transformed\runtime\AndroidManifest.xml:5:5-44
+MERGED from [androidx.annotation:annotation-experimental:1.4.1] D:\###Users\teerorist\.gradle\caches\9.5.0\transforms\18c95768826d8092b393d2f20845dbbf\transformed\annotation-experimental-1.4.1\AndroidManifest.xml:5:5-44
+MERGED from [androidx.annotation:annotation-experimental:1.4.1] D:\###Users\teerorist\.gradle\caches\9.5.0\transforms\18c95768826d8092b393d2f20845dbbf\transformed\annotation-experimental-1.4.1\AndroidManifest.xml:5:5-44
+MERGED from [androidx.versionedparcelable:versionedparcelable:1.1.1] D:\###Users\teerorist\.gradle\caches\9.5.0\transforms\bdf539e25c14d4d542e47ecc59e2d31c\transformed\versionedparcelable-1.1.1\AndroidManifest.xml:20:5-22:41
+MERGED from [androidx.versionedparcelable:versionedparcelable:1.1.1] D:\###Users\teerorist\.gradle\caches\9.5.0\transforms\bdf539e25c14d4d542e47ecc59e2d31c\transformed\versionedparcelable-1.1.1\AndroidManifest.xml:20:5-22:41
+MERGED from [androidx.core:core-viewtree:1.0.0] D:\###Users\teerorist\.gradle\caches\9.5.0\transforms\75eec845c220b61ccd55c920a33b75fa\transformed\core-viewtree-1.0.0\AndroidManifest.xml:5:5-44
+MERGED from [androidx.core:core-viewtree:1.0.0] D:\###Users\teerorist\.gradle\caches\9.5.0\transforms\75eec845c220b61ccd55c920a33b75fa\transformed\core-viewtree-1.0.0\AndroidManifest.xml:5:5-44
+MERGED from [androidx.profileinstaller:profileinstaller:1.4.0] D:\###Users\teerorist\.gradle\caches\9.5.0\transforms\d7c4bf5b4822db4cf9353408a196befc\transformed\profileinstaller-1.4.0\AndroidManifest.xml:21:5-44
+MERGED from [androidx.profileinstaller:profileinstaller:1.4.0] D:\###Users\teerorist\.gradle\caches\9.5.0\transforms\d7c4bf5b4822db4cf9353408a196befc\transformed\profileinstaller-1.4.0\AndroidManifest.xml:21:5-44
+MERGED from [androidx.startup:startup-runtime:1.1.1] D:\###Users\teerorist\.gradle\caches\9.5.0\transforms\439496074f38a9028aa857b05a423906\transformed\startup-runtime-1.1.1\AndroidManifest.xml:21:5-23:41
+MERGED from [androidx.startup:startup-runtime:1.1.1] D:\###Users\teerorist\.gradle\caches\9.5.0\transforms\439496074f38a9028aa857b05a423906\transformed\startup-runtime-1.1.1\AndroidManifest.xml:21:5-23:41
+MERGED from [androidx.tracing:tracing:1.2.0] D:\###Users\teerorist\.gradle\caches\9.5.0\transforms\a5cd60823bf9a33076e783a30f776ee6\transformed\tracing-1.2.0\AndroidManifest.xml:20:5-44
+MERGED from [androidx.tracing:tracing:1.2.0] D:\###Users\teerorist\.gradle\caches\9.5.0\transforms\a5cd60823bf9a33076e783a30f776ee6\transformed\tracing-1.2.0\AndroidManifest.xml:20:5-44
+MERGED from [androidx.interpolator:interpolator:1.0.0] D:\###Users\teerorist\.gradle\caches\9.5.0\transforms\13ed2fa8c98081a832b61ae018a55c5c\transformed\interpolator-1.0.0\AndroidManifest.xml:20:5-44
+MERGED from [androidx.interpolator:interpolator:1.0.0] D:\###Users\teerorist\.gradle\caches\9.5.0\transforms\13ed2fa8c98081a832b61ae018a55c5c\transformed\interpolator-1.0.0\AndroidManifest.xml:20:5-44
+MERGED from [androidx.documentfile:documentfile:1.0.0] D:\###Users\teerorist\.gradle\caches\9.5.0\transforms\2fbe2951d460d1c6c52ce94cfed4368c\transformed\documentfile-1.0.0\AndroidManifest.xml:20:5-44
+MERGED from [androidx.documentfile:documentfile:1.0.0] D:\###Users\teerorist\.gradle\caches\9.5.0\transforms\2fbe2951d460d1c6c52ce94cfed4368c\transformed\documentfile-1.0.0\AndroidManifest.xml:20:5-44
+MERGED from [androidx.localbroadcastmanager:localbroadcastmanager:1.0.0] D:\###Users\teerorist\.gradle\caches\9.5.0\transforms\edabea639f286fa7167444cab16149bc\transformed\localbroadcastmanager-1.0.0\AndroidManifest.xml:20:5-44
+MERGED from [androidx.localbroadcastmanager:localbroadcastmanager:1.0.0] D:\###Users\teerorist\.gradle\caches\9.5.0\transforms\edabea639f286fa7167444cab16149bc\transformed\localbroadcastmanager-1.0.0\AndroidManifest.xml:20:5-44
+MERGED from [androidx.print:print:1.0.0] D:\###Users\teerorist\.gradle\caches\9.5.0\transforms\23cda6486fabae41c8b4848ba43fede8\transformed\print-1.0.0\AndroidManifest.xml:20:5-44
+MERGED from [androidx.print:print:1.0.0] D:\###Users\teerorist\.gradle\caches\9.5.0\transforms\23cda6486fabae41c8b4848ba43fede8\transformed\print-1.0.0\AndroidManifest.xml:20:5-44
+MERGED from [androidx.arch.core:core-runtime:2.2.0] D:\###Users\teerorist\.gradle\caches\9.5.0\transforms\1e0dd78e498853873b4cfd240884a318\transformed\core-runtime-2.2.0\AndroidManifest.xml:20:5-44
+MERGED from [androidx.arch.core:core-runtime:2.2.0] D:\###Users\teerorist\.gradle\caches\9.5.0\transforms\1e0dd78e498853873b4cfd240884a318\transformed\core-runtime-2.2.0\AndroidManifest.xml:20:5-44
+	android:targetSdkVersion
+		INJECTED from D:\###Users\teerorist\AndroidStudioProjects\YamaHUB\app\src\main\AndroidManifest.xml
+	android:minSdkVersion
+		INJECTED from D:\###Users\teerorist\AndroidStudioProjects\YamaHUB\app\src\main\AndroidManifest.xml
+activity#androidx.compose.ui.tooling.PreviewActivity
+ADDED from [androidx.compose.ui:ui-tooling-android:1.10.4] D:\###Users\teerorist\.gradle\caches\9.5.0\transforms\d1614914aec021238714d79015f4dec7\transformed\ui-tooling\AndroidManifest.xml:23:9-25:39
+	android:exported
+		ADDED from [androidx.compose.ui:ui-tooling-android:1.10.4] D:\###Users\teerorist\.gradle\caches\9.5.0\transforms\d1614914aec021238714d79015f4dec7\transformed\ui-tooling\AndroidManifest.xml:25:13-36
+	android:name
+		ADDED from [androidx.compose.ui:ui-tooling-android:1.10.4] D:\###Users\teerorist\.gradle\caches\9.5.0\transforms\d1614914aec021238714d79015f4dec7\transformed\ui-tooling\AndroidManifest.xml:24:13-71
+activity#androidx.activity.ComponentActivity
+ADDED from [androidx.compose.ui:ui-test-manifest:1.10.4] D:\###Users\teerorist\.gradle\caches\9.5.0\transforms\56e2c45e1d1c9f1bfcfc98b059ae1a5d\transformed\ui-test-manifest-1.10.4\AndroidManifest.xml:23:9-26:79
+	android:exported
+		ADDED from [androidx.compose.ui:ui-test-manifest:1.10.4] D:\###Users\teerorist\.gradle\caches\9.5.0\transforms\56e2c45e1d1c9f1bfcfc98b059ae1a5d\transformed\ui-test-manifest-1.10.4\AndroidManifest.xml:25:13-36
+	android:theme
+		ADDED from [androidx.compose.ui:ui-test-manifest:1.10.4] D:\###Users\teerorist\.gradle\caches\9.5.0\transforms\56e2c45e1d1c9f1bfcfc98b059ae1a5d\transformed\ui-test-manifest-1.10.4\AndroidManifest.xml:26:13-76
+	android:name
+		ADDED from [androidx.compose.ui:ui-test-manifest:1.10.4] D:\###Users\teerorist\.gradle\caches\9.5.0\transforms\56e2c45e1d1c9f1bfcfc98b059ae1a5d\transformed\ui-test-manifest-1.10.4\AndroidManifest.xml:24:13-63
+provider#androidx.startup.InitializationProvider
+ADDED from [androidx.emoji2:emoji2:1.4.0] D:\###Users\teerorist\.gradle\caches\9.5.0\transforms\40d82c3a59ba4710e35b1df2ec3f69e5\transformed\emoji2-1.4.0\AndroidManifest.xml:24:9-32:20
+MERGED from [androidx.lifecycle:lifecycle-process:2.9.4] D:\###Users\teerorist\.gradle\caches\9.5.0\transforms\e0634dc979bf7101f1a9810e9149f40c\transformed\lifecycle-process-2.9.4\AndroidManifest.xml:24:9-32:20
+MERGED from [androidx.lifecycle:lifecycle-process:2.9.4] D:\###Users\teerorist\.gradle\caches\9.5.0\transforms\e0634dc979bf7101f1a9810e9149f40c\transformed\lifecycle-process-2.9.4\AndroidManifest.xml:24:9-32:20
+MERGED from [androidx.profileinstaller:profileinstaller:1.4.0] D:\###Users\teerorist\.gradle\caches\9.5.0\transforms\d7c4bf5b4822db4cf9353408a196befc\transformed\profileinstaller-1.4.0\AndroidManifest.xml:24:9-32:20
+MERGED from [androidx.profileinstaller:profileinstaller:1.4.0] D:\###Users\teerorist\.gradle\caches\9.5.0\transforms\d7c4bf5b4822db4cf9353408a196befc\transformed\profileinstaller-1.4.0\AndroidManifest.xml:24:9-32:20
+MERGED from [androidx.startup:startup-runtime:1.1.1] D:\###Users\teerorist\.gradle\caches\9.5.0\transforms\439496074f38a9028aa857b05a423906\transformed\startup-runtime-1.1.1\AndroidManifest.xml:26:9-30:34
+MERGED from [androidx.startup:startup-runtime:1.1.1] D:\###Users\teerorist\.gradle\caches\9.5.0\transforms\439496074f38a9028aa857b05a423906\transformed\startup-runtime-1.1.1\AndroidManifest.xml:26:9-30:34
+	tools:node
+		ADDED from [androidx.emoji2:emoji2:1.4.0] D:\###Users\teerorist\.gradle\caches\9.5.0\transforms\40d82c3a59ba4710e35b1df2ec3f69e5\transformed\emoji2-1.4.0\AndroidManifest.xml:28:13-31
+	android:authorities
+		ADDED from [androidx.emoji2:emoji2:1.4.0] D:\###Users\teerorist\.gradle\caches\9.5.0\transforms\40d82c3a59ba4710e35b1df2ec3f69e5\transformed\emoji2-1.4.0\AndroidManifest.xml:26:13-68
+	android:exported
+		ADDED from [androidx.emoji2:emoji2:1.4.0] D:\###Users\teerorist\.gradle\caches\9.5.0\transforms\40d82c3a59ba4710e35b1df2ec3f69e5\transformed\emoji2-1.4.0\AndroidManifest.xml:27:13-37
+	android:name
+		ADDED from [androidx.emoji2:emoji2:1.4.0] D:\###Users\teerorist\.gradle\caches\9.5.0\transforms\40d82c3a59ba4710e35b1df2ec3f69e5\transformed\emoji2-1.4.0\AndroidManifest.xml:25:13-67
+meta-data#androidx.emoji2.text.EmojiCompatInitializer
+ADDED from [androidx.emoji2:emoji2:1.4.0] D:\###Users\teerorist\.gradle\caches\9.5.0\transforms\40d82c3a59ba4710e35b1df2ec3f69e5\transformed\emoji2-1.4.0\AndroidManifest.xml:29:13-31:52
+	android:value
+		ADDED from [androidx.emoji2:emoji2:1.4.0] D:\###Users\teerorist\.gradle\caches\9.5.0\transforms\40d82c3a59ba4710e35b1df2ec3f69e5\transformed\emoji2-1.4.0\AndroidManifest.xml:31:17-49
+	android:name
+		ADDED from [androidx.emoji2:emoji2:1.4.0] D:\###Users\teerorist\.gradle\caches\9.5.0\transforms\40d82c3a59ba4710e35b1df2ec3f69e5\transformed\emoji2-1.4.0\AndroidManifest.xml:30:17-75
+uses-library#androidx.window.extensions
+ADDED from [androidx.window:window:1.5.0] D:\###Users\teerorist\.gradle\caches\9.5.0\transforms\667d7d16a6f5d5603560c42d6de6c140\transformed\window-1.5.0\AndroidManifest.xml:23:9-25:40
+	android:required
+		ADDED from [androidx.window:window:1.5.0] D:\###Users\teerorist\.gradle\caches\9.5.0\transforms\667d7d16a6f5d5603560c42d6de6c140\transformed\window-1.5.0\AndroidManifest.xml:25:13-37
+	android:name
+		ADDED from [androidx.window:window:1.5.0] D:\###Users\teerorist\.gradle\caches\9.5.0\transforms\667d7d16a6f5d5603560c42d6de6c140\transformed\window-1.5.0\AndroidManifest.xml:24:13-54
+uses-library#androidx.window.sidecar
+ADDED from [androidx.window:window:1.5.0] D:\###Users\teerorist\.gradle\caches\9.5.0\transforms\667d7d16a6f5d5603560c42d6de6c140\transformed\window-1.5.0\AndroidManifest.xml:26:9-28:40
+	android:required
+		ADDED from [androidx.window:window:1.5.0] D:\###Users\teerorist\.gradle\caches\9.5.0\transforms\667d7d16a6f5d5603560c42d6de6c140\transformed\window-1.5.0\AndroidManifest.xml:28:13-37
+	android:name
+		ADDED from [androidx.window:window:1.5.0] D:\###Users\teerorist\.gradle\caches\9.5.0\transforms\667d7d16a6f5d5603560c42d6de6c140\transformed\window-1.5.0\AndroidManifest.xml:27:13-51
+permission#${applicationId}.DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION
+ADDED from [androidx.core:core:1.16.0] D:\###Users\teerorist\.gradle\caches\9.5.0\transforms\c6c9dfbf7c22ae7e5be8e34a16eee553\transformed\core-1.16.0\AndroidManifest.xml:22:5-24:47
+	android:protectionLevel
+		ADDED from [androidx.core:core:1.16.0] D:\###Users\teerorist\.gradle\caches\9.5.0\transforms\c6c9dfbf7c22ae7e5be8e34a16eee553\transformed\core-1.16.0\AndroidManifest.xml:24:9-44
+	android:name
+		ADDED from [androidx.core:core:1.16.0] D:\###Users\teerorist\.gradle\caches\9.5.0\transforms\c6c9dfbf7c22ae7e5be8e34a16eee553\transformed\core-1.16.0\AndroidManifest.xml:23:9-81
+permission#com.yamahub.app.DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION
+ADDED from [androidx.core:core:1.16.0] D:\###Users\teerorist\.gradle\caches\9.5.0\transforms\c6c9dfbf7c22ae7e5be8e34a16eee553\transformed\core-1.16.0\AndroidManifest.xml:22:5-24:47
+	android:protectionLevel
+		ADDED from [androidx.core:core:1.16.0] D:\###Users\teerorist\.gradle\caches\9.5.0\transforms\c6c9dfbf7c22ae7e5be8e34a16eee553\transformed\core-1.16.0\AndroidManifest.xml:24:9-44
+	android:name
+		ADDED from [androidx.core:core:1.16.0] D:\###Users\teerorist\.gradle\caches\9.5.0\transforms\c6c9dfbf7c22ae7e5be8e34a16eee553\transformed\core-1.16.0\AndroidManifest.xml:23:9-81
+uses-permission#${applicationId}.DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION
+ADDED from [androidx.core:core:1.16.0] D:\###Users\teerorist\.gradle\caches\9.5.0\transforms\c6c9dfbf7c22ae7e5be8e34a16eee553\transformed\core-1.16.0\AndroidManifest.xml:26:5-97
+	android:name
+		ADDED from [androidx.core:core:1.16.0] D:\###Users\teerorist\.gradle\caches\9.5.0\transforms\c6c9dfbf7c22ae7e5be8e34a16eee553\transformed\core-1.16.0\AndroidManifest.xml:26:22-94
+uses-permission#com.yamahub.app.DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION
+ADDED from [androidx.core:core:1.16.0] D:\###Users\teerorist\.gradle\caches\9.5.0\transforms\c6c9dfbf7c22ae7e5be8e34a16eee553\transformed\core-1.16.0\AndroidManifest.xml:26:5-97
+	android:name
+		ADDED from [androidx.core:core:1.16.0] D:\###Users\teerorist\.gradle\caches\9.5.0\transforms\c6c9dfbf7c22ae7e5be8e34a16eee553\transformed\core-1.16.0\AndroidManifest.xml:26:22-94
+meta-data#androidx.lifecycle.ProcessLifecycleInitializer
+ADDED from [androidx.lifecycle:lifecycle-process:2.9.4] D:\###Users\teerorist\.gradle\caches\9.5.0\transforms\e0634dc979bf7101f1a9810e9149f40c\transformed\lifecycle-process-2.9.4\AndroidManifest.xml:29:13-31:52
+	android:value
+		ADDED from [androidx.lifecycle:lifecycle-process:2.9.4] D:\###Users\teerorist\.gradle\caches\9.5.0\transforms\e0634dc979bf7101f1a9810e9149f40c\transformed\lifecycle-process-2.9.4\AndroidManifest.xml:31:17-49
+	android:name
+		ADDED from [androidx.lifecycle:lifecycle-process:2.9.4] D:\###Users\teerorist\.gradle\caches\9.5.0\transforms\e0634dc979bf7101f1a9810e9149f40c\transformed\lifecycle-process-2.9.4\AndroidManifest.xml:30:17-78
+meta-data#androidx.profileinstaller.ProfileInstallerInitializer
+ADDED from [androidx.profileinstaller:profileinstaller:1.4.0] D:\###Users\teerorist\.gradle\caches\9.5.0\transforms\d7c4bf5b4822db4cf9353408a196befc\transformed\profileinstaller-1.4.0\AndroidManifest.xml:29:13-31:52
+	android:value
+		ADDED from [androidx.profileinstaller:profileinstaller:1.4.0] D:\###Users\teerorist\.gradle\caches\9.5.0\transforms\d7c4bf5b4822db4cf9353408a196befc\transformed\profileinstaller-1.4.0\AndroidManifest.xml:31:17-49
+	android:name
+		ADDED from [androidx.profileinstaller:profileinstaller:1.4.0] D:\###Users\teerorist\.gradle\caches\9.5.0\transforms\d7c4bf5b4822db4cf9353408a196befc\transformed\profileinstaller-1.4.0\AndroidManifest.xml:30:17-85
+receiver#androidx.profileinstaller.ProfileInstallReceiver
+ADDED from [androidx.profileinstaller:profileinstaller:1.4.0] D:\###Users\teerorist\.gradle\caches\9.5.0\transforms\d7c4bf5b4822db4cf9353408a196befc\transformed\profileinstaller-1.4.0\AndroidManifest.xml:34:9-52:20
+	android:enabled
+		ADDED from [androidx.profileinstaller:profileinstaller:1.4.0] D:\###Users\teerorist\.gradle\caches\9.5.0\transforms\d7c4bf5b4822db4cf9353408a196befc\transformed\profileinstaller-1.4.0\AndroidManifest.xml:37:13-35
+	android:exported
+		ADDED from [androidx.profileinstaller:profileinstaller:1.4.0] D:\###Users\teerorist\.gradle\caches\9.5.0\transforms\d7c4bf5b4822db4cf9353408a196befc\transformed\profileinstaller-1.4.0\AndroidManifest.xml:38:13-36
+	android:permission
+		ADDED from [androidx.profileinstaller:profileinstaller:1.4.0] D:\###Users\teerorist\.gradle\caches\9.5.0\transforms\d7c4bf5b4822db4cf9353408a196befc\transformed\profileinstaller-1.4.0\AndroidManifest.xml:39:13-57
+	android:directBootAware
+		ADDED from [androidx.profileinstaller:profileinstaller:1.4.0] D:\###Users\teerorist\.gradle\caches\9.5.0\transforms\d7c4bf5b4822db4cf9353408a196befc\transformed\profileinstaller-1.4.0\AndroidManifest.xml:36:13-44
+	android:name
+		ADDED from [androidx.profileinstaller:profileinstaller:1.4.0] D:\###Users\teerorist\.gradle\caches\9.5.0\transforms\d7c4bf5b4822db4cf9353408a196befc\transformed\profileinstaller-1.4.0\AndroidManifest.xml:35:13-76
+intent-filter#action:name:androidx.profileinstaller.action.INSTALL_PROFILE
+ADDED from [androidx.profileinstaller:profileinstaller:1.4.0] D:\###Users\teerorist\.gradle\caches\9.5.0\transforms\d7c4bf5b4822db4cf9353408a196befc\transformed\profileinstaller-1.4.0\AndroidManifest.xml:40:13-42:29
+action#androidx.profileinstaller.action.INSTALL_PROFILE
+ADDED from [androidx.profileinstaller:profileinstaller:1.4.0] D:\###Users\teerorist\.gradle\caches\9.5.0\transforms\d7c4bf5b4822db4cf9353408a196befc\transformed\profileinstaller-1.4.0\AndroidManifest.xml:41:17-91
+	android:name
+		ADDED from [androidx.profileinstaller:profileinstaller:1.4.0] D:\###Users\teerorist\.gradle\caches\9.5.0\transforms\d7c4bf5b4822db4cf9353408a196befc\transformed\profileinstaller-1.4.0\AndroidManifest.xml:41:25-88
+intent-filter#action:name:androidx.profileinstaller.action.SKIP_FILE
+ADDED from [androidx.profileinstaller:profileinstaller:1.4.0] D:\###Users\teerorist\.gradle\caches\9.5.0\transforms\d7c4bf5b4822db4cf9353408a196befc\transformed\profileinstaller-1.4.0\AndroidManifest.xml:43:13-45:29
+action#androidx.profileinstaller.action.SKIP_FILE
+ADDED from [androidx.profileinstaller:profileinstaller:1.4.0] D:\###Users\teerorist\.gradle\caches\9.5.0\transforms\d7c4bf5b4822db4cf9353408a196befc\transformed\profileinstaller-1.4.0\AndroidManifest.xml:44:17-85
+	android:name
+		ADDED from [androidx.profileinstaller:profileinstaller:1.4.0] D:\###Users\teerorist\.gradle\caches\9.5.0\transforms\d7c4bf5b4822db4cf9353408a196befc\transformed\profileinstaller-1.4.0\AndroidManifest.xml:44:25-82
+intent-filter#action:name:androidx.profileinstaller.action.SAVE_PROFILE
+ADDED from [androidx.profileinstaller:profileinstaller:1.4.0] D:\###Users\teerorist\.gradle\caches\9.5.0\transforms\d7c4bf5b4822db4cf9353408a196befc\transformed\profileinstaller-1.4.0\AndroidManifest.xml:46:13-48:29
+action#androidx.profileinstaller.action.SAVE_PROFILE
+ADDED from [androidx.profileinstaller:profileinstaller:1.4.0] D:\###Users\teerorist\.gradle\caches\9.5.0\transforms\d7c4bf5b4822db4cf9353408a196befc\transformed\profileinstaller-1.4.0\AndroidManifest.xml:47:17-88
+	android:name
+		ADDED from [androidx.profileinstaller:profileinstaller:1.4.0] D:\###Users\teerorist\.gradle\caches\9.5.0\transforms\d7c4bf5b4822db4cf9353408a196befc\transformed\profileinstaller-1.4.0\AndroidManifest.xml:47:25-85
+intent-filter#action:name:androidx.profileinstaller.action.BENCHMARK_OPERATION
+ADDED from [androidx.profileinstaller:profileinstaller:1.4.0] D:\###Users\teerorist\.gradle\caches\9.5.0\transforms\d7c4bf5b4822db4cf9353408a196befc\transformed\profileinstaller-1.4.0\AndroidManifest.xml:49:13-51:29
+action#androidx.profileinstaller.action.BENCHMARK_OPERATION
+ADDED from [androidx.profileinstaller:profileinstaller:1.4.0] D:\###Users\teerorist\.gradle\caches\9.5.0\transforms\d7c4bf5b4822db4cf9353408a196befc\transformed\profileinstaller-1.4.0\AndroidManifest.xml:50:17-95
+	android:name
+		ADDED from [androidx.profileinstaller:profileinstaller:1.4.0] D:\###Users\teerorist\.gradle\caches\9.5.0\transforms\d7c4bf5b4822db4cf9353408a196befc\transformed\profileinstaller-1.4.0\AndroidManifest.xml:50:25-92

@@ -1,0 +1,209 @@
+1<?xml version="1.0" encoding="utf-8"?>
+2<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+3    package="com.yamahub.app"
+4    android:versionCode="1"
+5    android:versionName="1.0" >
+6
+7    <uses-sdk
+7-->INJECTED
+8        android:minSdkVersion="24"
+8-->INJECTED
+9        android:targetSdkVersion="36" />
+9-->INJECTED
+10    <!-- Bluetooth -->
+11    <uses-permission
+11-->D:\###Users\teerorist\AndroidStudioProjects\YamaHUB\app\src\main\AndroidManifest.xml:5:5-95
+12        android:name="android.permission.BLUETOOTH"
+12-->D:\###Users\teerorist\AndroidStudioProjects\YamaHUB\app\src\main\AndroidManifest.xml:5:22-65
+13        android:maxSdkVersion="30" />
+13-->D:\###Users\teerorist\AndroidStudioProjects\YamaHUB\app\src\main\AndroidManifest.xml:5:66-92
+14    <uses-permission
+14-->D:\###Users\teerorist\AndroidStudioProjects\YamaHUB\app\src\main\AndroidManifest.xml:6:5-101
+15        android:name="android.permission.BLUETOOTH_ADMIN"
+15-->D:\###Users\teerorist\AndroidStudioProjects\YamaHUB\app\src\main\AndroidManifest.xml:6:22-71
+16        android:maxSdkVersion="30" />
+16-->D:\###Users\teerorist\AndroidStudioProjects\YamaHUB\app\src\main\AndroidManifest.xml:6:72-98
+17
+18    <!-- Android 12+ -->
+19    <uses-permission
+19-->D:\###Users\teerorist\AndroidStudioProjects\YamaHUB\app\src\main\AndroidManifest.xml:9:5-120
+20        android:name="android.permission.BLUETOOTH_SCAN"
+20-->D:\###Users\teerorist\AndroidStudioProjects\YamaHUB\app\src\main\AndroidManifest.xml:9:22-70
+21        android:usesPermissionFlags="neverForLocation" />
+21-->D:\###Users\teerorist\AndroidStudioProjects\YamaHUB\app\src\main\AndroidManifest.xml:9:71-117
+22    <uses-permission android:name="android.permission.BLUETOOTH_CONNECT" />
+22-->D:\###Users\teerorist\AndroidStudioProjects\YamaHUB\app\src\main\AndroidManifest.xml:10:5-76
+22-->D:\###Users\teerorist\AndroidStudioProjects\YamaHUB\app\src\main\AndroidManifest.xml:10:22-73
+23
+24    <!-- Lokalizacja (wymagana przy skanowaniu BLE na starszych Androidach) -->
+25    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
+25-->D:\###Users\teerorist\AndroidStudioProjects\YamaHUB\app\src\main\AndroidManifest.xml:13:5-79
+25-->D:\###Users\teerorist\AndroidStudioProjects\YamaHUB\app\src\main\AndroidManifest.xml:13:22-76
+26    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
+26-->D:\###Users\teerorist\AndroidStudioProjects\YamaHUB\app\src\main\AndroidManifest.xml:14:5-81
+26-->D:\###Users\teerorist\AndroidStudioProjects\YamaHUB\app\src\main\AndroidManifest.xml:14:22-78
+27    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+27-->D:\###Users\teerorist\AndroidStudioProjects\YamaHUB\app\src\main\AndroidManifest.xml:16:5-77
+27-->D:\###Users\teerorist\AndroidStudioProjects\YamaHUB\app\src\main\AndroidManifest.xml:16:22-74
+28    <!-- Informacja, że aplikacja używa BLE -->
+29    <uses-feature
+29-->D:\###Users\teerorist\AndroidStudioProjects\YamaHUB\app\src\main\AndroidManifest.xml:18:5-90
+30        android:name="android.hardware.bluetooth_le"
+30-->D:\###Users\teerorist\AndroidStudioProjects\YamaHUB\app\src\main\AndroidManifest.xml:18:19-63
+31        android:required="true" />
+31-->D:\###Users\teerorist\AndroidStudioProjects\YamaHUB\app\src\main\AndroidManifest.xml:18:64-87
+32
+33    <permission
+33-->[androidx.core:core:1.16.0] D:\###Users\teerorist\.gradle\caches\9.5.0\transforms\c6c9dfbf7c22ae7e5be8e34a16eee553\transformed\core-1.16.0\AndroidManifest.xml:22:5-24:47
+34        android:name="com.yamahub.app.DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION"
+34-->[androidx.core:core:1.16.0] D:\###Users\teerorist\.gradle\caches\9.5.0\transforms\c6c9dfbf7c22ae7e5be8e34a16eee553\transformed\core-1.16.0\AndroidManifest.xml:23:9-81
+35        android:protectionLevel="signature" />
+35-->[androidx.core:core:1.16.0] D:\###Users\teerorist\.gradle\caches\9.5.0\transforms\c6c9dfbf7c22ae7e5be8e34a16eee553\transformed\core-1.16.0\AndroidManifest.xml:24:9-44
+36
+37    <uses-permission android:name="com.yamahub.app.DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION" />
+37-->[androidx.core:core:1.16.0] D:\###Users\teerorist\.gradle\caches\9.5.0\transforms\c6c9dfbf7c22ae7e5be8e34a16eee553\transformed\core-1.16.0\AndroidManifest.xml:26:5-97
+37-->[androidx.core:core:1.16.0] D:\###Users\teerorist\.gradle\caches\9.5.0\transforms\c6c9dfbf7c22ae7e5be8e34a16eee553\transformed\core-1.16.0\AndroidManifest.xml:26:22-94
+38
+39    <application
+39-->D:\###Users\teerorist\AndroidStudioProjects\YamaHUB\app\src\main\AndroidManifest.xml:19:5-40:19
+40        android:allowBackup="true"
+40-->D:\###Users\teerorist\AndroidStudioProjects\YamaHUB\app\src\main\AndroidManifest.xml:20:9-35
+41        android:appComponentFactory="androidx.core.app.CoreComponentFactory"
+41-->[androidx.core:core:1.16.0] D:\###Users\teerorist\.gradle\caches\9.5.0\transforms\c6c9dfbf7c22ae7e5be8e34a16eee553\transformed\core-1.16.0\AndroidManifest.xml:28:18-86
+42        android:dataExtractionRules="@xml/data_extraction_rules"
+42-->D:\###Users\teerorist\AndroidStudioProjects\YamaHUB\app\src\main\AndroidManifest.xml:21:9-65
+43        android:debuggable="true"
+44        android:extractNativeLibs="false"
+44-->INJECTED
+45        android:fullBackupContent="@xml/backup_rules"
+45-->D:\###Users\teerorist\AndroidStudioProjects\YamaHUB\app\src\main\AndroidManifest.xml:22:9-54
+46        android:icon="@mipmap/ic_launcher"
+46-->D:\###Users\teerorist\AndroidStudioProjects\YamaHUB\app\src\main\AndroidManifest.xml:23:9-43
+47        android:label="@string/app_name"
+47-->D:\###Users\teerorist\AndroidStudioProjects\YamaHUB\app\src\main\AndroidManifest.xml:24:9-41
+48        android:roundIcon="@mipmap/ic_launcher_round"
+48-->D:\###Users\teerorist\AndroidStudioProjects\YamaHUB\app\src\main\AndroidManifest.xml:25:9-54
+49        android:supportsRtl="true"
+49-->D:\###Users\teerorist\AndroidStudioProjects\YamaHUB\app\src\main\AndroidManifest.xml:26:9-35
+50        android:testOnly="true"
+51        android:theme="@style/Theme.YamaHUB" >
+51-->D:\###Users\teerorist\AndroidStudioProjects\YamaHUB\app\src\main\AndroidManifest.xml:27:9-45
+52        <activity
+52-->D:\###Users\teerorist\AndroidStudioProjects\YamaHUB\app\src\main\AndroidManifest.xml:28:9-39:20
+53            android:name="com.yamahub.app.MainActivity"
+53-->D:\###Users\teerorist\AndroidStudioProjects\YamaHUB\app\src\main\AndroidManifest.xml:29:13-41
+54            android:exported="true"
+54-->D:\###Users\teerorist\AndroidStudioProjects\YamaHUB\app\src\main\AndroidManifest.xml:30:13-36
+55            android:label="@string/app_name"
+55-->D:\###Users\teerorist\AndroidStudioProjects\YamaHUB\app\src\main\AndroidManifest.xml:31:13-45
+56            android:theme="@style/Theme.YamaHUB"
+56-->D:\###Users\teerorist\AndroidStudioProjects\YamaHUB\app\src\main\AndroidManifest.xml:32:13-49
+57            android:windowSoftInputMode="adjustResize" >
+57-->D:\###Users\teerorist\AndroidStudioProjects\YamaHUB\app\src\main\AndroidManifest.xml:33:13-55
+58            <intent-filter>
+58-->D:\###Users\teerorist\AndroidStudioProjects\YamaHUB\app\src\main\AndroidManifest.xml:34:13-38:29
+59                <action android:name="android.intent.action.MAIN" />
+59-->D:\###Users\teerorist\AndroidStudioProjects\YamaHUB\app\src\main\AndroidManifest.xml:35:17-69
+59-->D:\###Users\teerorist\AndroidStudioProjects\YamaHUB\app\src\main\AndroidManifest.xml:35:25-66
+60
+61                <category android:name="android.intent.category.LAUNCHER" />
+61-->D:\###Users\teerorist\AndroidStudioProjects\YamaHUB\app\src\main\AndroidManifest.xml:37:17-77
+61-->D:\###Users\teerorist\AndroidStudioProjects\YamaHUB\app\src\main\AndroidManifest.xml:37:27-74
+62            </intent-filter>
+63        </activity>
+64        <activity
+64-->[androidx.compose.ui:ui-tooling-android:1.10.4] D:\###Users\teerorist\.gradle\caches\9.5.0\transforms\d1614914aec021238714d79015f4dec7\transformed\ui-tooling\AndroidManifest.xml:23:9-25:39
+65            android:name="androidx.compose.ui.tooling.PreviewActivity"
+65-->[androidx.compose.ui:ui-tooling-android:1.10.4] D:\###Users\teerorist\.gradle\caches\9.5.0\transforms\d1614914aec021238714d79015f4dec7\transformed\ui-tooling\AndroidManifest.xml:24:13-71
+66            android:exported="true" />
+66-->[androidx.compose.ui:ui-tooling-android:1.10.4] D:\###Users\teerorist\.gradle\caches\9.5.0\transforms\d1614914aec021238714d79015f4dec7\transformed\ui-tooling\AndroidManifest.xml:25:13-36
+67        <activity
+67-->[androidx.compose.ui:ui-test-manifest:1.10.4] D:\###Users\teerorist\.gradle\caches\9.5.0\transforms\56e2c45e1d1c9f1bfcfc98b059ae1a5d\transformed\ui-test-manifest-1.10.4\AndroidManifest.xml:23:9-26:79
+68            android:name="androidx.activity.ComponentActivity"
+68-->[androidx.compose.ui:ui-test-manifest:1.10.4] D:\###Users\teerorist\.gradle\caches\9.5.0\transforms\56e2c45e1d1c9f1bfcfc98b059ae1a5d\transformed\ui-test-manifest-1.10.4\AndroidManifest.xml:24:13-63
+69            android:exported="true"
+69-->[androidx.compose.ui:ui-test-manifest:1.10.4] D:\###Users\teerorist\.gradle\caches\9.5.0\transforms\56e2c45e1d1c9f1bfcfc98b059ae1a5d\transformed\ui-test-manifest-1.10.4\AndroidManifest.xml:25:13-36
+70            android:theme="@android:style/Theme.Material.Light.NoActionBar" />
+70-->[androidx.compose.ui:ui-test-manifest:1.10.4] D:\###Users\teerorist\.gradle\caches\9.5.0\transforms\56e2c45e1d1c9f1bfcfc98b059ae1a5d\transformed\ui-test-manifest-1.10.4\AndroidManifest.xml:26:13-76
+71
+72        <provider
+72-->[androidx.emoji2:emoji2:1.4.0] D:\###Users\teerorist\.gradle\caches\9.5.0\transforms\40d82c3a59ba4710e35b1df2ec3f69e5\transformed\emoji2-1.4.0\AndroidManifest.xml:24:9-32:20
+73            android:name="androidx.startup.InitializationProvider"
+73-->[androidx.emoji2:emoji2:1.4.0] D:\###Users\teerorist\.gradle\caches\9.5.0\transforms\40d82c3a59ba4710e35b1df2ec3f69e5\transformed\emoji2-1.4.0\AndroidManifest.xml:25:13-67
+74            android:authorities="com.yamahub.app.androidx-startup"
+74-->[androidx.emoji2:emoji2:1.4.0] D:\###Users\teerorist\.gradle\caches\9.5.0\transforms\40d82c3a59ba4710e35b1df2ec3f69e5\transformed\emoji2-1.4.0\AndroidManifest.xml:26:13-68
+75            android:exported="false" >
+75-->[androidx.emoji2:emoji2:1.4.0] D:\###Users\teerorist\.gradle\caches\9.5.0\transforms\40d82c3a59ba4710e35b1df2ec3f69e5\transformed\emoji2-1.4.0\AndroidManifest.xml:27:13-37
+76            <meta-data
+76-->[androidx.emoji2:emoji2:1.4.0] D:\###Users\teerorist\.gradle\caches\9.5.0\transforms\40d82c3a59ba4710e35b1df2ec3f69e5\transformed\emoji2-1.4.0\AndroidManifest.xml:29:13-31:52
+77                android:name="androidx.emoji2.text.EmojiCompatInitializer"
+77-->[androidx.emoji2:emoji2:1.4.0] D:\###Users\teerorist\.gradle\caches\9.5.0\transforms\40d82c3a59ba4710e35b1df2ec3f69e5\transformed\emoji2-1.4.0\AndroidManifest.xml:30:17-75
+78                android:value="androidx.startup" />
+78-->[androidx.emoji2:emoji2:1.4.0] D:\###Users\teerorist\.gradle\caches\9.5.0\transforms\40d82c3a59ba4710e35b1df2ec3f69e5\transformed\emoji2-1.4.0\AndroidManifest.xml:31:17-49
+79            <meta-data
+79-->[androidx.lifecycle:lifecycle-process:2.9.4] D:\###Users\teerorist\.gradle\caches\9.5.0\transforms\e0634dc979bf7101f1a9810e9149f40c\transformed\lifecycle-process-2.9.4\AndroidManifest.xml:29:13-31:52
+80                android:name="androidx.lifecycle.ProcessLifecycleInitializer"
+80-->[androidx.lifecycle:lifecycle-process:2.9.4] D:\###Users\teerorist\.gradle\caches\9.5.0\transforms\e0634dc979bf7101f1a9810e9149f40c\transformed\lifecycle-process-2.9.4\AndroidManifest.xml:30:17-78
+81                android:value="androidx.startup" />
+81-->[androidx.lifecycle:lifecycle-process:2.9.4] D:\###Users\teerorist\.gradle\caches\9.5.0\transforms\e0634dc979bf7101f1a9810e9149f40c\transformed\lifecycle-process-2.9.4\AndroidManifest.xml:31:17-49
+82            <meta-data
+82-->[androidx.profileinstaller:profileinstaller:1.4.0] D:\###Users\teerorist\.gradle\caches\9.5.0\transforms\d7c4bf5b4822db4cf9353408a196befc\transformed\profileinstaller-1.4.0\AndroidManifest.xml:29:13-31:52
+83                android:name="androidx.profileinstaller.ProfileInstallerInitializer"
+83-->[androidx.profileinstaller:profileinstaller:1.4.0] D:\###Users\teerorist\.gradle\caches\9.5.0\transforms\d7c4bf5b4822db4cf9353408a196befc\transformed\profileinstaller-1.4.0\AndroidManifest.xml:30:17-85
+84                android:value="androidx.startup" />
+84-->[androidx.profileinstaller:profileinstaller:1.4.0] D:\###Users\teerorist\.gradle\caches\9.5.0\transforms\d7c4bf5b4822db4cf9353408a196befc\transformed\profileinstaller-1.4.0\AndroidManifest.xml:31:17-49
+85        </provider>
+86
+87        <uses-library
+87-->[androidx.window:window:1.5.0] D:\###Users\teerorist\.gradle\caches\9.5.0\transforms\667d7d16a6f5d5603560c42d6de6c140\transformed\window-1.5.0\AndroidManifest.xml:23:9-25:40
+88            android:name="androidx.window.extensions"
+88-->[androidx.window:window:1.5.0] D:\###Users\teerorist\.gradle\caches\9.5.0\transforms\667d7d16a6f5d5603560c42d6de6c140\transformed\window-1.5.0\AndroidManifest.xml:24:13-54
+89            android:required="false" />
+89-->[androidx.window:window:1.5.0] D:\###Users\teerorist\.gradle\caches\9.5.0\transforms\667d7d16a6f5d5603560c42d6de6c140\transformed\window-1.5.0\AndroidManifest.xml:25:13-37
+90        <uses-library
+90-->[androidx.window:window:1.5.0] D:\###Users\teerorist\.gradle\caches\9.5.0\transforms\667d7d16a6f5d5603560c42d6de6c140\transformed\window-1.5.0\AndroidManifest.xml:26:9-28:40
+91            android:name="androidx.window.sidecar"
+91-->[androidx.window:window:1.5.0] D:\###Users\teerorist\.gradle\caches\9.5.0\transforms\667d7d16a6f5d5603560c42d6de6c140\transformed\window-1.5.0\AndroidManifest.xml:27:13-51
+92            android:required="false" />
+92-->[androidx.window:window:1.5.0] D:\###Users\teerorist\.gradle\caches\9.5.0\transforms\667d7d16a6f5d5603560c42d6de6c140\transformed\window-1.5.0\AndroidManifest.xml:28:13-37
+93
+94        <receiver
+94-->[androidx.profileinstaller:profileinstaller:1.4.0] D:\###Users\teerorist\.gradle\caches\9.5.0\transforms\d7c4bf5b4822db4cf9353408a196befc\transformed\profileinstaller-1.4.0\AndroidManifest.xml:34:9-52:20
+95            android:name="androidx.profileinstaller.ProfileInstallReceiver"
+95-->[androidx.profileinstaller:profileinstaller:1.4.0] D:\###Users\teerorist\.gradle\caches\9.5.0\transforms\d7c4bf5b4822db4cf9353408a196befc\transformed\profileinstaller-1.4.0\AndroidManifest.xml:35:13-76
+96            android:directBootAware="false"
+96-->[androidx.profileinstaller:profileinstaller:1.4.0] D:\###Users\teerorist\.gradle\caches\9.5.0\transforms\d7c4bf5b4822db4cf9353408a196befc\transformed\profileinstaller-1.4.0\AndroidManifest.xml:36:13-44
+97            android:enabled="true"
+97-->[androidx.profileinstaller:profileinstaller:1.4.0] D:\###Users\teerorist\.gradle\caches\9.5.0\transforms\d7c4bf5b4822db4cf9353408a196befc\transformed\profileinstaller-1.4.0\AndroidManifest.xml:37:13-35
+98            android:exported="true"
+98-->[androidx.profileinstaller:profileinstaller:1.4.0] D:\###Users\teerorist\.gradle\caches\9.5.0\transforms\d7c4bf5b4822db4cf9353408a196befc\transformed\profileinstaller-1.4.0\AndroidManifest.xml:38:13-36
+99            android:permission="android.permission.DUMP" >
+99-->[androidx.profileinstaller:profileinstaller:1.4.0] D:\###Users\teerorist\.gradle\caches\9.5.0\transforms\d7c4bf5b4822db4cf9353408a196befc\transformed\profileinstaller-1.4.0\AndroidManifest.xml:39:13-57
+100            <intent-filter>
+100-->[androidx.profileinstaller:profileinstaller:1.4.0] D:\###Users\teerorist\.gradle\caches\9.5.0\transforms\d7c4bf5b4822db4cf9353408a196befc\transformed\profileinstaller-1.4.0\AndroidManifest.xml:40:13-42:29
+101                <action android:name="androidx.profileinstaller.action.INSTALL_PROFILE" />
+101-->[androidx.profileinstaller:profileinstaller:1.4.0] D:\###Users\teerorist\.gradle\caches\9.5.0\transforms\d7c4bf5b4822db4cf9353408a196befc\transformed\profileinstaller-1.4.0\AndroidManifest.xml:41:17-91
+101-->[androidx.profileinstaller:profileinstaller:1.4.0] D:\###Users\teerorist\.gradle\caches\9.5.0\transforms\d7c4bf5b4822db4cf9353408a196befc\transformed\profileinstaller-1.4.0\AndroidManifest.xml:41:25-88
+102            </intent-filter>
+103            <intent-filter>
+103-->[androidx.profileinstaller:profileinstaller:1.4.0] D:\###Users\teerorist\.gradle\caches\9.5.0\transforms\d7c4bf5b4822db4cf9353408a196befc\transformed\profileinstaller-1.4.0\AndroidManifest.xml:43:13-45:29
+104                <action android:name="androidx.profileinstaller.action.SKIP_FILE" />
+104-->[androidx.profileinstaller:profileinstaller:1.4.0] D:\###Users\teerorist\.gradle\caches\9.5.0\transforms\d7c4bf5b4822db4cf9353408a196befc\transformed\profileinstaller-1.4.0\AndroidManifest.xml:44:17-85
+104-->[androidx.profileinstaller:profileinstaller:1.4.0] D:\###Users\teerorist\.gradle\caches\9.5.0\transforms\d7c4bf5b4822db4cf9353408a196befc\transformed\profileinstaller-1.4.0\AndroidManifest.xml:44:25-82
+105            </intent-filter>
+106            <intent-filter>
+106-->[androidx.profileinstaller:profileinstaller:1.4.0] D:\###Users\teerorist\.gradle\caches\9.5.0\transforms\d7c4bf5b4822db4cf9353408a196befc\transformed\profileinstaller-1.4.0\AndroidManifest.xml:46:13-48:29
+107                <action android:name="androidx.profileinstaller.action.SAVE_PROFILE" />
+107-->[androidx.profileinstaller:profileinstaller:1.4.0] D:\###Users\teerorist\.gradle\caches\9.5.0\transforms\d7c4bf5b4822db4cf9353408a196befc\transformed\profileinstaller-1.4.0\AndroidManifest.xml:47:17-88
+107-->[androidx.profileinstaller:profileinstaller:1.4.0] D:\###Users\teerorist\.gradle\caches\9.5.0\transforms\d7c4bf5b4822db4cf9353408a196befc\transformed\profileinstaller-1.4.0\AndroidManifest.xml:47:25-85
+108            </intent-filter>
+109            <intent-filter>
+109-->[androidx.profileinstaller:profileinstaller:1.4.0] D:\###Users\teerorist\.gradle\caches\9.5.0\transforms\d7c4bf5b4822db4cf9353408a196befc\transformed\profileinstaller-1.4.0\AndroidManifest.xml:49:13-51:29
+110                <action android:name="androidx.profileinstaller.action.BENCHMARK_OPERATION" />
+110-->[androidx.profileinstaller:profileinstaller:1.4.0] D:\###Users\teerorist\.gradle\caches\9.5.0\transforms\d7c4bf5b4822db4cf9353408a196befc\transformed\profileinstaller-1.4.0\AndroidManifest.xml:50:17-95
+110-->[androidx.profileinstaller:profileinstaller:1.4.0] D:\###Users\teerorist\.gradle\caches\9.5.0\transforms\d7c4bf5b4822db4cf9353408a196befc\transformed\profileinstaller-1.4.0\AndroidManifest.xml:50:25-92
+111            </intent-filter>
+112        </receiver>
+113    </application>
+114
+115</manifest>
