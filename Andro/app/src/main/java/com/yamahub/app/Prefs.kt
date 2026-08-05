@@ -20,4 +20,9 @@ class Prefs(context: Context) {
     var lastSettingsTab: Int
         get() = sp.getInt("last_settings_tab", 0)
         set(v) = sp.edit().putInt("last_settings_tab", v.coerceIn(0, 3)).apply()
+
+    /** Próg (w ms) oddzielający short press od long press. Domyślnie 400 ms. */
+    var shortPressThresholdMs: Int
+        get() = sp.getInt("short_press_threshold_ms", 400)
+        set(v) = sp.edit().putInt("short_press_threshold_ms", v.coerceIn(100, 2000)).apply()
 }

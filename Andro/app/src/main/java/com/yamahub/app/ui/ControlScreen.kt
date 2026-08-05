@@ -7,15 +7,21 @@ import android.location.Location
 import android.location.LocationListener
 import android.location.LocationManager
 import android.util.Log
+import androidx.compose.animation.animateColorAsState
+import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.detectDragGesturesAfterLongPress
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
@@ -30,7 +36,7 @@ import kotlinx.coroutines.delay
 import kotlin.math.abs
 import androidx.compose.runtime.rememberUpdatedState
 
-/** id: "hazard" | "left" | "right" | "out_1".."out_9" — bez OUT_10 */
+/** id: "hazard" | "left" | "right" | "out_1".."out_9" */
 private data class ControlRow(val id: String, val title: String)
 
 private fun buildRowsFromCfg(cfg: List<InputCfgItem>): List<ControlRow> {
@@ -85,6 +91,9 @@ fun ControlScreen() {
     var states by remember { mutableStateOf(List(10) { false }) }
     var hazardOn by remember { mutableStateOf(false) }
 
+    // Próg short/long z ustawień (domyślnie 400 ms)
+    val shortThresholdMs = prefs.shortPressThresholdMs
+
     var baseRows by remember {
         mutableStateOf(
             listOf(
@@ -110,6 +119,39 @@ fun ControlScreen() {
     fun persistOrder(newRows: List<ControlRow>) {
         orderIds = newRows.map { it.id }
         prefs.controlOrder = orderIds.joinToString(",")
+    }
+
+    // Wykonanie akcji (na razie short i long robią to samo – toggle.
+    // Później w InputSettingsTab będzie można przypisać różne akcje)
+    fun performAction(rowId: String, isLong: Boolean) {
+        if (!isConnected) return
+
+        when (rowId) {
+            "hazard" -> {
+                val newVal = !hazardOn
+                hazardOn = newVal
+                ble.setHazard(newVal)
+            }
+            "left" -> {
+                val newVal = !states.getOrElse(0) { false }
+                states = states.toMutableList().also { it[0] = newVal }
+                ble.setOutput(1, newVal)
+            }
+            "right" -> {
+                val newVal = !states.getOrElse(4) { false }
+                states = states.toMutableList().also { it[4] = newVal }
+                ble.setOutput(5, newVal)
+            }
+            else -> {
+                val num = rowId.removePrefix("out_").toIntOrNull() ?: return
+                if (num in 1..9) {
+                    val newVal = !states.getOrElse(num - 1) { false }
+                    states = states.toMutableList().also { it[num - 1] = newVal }
+                    ble.setOutput(num, newVal)
+                }
+            }
+        }
+        // isLong na razie nieużywane – miejsce na przyszłe różne akcje
     }
 
     DisposableEffect(Unit) {
@@ -207,6 +249,19 @@ fun ControlScreen() {
                 val rowsLatest by rememberUpdatedState(rows)
                 val indexLatest by rememberUpdatedState(index)
 
+                // Stan wciśnięcia (do rozjaśnienia)
+                var isPressed by remember { mutableStateOf(false) }
+                var pressStartTime by remember { mutableStateOf(0L) }
+
+                val backgroundColor by animateColorAsState(
+                    targetValue = when {
+                        isPressed -> MaterialTheme.colorScheme.primary.copy(alpha = 0.18f)
+                        checked -> MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.35f)
+                        else -> MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f)
+                    },
+                    label = "rowBg"
+                )
+
                 Card(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -215,7 +270,8 @@ fun ControlScreen() {
                             translationY = if (isDragging) dragOffset else 0f
                             shadowElevation = if (isDragging) 12f else 0f
                         }
-                        .pointerInput(row.id) {   // STABILNE – nie zależy od kolejności całej listy
+                        // Drag do zmiany kolejności – tylko po długim przytrzymaniu
+                        .pointerInput(row.id) {
                             detectDragGesturesAfterLongPress(
                                 onDragStart = {
                                     draggingId = row.id
@@ -261,7 +317,6 @@ fun ControlScreen() {
                                         mutable.add(to, item)
                                         persistOrder(mutable)
 
-                                        // trzymaj pod palcem
                                         val newInfo = listState.layoutInfo.visibleItemsInfo
                                             .find { it.index == to }
                                         if (newInfo != null) {
@@ -273,45 +328,54 @@ fun ControlScreen() {
                                 }
                             )
                         }
-                ){
-                    Row(
-                        Modifier
+                ) {
+                    // Cały pasek jest przyciskiem
+                    Box(
+                        modifier = Modifier
                             .fillMaxWidth()
-                            .padding(12.dp),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Column(Modifier.weight(1f)) {
-                            Text(row.title, style = MaterialTheme.typography.titleMedium)
-                        }
-                        Switch(
-                            checked = checked,
-                            enabled = isConnected,
-                            onCheckedChange = { on ->
-                                when (row.id) {
-                                    "hazard" -> {
-                                        hazardOn = on
-                                        ble.setHazard(on)
+                            .clip(RoundedCornerShape(12.dp))
+                            .background(backgroundColor)
+                            .pointerInput(row.id, shortThresholdMs) {
+                                detectTapGestures(
+                                    onPress = {
+                                        if (!isConnected) return@detectTapGestures
+                                        isPressed = true
+                                        pressStartTime = System.currentTimeMillis()
+                                        tryAwaitRelease()
+                                        isPressed = false
+                                        val duration = System.currentTimeMillis() - pressStartTime
+                                        val isLong = duration >= shortThresholdMs
+                                        performAction(row.id, isLong)
                                     }
-                                    "left" -> {
-                                        states = states.toMutableList().also { it[0] = on }
-                                        ble.setOutput(1, on)
-                                    }
-                                    "right" -> {
-                                        states = states.toMutableList().also { it[4] = on }
-                                        ble.setOutput(5, on)
-                                    }
-                                    else -> {
-                                        val num = row.id.removePrefix("out_").toIntOrNull()
-                                            ?: return@Switch
-                                        if (num in 1..9) {
-                                            states = states.toMutableList().also { it[num - 1] = on }
-                                            ble.setOutput(num, on)
-                                        }
-                                    }
-                                }
+                                )
                             }
-                        )
+                            .padding(horizontal = 16.dp, vertical = 18.dp)
+                    ) {
+                        Row(
+                            Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(
+                                text = row.title,
+                                style = MaterialTheme.typography.titleMedium,
+                                color = if (checked)
+                                    MaterialTheme.colorScheme.onPrimaryContainer
+                                else
+                                    MaterialTheme.colorScheme.onSurface
+                            )
+
+                            // Wskaźnik stanu (mała kropka zamiast Switcha)
+                            Box(
+                                modifier = Modifier
+                                    .size(12.dp)
+                                    .clip(RoundedCornerShape(50))
+                                    .background(
+                                        if (checked) MaterialTheme.colorScheme.primary
+                                        else MaterialTheme.colorScheme.outline.copy(alpha = 0.4f)
+                                    )
+                            )
+                        }
                     }
                 }
             }
