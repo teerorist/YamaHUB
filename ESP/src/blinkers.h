@@ -13,6 +13,9 @@ extern bool connectionBlink;
 extern unsigned long connectionBlinkStart;
 
 void setupBlinkers();
+void refreshBlinkerPins();
+int blinkerLeftOutIndex();
+int blinkerRightOutIndex();
 void forceMode(BlinkerMode mode);
 void handleBlinkerButtons(Button* buttons, bool& stateChanged);
 void updateBlinkers(bool& stateChanged);

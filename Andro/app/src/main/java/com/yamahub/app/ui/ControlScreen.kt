@@ -31,12 +31,14 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
-import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
@@ -48,6 +50,7 @@ import com.yamahub.app.InputCfgItem
 import com.yamahub.app.Prefs
 import com.yamahub.app.displayName
 import kotlinx.coroutines.delay
+import androidx.compose.ui.Modifier
 
 /**
  * Wiersz sterowania.
@@ -76,7 +79,6 @@ private fun isLightsName(name: String): Boolean {
 private fun isBrakeName(name: String): Boolean =
     name.lowercase().contains("brake")
 
-/** Tytuł jak w InputSettings (displayName / stałe nazwy). */
 private fun titleFor(item: InputCfgItem): String {
     val n = displayName(item.name)
     return when (item.mode) {
@@ -92,13 +94,11 @@ private fun titleFor(item: InputCfgItem): String {
     }
 }
 
-/**
- * Subtitle tylko gdy InputSettings też pokazuje:
- * 2× LIGHTS → LOW BEAM / HI BEAM
- * 2× BRAKE → front / rear
- * 1× LIGHTS z LIGHTS_H{n} → bez dopisku na karcie (dwa OUT na kwadratach)
- */
-private fun subtitleFor(item: InputCfgItem, lights: List<InputCfgItem>, brakes: List<InputCfgItem>): String? {
+private fun subtitleFor(
+    item: InputCfgItem,
+    lights: List<InputCfgItem>,
+    brakes: List<InputCfgItem>
+): String? {
     if (isLightsName(item.name) && lights.size >= 2) {
         val idx = lights.indexOfFirst { it.inNum == item.inNum }
         return if (idx <= 0) "LOW BEAM" else "HI BEAM"
@@ -112,7 +112,6 @@ private fun subtitleFor(item: InputCfgItem, lights: List<InputCfgItem>, brakes: 
 
 private fun outNumsFor(item: InputCfgItem, lightsCount: Int): List<Int> {
     val primary = item.outNum.coerceIn(1, 10)
-    // 1× LIGHTS + zakodowane HI w nazwie LIGHTS_H{n}
     if (isLightsName(item.name) && lightsCount < 2) {
         val hi = Regex("""LIGHTS_H(\d+)""", RegexOption.IGNORE_CASE)
             .find(item.name)?.groupValues?.getOrNull(1)?.toIntOrNull()
@@ -149,6 +148,80 @@ private fun buildRows(cfg: List<InputCfgItem>): List<ControlInRow> {
         }
 }
 
+/** Kolory OUT – te same co na ESP. */
+private val COL_ORANGE = Color(0xFFFF9800)
+private val COL_GREEN = Color(0xFF4CAF50)
+private val COL_WHITE = Color(0xFFF5F5F5)
+private val COL_BLUE = Color(0xFF2196F3)
+private val COL_RED = Color(0xFFF44336)
+private val COL_CYAN = Color(0xFF00BCD4)
+private val COL_OFF = Color(0xFF2A2A2A)
+
+private fun colorForRow(row: ControlInRow, outIndexInRow: Int): Color {
+    return when (row.mode) {
+        2, 3 -> COL_ORANGE
+        6 -> COL_GREEN
+        else -> {
+            val sub = row.subtitle?.lowercase().orEmpty()
+            val title = row.title.lowercase()
+            when {
+                sub.contains("hi") || title.contains("hi beam") -> COL_BLUE
+                sub.contains("low") ||
+                    (title == "lights" && row.outNums.size == 2 && outIndexInRow == 0) -> COL_WHITE
+                title == "lights" && row.outNums.size == 2 && outIndexInRow == 1 -> COL_BLUE
+                title == "lights" && row.outNums.size == 1 -> COL_WHITE
+                title.contains("brake") || sub.contains("front") || sub.contains("rear") -> COL_RED
+                else -> COL_CYAN
+            }
+        }
+    }
+}
+
+/** Krzywa fade jak na ESP: 0 liniowa, 1 płynna, 2 ostra. */
+private fun applyCurve(t: Float, curve: Int): Float {
+    val x = t.coerceIn(0f, 1f)
+    return when (curve) {
+        2 -> if (x < 0.5f) 0f else 1f
+        1 -> {
+            // smoothstep
+            x * x * (3f - 2f * x)
+        }
+        else -> x
+    }
+}
+
+/**
+ * Lokalna animacja trójkąta 0→1→0 jak mruganie kierunków.
+ * stepMs ≈ cfg.fadeSpeed (ms między skokami jasności).
+ */
+@Composable
+private fun rememberBlinkLevel(active: Boolean, fadeSpeed: Int, curve: Int): Float {
+    var level by remember { mutableFloatStateOf(0f) }
+    LaunchedEffect(active, fadeSpeed, curve) {
+        if (!active) {
+            // dokończ fade-out
+            while (level > 0.01f) {
+                level = (level - 0.04f).coerceAtLeast(0f)
+                delay(16)
+            }
+            level = 0f
+            return@LaunchedEffect
+        }
+        var phase = 0f // 0..2 (w górę + w dół)
+        val stepMs = fadeSpeed.coerceIn(4, 60).toLong()
+        // pełny cykl ~ (255/8)*fadeSpeed*2 ms na ESP → tu ciągły trójkąt
+        while (true) {
+            // phase 0..1 up, 1..2 down
+            phase += 0.04f
+            if (phase >= 2f) phase -= 2f
+            val raw = if (phase <= 1f) phase else (2f - phase)
+            level = applyCurve(raw, curve)
+            delay(stepMs)
+        }
+    }
+    return level
+}
+
 @Composable
 fun ControlScreen() {
     val context = LocalContext.current
@@ -159,13 +232,20 @@ fun ControlScreen() {
     var states by remember { mutableStateOf(List(10) { false }) }
     var hazardOn by remember { mutableStateOf(false) }
     var rows by remember { mutableStateOf<List<ControlInRow>>(emptyList()) }
-    var leftOutNum by remember { mutableStateOf(1) }
-    var rightOutNum by remember { mutableStateOf(5) }
+    var leftOutNum by remember { mutableIntStateOf(1) }
+    var rightOutNum by remember { mutableIntStateOf(5) }
+    var fadeSpeed by remember { mutableIntStateOf(12) }
+    var fadeCurve by remember { mutableIntStateOf(1) }
 
-    val shortThresholdMs = prefs.shortPressThresholdMs
+    val leftActive = states.getOrElse(leftOutNum - 1) { false } || hazardOn
+    val rightActive = states.getOrElse(rightOutNum - 1) { false } || hazardOn
+    val leftLevel = rememberBlinkLevel(leftActive, fadeSpeed, fadeCurve)
+    val rightLevel = rememberBlinkLevel(rightActive, fadeSpeed, fadeCurve)
 
-    fun outLit(out: Int): Boolean =
-        states.getOrElse(out - 1) { false }
+    fun outLevel(out: Int): Float {
+        val on = states.getOrElse(out - 1) { false }
+        return if (on) 1f else 0f
+    }
 
     fun pressDown(row: ControlInRow) {
         if (!isConnected) return
@@ -181,30 +261,40 @@ fun ControlScreen() {
         when (row.mode) {
             1 -> row.outNums.forEach { ble.setOutput(it, false) }
             0 -> {
-                // toggle – dla LIGHTS z 2 OUT: przełącz oba (albo tylko primary)
                 val primary = row.outNums.first()
-                val cur = outLit(primary)
+                val cur = outLevel(primary) > 0.5f
                 row.outNums.forEach { ble.setOutput(it, !cur) }
             }
             2 -> {
-                // lewy kierunek
+                // lewy – toggle / przełączenie z prawego
                 if (hazardOn) {
                     ble.setHazard(false)
-                } else if (outLit(leftOutNum)) {
+                } else if (leftActive && !hazardOn) {
                     ble.setOutput(leftOutNum, false)
+                    // też klasyczne OUT:1 na wypadek remap
+                    if (leftOutNum != 1) ble.setOutput(1, false)
                 } else {
-                    if (outLit(rightOutNum)) ble.setOutput(rightOutNum, false)
+                    if (rightActive) {
+                        ble.setOutput(rightOutNum, false)
+                        if (rightOutNum != 5) ble.setOutput(5, false)
+                    }
                     ble.setOutput(leftOutNum, true)
+                    if (leftOutNum != 1) ble.setOutput(1, true)
                 }
             }
             3 -> {
                 if (hazardOn) {
                     ble.setHazard(false)
-                } else if (outLit(rightOutNum)) {
+                } else if (rightActive && !hazardOn) {
                     ble.setOutput(rightOutNum, false)
+                    if (rightOutNum != 5) ble.setOutput(5, false)
                 } else {
-                    if (outLit(leftOutNum)) ble.setOutput(leftOutNum, false)
+                    if (leftActive) {
+                        ble.setOutput(leftOutNum, false)
+                        if (leftOutNum != 1) ble.setOutput(1, false)
+                    }
                     ble.setOutput(rightOutNum, true)
+                    if (rightOutNum != 5) ble.setOutput(5, true)
                 }
             }
             6 -> ble.sendCommand("IN10:0")
@@ -216,6 +306,7 @@ fun ControlScreen() {
         val prevConn = ble.onConnectionChanged
         val prevState = ble.onStateReceived
         val prevCfg = ble.onInputCfg
+        val prevBlinkCfg = ble.onConfigReceived
 
         ble.onConnectionChanged = { c ->
             isConnected = c
@@ -224,7 +315,7 @@ fun ControlScreen() {
         ble.onStateReceived = { list ->
             if (list.size >= 10) {
                 states = list
-                hazardOn = list.getOrElse(0) { false } && list.getOrElse(4) { false }
+                hazardOn = list.getOrElse(leftOutNum - 1) { false } && list.getOrElse(rightOutNum - 1) { false }
             }
             prevState?.invoke(list)
         }
@@ -237,15 +328,22 @@ fun ControlScreen() {
             }
             prevCfg?.invoke(list)
         }
+        ble.onConfigReceived = { fade, blinks, curve, ac ->
+            fadeSpeed = fade.coerceIn(4, 60)
+            fadeCurve = curve.coerceIn(0, 2)
+            prevBlinkCfg?.invoke(fade, blinks, curve, ac)
+        }
 
         if (ble.isConnected) {
             ble.requestState()
             ble.requestInputCfg()
+            ble.sendCommand("GET_CFG")
         }
         onDispose {
             ble.onConnectionChanged = prevConn
             ble.onStateReceived = prevState
             ble.onInputCfg = prevCfg
+            ble.onConfigReceived = prevBlinkCfg
         }
     }
 
@@ -254,14 +352,14 @@ fun ControlScreen() {
         if (ble.isConnected) {
             ble.requestInputCfg()
             ble.requestState()
+            ble.sendCommand("GET_CFG")
         }
     }
 
-    // Okresowe odświeżanie STATE – żeby kwadraty łapały mruganie
     LaunchedEffect(isConnected) {
         while (isConnected) {
             ble.requestState()
-            delay(200)
+            delay(250)
         }
     }
 
@@ -297,7 +395,8 @@ fun ControlScreen() {
     ) {
         HazardRow(
             enabled = isConnected,
-            active = hazardOn,
+            leftLevel = leftLevel,
+            rightLevel = rightLevel,
             leftOut = leftOutNum,
             rightOut = rightOutNum,
             onToggle = {
@@ -315,11 +414,13 @@ fun ControlScreen() {
             items(rows, key = { it.inNum }) { row ->
                 ControlInItem(
                     row = row,
-                    outLit = { out ->
-                        when (row.mode) {
-                            2 -> states.getOrElse(0) { false }  // STATE: left
-                            3 -> states.getOrElse(4) { false }  // STATE: right
-                            else -> outLit(out)
+                    levelForOut = { out ->
+                        when {
+                            row.mode == 2 -> leftLevel
+                            row.mode == 3 -> rightLevel
+                            out == leftOutNum && leftActive -> leftLevel
+                            out == rightOutNum && rightActive -> rightLevel
+                            else -> outLevel(out)
                         }
                     },
                     enabled = isConnected,
@@ -334,13 +435,13 @@ fun ControlScreen() {
 @Composable
 private fun HazardRow(
     enabled: Boolean,
-    active: Boolean,
+    leftLevel: Float,
+    rightLevel: Float,
     leftOut: Int,
     rightOut: Int,
     onToggle: () -> Unit
 ) {
     var pressed by remember { mutableStateOf(false) }
-    // karta: tylko onPress (nie stan wyjścia)
     val cardBg by animateColorAsState(
         if (pressed) MaterialTheme.colorScheme.primary.copy(alpha = 0.35f)
         else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.55f),
@@ -382,16 +483,24 @@ private fun HazardRow(
             )
         }
         Spacer(Modifier.width(8.dp))
-        OutSquare(label = "OUT_%02d".format(leftOut), lit = active)
+        OutSquare(
+            label = "OUT_%02d".format(leftOut),
+            level = leftLevel,
+            onColor = COL_ORANGE
+        )
         Spacer(Modifier.width(6.dp))
-        OutSquare(label = "OUT_%02d".format(rightOut), lit = active)
+        OutSquare(
+            label = "OUT_%02d".format(rightOut),
+            level = rightLevel,
+            onColor = COL_ORANGE
+        )
     }
 }
 
 @Composable
 private fun ControlInItem(
     row: ControlInRow,
-    outLit: (Int) -> Boolean,
+    levelForOut: (Int) -> Float,
     enabled: Boolean,
     onDown: () -> Unit,
     onUp: (heldMs: Long) -> Unit
@@ -399,7 +508,6 @@ private fun ControlInItem(
     var pressed by remember { mutableStateOf(false) }
     var downAt by remember { mutableLongStateOf(0L) }
 
-    // karta: tylko podświetlenie wciśnięcia
     val cardBg by animateColorAsState(
         if (pressed) MaterialTheme.colorScheme.primary.copy(alpha = 0.35f)
         else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.55f),
@@ -458,23 +566,33 @@ private fun ControlInItem(
             if (i > 0) Spacer(Modifier.width(6.dp))
             OutSquare(
                 label = "OUT_%02d".format(out),
-                lit = outLit(out)
+                level = levelForOut(out),
+                onColor = colorForRow(row, i)
             )
         }
     }
 }
 
 @Composable
-private fun OutSquare(label: String, lit: Boolean) {
-    val bg by animateColorAsState(
-        if (lit) MaterialTheme.colorScheme.primary
-        else MaterialTheme.colorScheme.surface,
-        label = "sq$label"
-    )
-    val fg = if (lit)
-        MaterialTheme.colorScheme.onPrimary
-    else
-        MaterialTheme.colorScheme.onSurface
+private fun OutSquare(label: String, level: Float, onColor: Color) {
+    val t = level.coerceIn(0f, 1f)
+    val bg = if (t <= 0.01f) {
+        COL_OFF
+    } else {
+        // mieszanie OFF → kolor funkcji proporcjonalnie do level (fade)
+        Color(
+            red = COL_OFF.red + (onColor.red - COL_OFF.red) * t,
+            green = COL_OFF.green + (onColor.green - COL_OFF.green) * t,
+            blue = COL_OFF.blue + (onColor.blue - COL_OFF.blue) * t,
+            alpha = 1f
+        )
+    }
+    val fg = if (t > 0.35f) {
+        if (onColor == COL_WHITE || onColor == COL_CYAN) Color(0xFF111111)
+        else Color.White
+    } else {
+        MaterialTheme.colorScheme.onSurface.copy(alpha = 0.45f)
+    }
 
     Box(
         Modifier

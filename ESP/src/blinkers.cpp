@@ -41,21 +41,85 @@ static int suspendedTarget = 0;
 static int suspendedDone = 0;
 static bool suspended = false;
 
+// OUT_1..OUT_10 → GPIO (pins.h)
+static const uint8_t OUT_PINS[10] = {
+    OUT_1, OUT_2, OUT_3, OUT_4, OUT_5,
+    OUT_6, OUT_7, OUT_8, OUT_9, OUT_10
+};
+
+static int leftOutIdx  = 0;  // 0..9
+static int rightOutIdx = 4;
+static uint8_t leftGpio  = OUT_1;
+static uint8_t rightGpio = OUT_5;
+static bool pinsReady = false;
+
+/** Indeks OUT (0..9) dla trybu LEFT/RIGHT z inputCfg. */
+int blinkerLeftOutIndex() {
+    for (int i = 0; i < INPUT_COUNT; i++)
+        if (inputCfg[i].mode == IN_LEFT) return (int)inputCfg[i].outIndex;
+    return 0;
+}
+int blinkerRightOutIndex() {
+    for (int i = 0; i < INPUT_COUNT; i++)
+        if (inputCfg[i].mode == IN_RIGHT) return (int)inputCfg[i].outIndex;
+    return 4;
+}
+
+/** Przepnij PWM na aktualne OUT z konfiguracji (po SET_INCFG / starcie). */
+void refreshBlinkerPins() {
+    int nl = blinkerLeftOutIndex();
+    int nr = blinkerRightOutIndex();
+    if (nl < 0 || nl > 9) nl = 0;
+    if (nr < 0 || nr > 9) nr = 4;
+
+    if (pinsReady && nl == leftOutIdx && nr == rightOutIdx) return;
+
+    // odłącz stare piny
+    if (pinsReady) {
+        ledcDetachPin(leftGpio);
+        if (rightGpio != leftGpio) ledcDetachPin(rightGpio);
+        pinMode(leftGpio, OUTPUT);
+        digitalWrite(leftGpio, LOW);
+        if (rightGpio != leftGpio) {
+            pinMode(rightGpio, OUTPUT);
+            digitalWrite(rightGpio, LOW);
+        }
+        setOutLevel(leftOutIdx, 0);
+        setOutLevel(rightOutIdx, 0);
+    }
+
+    leftOutIdx  = nl;
+    rightOutIdx = nr;
+    leftGpio  = OUT_PINS[leftOutIdx];
+    rightGpio = OUT_PINS[rightOutIdx];
+
+    ledcAttachPin(leftGpio, PWM_CH_LEFT);
+    ledcAttachPin(rightGpio, PWM_CH_RIGHT);
+    pinsReady = true;
+
+    Serial.printf("PWM kierunków: L=OUT_%02d(gpio%d) R=OUT_%02d(gpio%d)\n",
+                  leftOutIdx + 1, leftGpio, rightOutIdx + 1, rightGpio);
+}
+
 void setLeft(int v) {
+    v = constrain(v, 0, 255);
+    if (!pinsReady) refreshBlinkerPins();
     ledcWrite(PWM_CH_LEFT, v);
-    setOutLevel(0, (uint8_t)constrain(v, 0, 255));
+    setOutLevel(leftOutIdx, (uint8_t)v);
 }
 
 void setRight(int v) {
+    v = constrain(v, 0, 255);
+    if (!pinsReady) refreshBlinkerPins();
     ledcWrite(PWM_CH_RIGHT, v);
-    setOutLevel(4, (uint8_t)constrain(v, 0, 255));
+    setOutLevel(rightOutIdx, (uint8_t)v);
 }
 
 void setupBlinkers() {
     ledcSetup(PWM_CH_LEFT, 5000, 8);
     ledcSetup(PWM_CH_RIGHT, 5000, 8);
-    ledcAttachPin(OUT_1, PWM_CH_LEFT);
-    ledcAttachPin(OUT_5, PWM_CH_RIGHT);
+    pinsReady = false;
+    refreshBlinkerPins();
     setLeft(0);
     setRight(0);
     Serial.println("PWM kierunków: OK");
@@ -255,15 +319,15 @@ void updateBlinkers(bool& stateChanged) {
 }
 
 static int findLeftBtn() {
-    for (int i = 0; i < 9; i++) {
-        if (inputCfg[i].mode == 2) return i;
+    for (int i = 0; i < INPUT_COUNT; i++) {
+        if (inputCfg[i].mode == IN_LEFT) return i;
     }
     return -1;
 }
 
 static int findRightBtn() {
-    for (int i = 0; i < 9; i++) {
-        if (inputCfg[i].mode == 3) return i;
+    for (int i = 0; i < INPUT_COUNT; i++) {
+        if (inputCfg[i].mode == IN_RIGHT) return i;
     }
     return -1;
 }

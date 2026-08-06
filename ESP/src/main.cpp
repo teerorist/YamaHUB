@@ -85,7 +85,6 @@ void loop() {
     bool stateChanged = false;
     processBle();
     updateBeams(stateChanged);
-    updateBlinkers(stateChanged);
 
     if (!bootCheckDone && millis() >= bootCheckAt) {
         bootCheckDone = true;
@@ -118,10 +117,15 @@ void loop() {
     static unsigned long lastDraw = 0;
     if (millis() - lastDraw >= 40) {
         lastDraw = millis();
+        int li = blinkerLeftOutIndex();
+        int ri = blinkerRightOutIndex();
         for (int i = 0; i < 10; i++) {
-            if (i == 0 || i == 4) continue;
+            // poziomy PWM kierunków ustawia setLeft/setRight
+            if (i == li || i == ri) continue;
             setOutLevel(i, outputs[i].isOn() ? 255 : 0);
         }
         drawOutputs();
     }
+
+    delay(2);
 }

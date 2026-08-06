@@ -1,6 +1,7 @@
 #include "ble_hub.h"
 #include "config.h"
 #include "blinkers.h"
+#include "display_hub.h"
 #include "starter.h"
 #include "arming.h"
 #include "inputs.h"
@@ -36,22 +37,27 @@ static void enqueueCmd(const std::string& value) {
 void sendState(Output* outputs) {
     if (!deviceConnected || !pCharacteristic || !outputs) return;
 
+    int li = blinkerLeftOutIndex();
+    int ri = blinkerRightOutIndex();
     bool leftOn  = (currentMode == MODE_LEFT  || currentMode == MODE_HAZARD);
     bool rightOn = (currentMode == MODE_RIGHT || currentMode == MODE_HAZARD);
 
+    // bit i = OUT_(i+1): digital LUB aktywny kierunek na tym OUT
+    char bits[11];
+    for (int i = 0; i < 10; i++) {
+        bool on = outputs[i].isOn();
+        if (i == li && leftOn)  on = true;
+        if (i == ri && rightOn) on = true;
+        // wyjścia kierunków nie bierz z digital (PWM)
+        if (i == li || i == ri) {
+            on = (i == li && leftOn) || (i == ri && rightOn);
+        }
+        bits[i] = on ? '1' : '0';
+    }
+    bits[10] = 0;
+
     char stateMsg[24];
-    snprintf(stateMsg, sizeof(stateMsg), "STATE:%d%d%d%d%d%d%d%d%d%d",
-        leftOn ? 1 : 0,
-        outputs[1].isOn() ? 1 : 0,
-        outputs[2].isOn() ? 1 : 0,
-        outputs[3].isOn() ? 1 : 0,
-        rightOn ? 1 : 0,
-        outputs[5].isOn() ? 1 : 0,
-        outputs[6].isOn() ? 1 : 0,
-        outputs[7].isOn() ? 1 : 0,
-        outputs[8].isOn() ? 1 : 0,
-        outputs[9].isOn() ? 1 : 0
-    );
+    snprintf(stateMsg, sizeof(stateMsg), "STATE:%s", bits);
     pCharacteristic->setValue(stateMsg);
     pCharacteristic->notify();
 }
@@ -142,6 +148,7 @@ static void handleCommand(const char* value) {
                                   n >= 4 ? name : nullptr);
             Serial.println(ok ? "SET_INCFG OK" : "SET_INCFG FAIL");
             sendInputCfg();
+            refreshBlinkerPins();
         } else {
             Serial.println("SET_INCFG FAIL (range)");
         }
@@ -153,15 +160,41 @@ static void handleCommand(const char* value) {
         int num = 0, state = 0;
         if (sscanf(value + 4, "%d:%d", &num, &state) == 2 &&
             num >= 1 && num <= 10 && gOutputs) {
-            if (num == 1 || num == 5) {
-                // kierunki – tylko z logiki blinkers / HAZARD
-                Serial.println("Kierunkowskazy z przycisków / HAZARD");
-            } else if (num == 10) {
-                // starter chwilowy – traktuj jak IN10
+            int oi = num - 1;
+            bool isLeft = false, isRight = false;
+            for (int i = 0; i < INPUT_COUNT; i++) {
+                if ((int)inputCfg[i].outIndex == oi) {
+                    if (inputCfg[i].mode == IN_LEFT)  isLeft = true;
+                    if (inputCfg[i].mode == IN_RIGHT) isRight = true;
+                }
+            }
+            // fallback: klasyczne 1/5 gdy brak cfg
+            if (!isLeft && !isRight) {
+                if (num == 1) isLeft = true;
+                if (num == 5) isRight = true;
+            }
+
+            if (isLeft && !isRight) {
+                if (state) {
+                    connectionBlink = false;
+                    forceMode(MODE_LEFT);
+                } else if (currentMode == MODE_LEFT || currentMode == MODE_HAZARD) {
+                    forceMode(MODE_OFF);
+                }
+                Serial.println(state ? "LEFT ON" : "LEFT OFF");
+            } else if (isRight && !isLeft) {
+                if (state) {
+                    connectionBlink = false;
+                    forceMode(MODE_RIGHT);
+                } else if (currentMode == MODE_RIGHT || currentMode == MODE_HAZARD) {
+                    forceMode(MODE_OFF);
+                }
+                Serial.println(state ? "RIGHT ON" : "RIGHT OFF");
+            } else if (num == 10 || (oi == starterOutIndex())) {
                 setBleStarterPressed(state != 0);
             } else {
-                if (state) gOutputs[num - 1].on();
-                else gOutputs[num - 1].off();
+                if (state) gOutputs[oi].on();
+                else gOutputs[oi].off();
                 Serial.printf("Wyjście %d → %s\n", num, state ? "ON" : "OFF");
             }
             sendState(gOutputs);
