@@ -69,10 +69,10 @@ void sendConfig() {
 
 void sendInputCfg() {
     if (!deviceConnected || !pCharacteristic) return;
-    // INCFG:mode,out,name;mode,out,name;... (9 szt.)
-    char msg[320];
+    // INCFG:mode,out,name;... (10 szt. = IN_01..IN_10)
+    char msg[400];
     int pos = snprintf(msg, sizeof(msg), "INCFG:");
-    for (int i = 0; i < 9; i++) {
+    for (int i = 0; i < INPUT_COUNT; i++) {
         pos += snprintf(msg + pos, sizeof(msg) - pos, "%s%d,%d,%s",
                         (i ? ";" : ""),
                         inputCfg[i].mode,
@@ -131,18 +131,20 @@ static void handleCommand(const char* value) {
         return;
     }
 
-    // SET_INCFG:in1-9,mode,out1-9,name
+    // SET_INCFG:in1-10,mode,out1-10,name
     if (strncmp(value, "SET_INCFG:", 10) == 0) {
         int inNum = 0, mode = 0, outNum = 0;
         char name[16] = {0};
         int n = sscanf(value + 10, "%d,%d,%d,%15s",
                        &inNum, &mode, &outNum, name);
-        if (n >= 3 && inNum >= 1 && inNum <= 9 && outNum >= 1 && outNum <= 9) {
+        if (n >= 3 && inNum >= 1 && inNum <= 10 && outNum >= 1 && outNum <= 10) {
             bool ok = setInputCfg(inNum - 1, (uint8_t)mode,
                                   (uint8_t)(outNum - 1),
                                   n >= 4 ? name : nullptr);
             Serial.println(ok ? "SET_INCFG OK" : "SET_INCFG FAIL");
             sendInputCfg();
+        } else {
+            Serial.println("SET_INCFG FAIL (range)");
         }
         return;
     }
@@ -152,9 +154,24 @@ static void handleCommand(const char* value) {
         int num = 0, state = 0;
         if (sscanf(value + 4, "%d:%d", &num, &state) == 2 &&
             num >= 1 && num <= 10 && gOutputs) {
-            if (num == 1 || num == 5) {
-                // kierunki – tylko z logiki blinkers / HAZARD
-                Serial.println("Kierunkowskazy z przycisków / HAZARD");
+            if (num == 1) {
+                // lewy kierunkowskaz
+                if (state) {
+                    connectionBlink = false;
+                    forceMode(MODE_LEFT);
+                } else if (currentMode == MODE_LEFT || currentMode == MODE_HAZARD) {
+                    forceMode(MODE_OFF);
+                }
+                Serial.println(state ? "LEFT ON" : "LEFT OFF");
+            } else if (num == 5) {
+                // prawy kierunkowskaz
+                if (state) {
+                    connectionBlink = false;
+                    forceMode(MODE_RIGHT);
+                } else if (currentMode == MODE_RIGHT || currentMode == MODE_HAZARD) {
+                    forceMode(MODE_OFF);
+                }
+                Serial.println(state ? "RIGHT ON" : "RIGHT OFF");
             } else if (num == 10) {
                 // starter chwilowy – traktuj jak IN10
                 setBleStarterPressed(state != 0);

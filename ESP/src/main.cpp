@@ -43,9 +43,7 @@ void setup() {
 
     setupBlinkers();
     setupBeams();
-    setupDisplay();   // włączymy jak boot będzie stabilny
-
-    pinMode(IN_10, INPUT_PULLUP);
+    setupDisplay();
 
     esp_sleep_wakeup_cause_t cause = esp_sleep_get_wakeup_cause();
 
@@ -107,12 +105,16 @@ void loop() {
 
     handleBlinkerButtons(buttons, stateChanged);
     handleConfigurableInputs(buttons, outputs, stateChanged);
-    handleStarter(buttons[9], outputs, stateChanged);
+
+    // STARTER: przycisk z konfiguracji (domyślnie IN_10, indeks 9)
+    int si = findStarterInIndex();
+    if (si >= 0 && si < 10) {
+        handleStarter(buttons[si], outputs, stateChanged);
+    }
+
     updateBlinkers(stateChanged);
     if (stateChanged) sendState(outputs);
 
-    // rysowanie LCD – tylko gdy display włączony
-    
     static unsigned long lastDraw = 0;
     if (millis() - lastDraw >= 40) {
         lastDraw = millis();
@@ -122,5 +124,4 @@ void loop() {
         }
         drawOutputs();
     }
-    
 }

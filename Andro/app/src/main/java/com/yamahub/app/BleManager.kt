@@ -190,7 +190,7 @@ class BleManager(private val context: Context) {
                             }
                         }
                     Log.d(TAG, "INCFG sparsowano: ${list.size}")
-                    if (list.size == 9) onInputCfg?.invoke(list)
+                    if (list.size in 9..10) onInputCfg?.invoke(list)
                 }
             }
         }

@@ -3,6 +3,7 @@
 #include "blinkers.h"
 #include "config.h"
 #include "pins.h"
+#include "inputs.h"
 #include <esp_sleep.h>
 
 static const unsigned long LONG_MS = 400;
@@ -12,7 +13,7 @@ static const unsigned long MIN_SHORT_MS = 40;
 static const unsigned long SHUTDOWN_DELAY_MS = 10000;
 
 static bool starterActive = false;
-static bool savedOn[9] = {false};
+static bool savedOn[10] = {false};
 static bool shutdownPending = false;
 static unsigned long shutdownAt = 0;
 static bool blePressed = false;
@@ -59,6 +60,8 @@ void requestShutdownNow(Output* outputs) {
 }
 
 void starterSet(bool on, Output* outputs, bool& stateChanged) {
+    const int soi = starterOutIndex();  // 0..9 z konfiguracji IN
+
     if (on) {
         if (shutdownPending) {
             shutdownPending = false;
@@ -66,25 +69,27 @@ void starterSet(bool on, Output* outputs, bool& stateChanged) {
         }
         if (!starterActive) {
             starterActive = true;
-            for (int i = 0; i < 9; i++) {
+            for (int i = 0; i < 10; i++) {
+                if (i == soi) continue;
                 savedOn[i] = outputs[i].isOn();
                 outputs[i].off();
             }
             suspendBlinkers();
-            outputs[9].on();
+            outputs[soi].on();
             stateChanged = true;
-            Serial.println("STARTER ON");
+            Serial.printf("STARTER ON (OUT_%d)\n", soi + 1);
         }
     } else if (!on && starterActive) {
         starterActive = false;
-        outputs[9].off();
-        for (int i = 0; i < 9; i++) {
+        outputs[soi].off();
+        for (int i = 0; i < 10; i++) {
+            if (i == soi) continue;
             if (savedOn[i]) outputs[i].on();
             else outputs[i].off();
         }
         resumeBlinkers();
         stateChanged = true;
-        Serial.println("STARTER OFF");
+        Serial.printf("STARTER OFF (OUT_%d)\n", soi + 1);
     }
 }
 

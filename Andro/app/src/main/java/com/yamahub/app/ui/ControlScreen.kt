@@ -9,75 +9,144 @@ import android.location.LocationManager
 import android.util.Log
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.foundation.background
-import androidx.compose.foundation.gestures.detectDragGesturesAfterLongPress
+import androidx.compose.foundation.border
 import androidx.compose.foundation.gestures.detectTapGestures
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.itemsIndexed
-import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.*
-import androidx.compose.runtime.*
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableLongStateOf
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.zIndex
 import androidx.core.content.ContextCompat
 import com.yamahub.app.BleHub
 import com.yamahub.app.InputCfgItem
 import com.yamahub.app.Prefs
 import com.yamahub.app.displayName
 import kotlinx.coroutines.delay
-import kotlin.math.abs
-import androidx.compose.runtime.rememberUpdatedState
 
-/** id: "hazard" | "left" | "right" | "out_1".."out_9" */
-private data class ControlRow(val id: String, val title: String)
+/**
+ * Wiersz sterowania.
+ * outNums: 1 lub 2 numery OUT (np. LIGHTS single = LOW+HI).
+ * subtitle: tylko jak w InputSettings (LOW BEAM / HI BEAM / front / rear).
+ */
+private data class ControlInRow(
+    val inNum: Int,
+    val mode: Int,
+    val title: String,
+    val subtitle: String?,
+    val outNums: List<Int>
+)
 
-private fun buildRowsFromCfg(cfg: List<InputCfgItem>): List<ControlRow> {
-    var leftName: String? = null
-    var rightName: String? = null
-    val outNames = linkedMapOf<Int, String>()
-
-    for (item in cfg) {
-        when (item.mode) {
-            2 -> if (leftName == null) {
-                leftName = displayName(item.name).ifBlank { "Kierunek L" }
-            }
-            3 -> if (rightName == null) {
-                rightName = displayName(item.name).ifBlank { "Kierunek P" }
-            }
-            0, 1 -> {
-                val o = item.outNum
-                if (o in 1..9 && o !in outNames) {
-                    outNames[o] = displayName(item.name).ifBlank { "OUT_$o" }
-                }
-            }
-        }
-    }
-
-    val rows = mutableListOf(ControlRow("hazard", "Awaryjne"))
-    if (leftName != null) rows.add(ControlRow("left", leftName))
-    if (rightName != null) rows.add(ControlRow("right", rightName))
-
-    for ((out, name) in outNames) {
-        if (leftName != null && out == 1) continue
-        if (rightName != null && out == 5) continue
-        rows.add(ControlRow("out_$out", name))
-    }
-    return rows
+private fun isNeutral(item: InputCfgItem): Boolean {
+    if (item.mode != 1) return false
+    return item.name.lowercase().contains("neutral")
 }
 
-private fun applySavedOrder(rows: List<ControlRow>, orderIds: List<String>): List<ControlRow> {
-    val byId = rows.associateBy { it.id }
-    val ordered = orderIds.mapNotNull { byId[it] }
-    val missing = rows.filter { r -> ordered.none { it.id == r.id } }
-    return ordered + missing
+private fun isLightsName(name: String): Boolean {
+    val n = name.lowercase()
+    return n.contains("lights") || n.contains("light") ||
+        n.contains("beam") || n.contains("hi_beam") || n.contains("low_beam")
+}
+
+private fun isBrakeName(name: String): Boolean =
+    name.lowercase().contains("brake")
+
+/** Tytuł jak w InputSettings (displayName / stałe nazwy). */
+private fun titleFor(item: InputCfgItem): String {
+    val n = displayName(item.name)
+    return when (item.mode) {
+        2 -> "KIERUNEK L"
+        3 -> "KIERUNEK P"
+        6 -> "STARTER"
+        else -> when {
+            isLightsName(item.name) -> "LIGHTS"
+            isBrakeName(item.name) -> "BRAKE"
+            n.isNotBlank() -> n
+            else -> "IN_${item.inNum}"
+        }
+    }
+}
+
+/**
+ * Subtitle tylko gdy InputSettings też pokazuje:
+ * 2× LIGHTS → LOW BEAM / HI BEAM
+ * 2× BRAKE → front / rear
+ * 1× LIGHTS z LIGHTS_H{n} → bez dopisku na karcie (dwa OUT na kwadratach)
+ */
+private fun subtitleFor(item: InputCfgItem, lights: List<InputCfgItem>, brakes: List<InputCfgItem>): String? {
+    if (isLightsName(item.name) && lights.size >= 2) {
+        val idx = lights.indexOfFirst { it.inNum == item.inNum }
+        return if (idx <= 0) "LOW BEAM" else "HI BEAM"
+    }
+    if (isBrakeName(item.name) && brakes.size >= 2) {
+        val idx = brakes.indexOfFirst { it.inNum == item.inNum }
+        return if (idx <= 0) "front" else "rear"
+    }
+    return null
+}
+
+private fun outNumsFor(item: InputCfgItem, lightsCount: Int): List<Int> {
+    val primary = item.outNum.coerceIn(1, 10)
+    // 1× LIGHTS + zakodowane HI w nazwie LIGHTS_H{n}
+    if (isLightsName(item.name) && lightsCount < 2) {
+        val hi = Regex("""LIGHTS_H(\d+)""", RegexOption.IGNORE_CASE)
+            .find(item.name)?.groupValues?.getOrNull(1)?.toIntOrNull()
+            ?.coerceIn(1, 10)
+        if (hi != null && hi != primary) return listOf(primary, hi)
+    }
+    return listOf(primary)
+}
+
+private fun buildRows(cfg: List<InputCfgItem>): List<ControlInRow> {
+    val usable = cfg.filter { item ->
+        when {
+            item.mode == 4 || item.mode == 5 -> false
+            isNeutral(item) -> false
+            else -> true
+        }
+    }
+    val lights = usable.filter { isLightsName(it.name) && it.mode == 0 }
+        .sortedBy { it.inNum }
+    val brakes = usable.filter { isBrakeName(it.name) && it.mode == 1 }
+        .sortedBy { it.inNum }
+    val lc = lights.size
+
+    return usable
+        .sortedBy { it.outNum.coerceIn(1, 10) }
+        .map { item ->
+            ControlInRow(
+                inNum = item.inNum,
+                mode = item.mode,
+                title = titleFor(item),
+                subtitle = subtitleFor(item, lights, brakes),
+                outNums = outNumsFor(item, lc)
+            )
+        }
 }
 
 @Composable
@@ -85,73 +154,62 @@ fun ControlScreen() {
     val context = LocalContext.current
     val ble = remember { BleHub.manager(context) }
     val prefs = remember { Prefs(context) }
-    val listState = rememberLazyListState()
 
     var isConnected by remember { mutableStateOf(ble.isConnected) }
     var states by remember { mutableStateOf(List(10) { false }) }
     var hazardOn by remember { mutableStateOf(false) }
+    var rows by remember { mutableStateOf<List<ControlInRow>>(emptyList()) }
+    var leftOutNum by remember { mutableStateOf(1) }
+    var rightOutNum by remember { mutableStateOf(5) }
 
-    // Próg short/long z ustawień (domyślnie 400 ms)
     val shortThresholdMs = prefs.shortPressThresholdMs
 
-    var baseRows by remember {
-        mutableStateOf(
-            listOf(
-                ControlRow("hazard", "Awaryjne"),
-                ControlRow("left", "Kierunek L"),
-                ControlRow("right", "Kierunek P")
-            )
-        )
-    }
+    fun outLit(out: Int): Boolean =
+        states.getOrElse(out - 1) { false }
 
-    var orderIds by remember {
-        val raw = prefs.controlOrder.split(",").map { it.trim() }.filter { it.isNotEmpty() }
-        val migrated = raw.filter {
-            it == "hazard" || it == "left" || it == "right" || it.startsWith("out_")
-        }
-        mutableStateOf(migrated.ifEmpty { listOf("hazard", "left", "right") })
-    }
-
-    val rows = remember(baseRows, orderIds) {
-        applySavedOrder(baseRows, orderIds)
-    }
-
-    fun persistOrder(newRows: List<ControlRow>) {
-        orderIds = newRows.map { it.id }
-        prefs.controlOrder = orderIds.joinToString(",")
-    }
-
-    // Wykonanie akcji (na razie short i long robią to samo – toggle.
-    // Później w InputSettingsTab będzie można przypisać różne akcje)
-    fun performAction(rowId: String, isLong: Boolean) {
+    fun pressDown(row: ControlInRow) {
         if (!isConnected) return
+        when (row.mode) {
+            1 -> row.outNums.forEach { ble.setOutput(it, true) }
+            6 -> ble.sendCommand("IN10:1")
+            else -> {}
+        }
+    }
 
-        when (rowId) {
-            "hazard" -> {
-                val newVal = !hazardOn
-                hazardOn = newVal
-                ble.setHazard(newVal)
+    fun pressUp(row: ControlInRow, heldMs: Long) {
+        if (!isConnected) return
+        when (row.mode) {
+            1 -> row.outNums.forEach { ble.setOutput(it, false) }
+            0 -> {
+                // toggle – dla LIGHTS z 2 OUT: przełącz oba (albo tylko primary)
+                val primary = row.outNums.first()
+                val cur = outLit(primary)
+                row.outNums.forEach { ble.setOutput(it, !cur) }
             }
-            "left" -> {
-                val newVal = !states.getOrElse(0) { false }
-                states = states.toMutableList().also { it[0] = newVal }
-                ble.setOutput(1, newVal)
-            }
-            "right" -> {
-                val newVal = !states.getOrElse(4) { false }
-                states = states.toMutableList().also { it[4] = newVal }
-                ble.setOutput(5, newVal)
-            }
-            else -> {
-                val num = rowId.removePrefix("out_").toIntOrNull() ?: return
-                if (num in 1..9) {
-                    val newVal = !states.getOrElse(num - 1) { false }
-                    states = states.toMutableList().also { it[num - 1] = newVal }
-                    ble.setOutput(num, newVal)
+            2 -> {
+                // lewy kierunek
+                if (hazardOn) {
+                    ble.setHazard(false)
+                } else if (outLit(leftOutNum)) {
+                    ble.setOutput(leftOutNum, false)
+                } else {
+                    if (outLit(rightOutNum)) ble.setOutput(rightOutNum, false)
+                    ble.setOutput(leftOutNum, true)
                 }
             }
+            3 -> {
+                if (hazardOn) {
+                    ble.setHazard(false)
+                } else if (outLit(rightOutNum)) {
+                    ble.setOutput(rightOutNum, false)
+                } else {
+                    if (outLit(leftOutNum)) ble.setOutput(leftOutNum, false)
+                    ble.setOutput(rightOutNum, true)
+                }
+            }
+            6 -> ble.sendCommand("IN10:0")
+            else -> {}
         }
-        // isLong na razie nieużywane – miejsce na przyszłe różne akcje
     }
 
     DisposableEffect(Unit) {
@@ -159,21 +217,23 @@ fun ControlScreen() {
         val prevState = ble.onStateReceived
         val prevCfg = ble.onInputCfg
 
-        ble.onConnectionChanged = { c: Boolean ->
+        ble.onConnectionChanged = { c ->
             isConnected = c
             prevConn?.invoke(c)
         }
-        ble.onStateReceived = { list: List<Boolean> ->
+        ble.onStateReceived = { list ->
             if (list.size >= 10) {
                 states = list
-                hazardOn = list[0] && list[4]
+                hazardOn = list.getOrElse(0) { false } && list.getOrElse(4) { false }
             }
             prevState?.invoke(list)
         }
         ble.onInputCfg = { list ->
             Log.d("ControlScreen", "INCFG size=${list.size}")
-            if (list.size == 9) {
-                baseRows = buildRowsFromCfg(list)
+            if (list.size in 9..10) {
+                rows = buildRows(list)
+                leftOutNum = list.firstOrNull { it.mode == 2 }?.outNum?.coerceIn(1, 10) ?: 1
+                rightOutNum = list.firstOrNull { it.mode == 3 }?.outNum?.coerceIn(1, 10) ?: 5
             }
             prevCfg?.invoke(list)
         }
@@ -191,7 +251,18 @@ fun ControlScreen() {
 
     LaunchedEffect(Unit) {
         delay(400)
-        if (ble.isConnected) ble.requestInputCfg()
+        if (ble.isConnected) {
+            ble.requestInputCfg()
+            ble.requestState()
+        }
+    }
+
+    // Okresowe odświeżanie STATE – żeby kwadraty łapały mruganie
+    LaunchedEffect(isConnected) {
+        while (isConnected) {
+            ble.requestState()
+            delay(200)
+        }
     }
 
     DisposableEffect(isConnected) {
@@ -219,166 +290,209 @@ fun ControlScreen() {
         }
     }
 
-    var draggingId by remember { mutableStateOf<String?>(null) }
-    var dragOffset by remember { mutableStateOf(0f) }
-    var dragIndex by remember { mutableIntStateOf(-1) }
-
     Column(
         Modifier
             .fillMaxSize()
-            .padding(16.dp)
+            .padding(12.dp)
     ) {
+        HazardRow(
+            enabled = isConnected,
+            active = hazardOn,
+            leftOut = leftOutNum,
+            rightOut = rightOutNum,
+            onToggle = {
+                if (!isConnected) return@HazardRow
+                ble.setHazard(!hazardOn)
+            }
+        )
+
+        Spacer(Modifier.height(8.dp))
+
         LazyColumn(
-            state = listState,
-            verticalArrangement = Arrangement.spacedBy(8.dp),
-            modifier = Modifier.fillMaxSize()
+            verticalArrangement = Arrangement.spacedBy(6.dp),
+            modifier = Modifier.weight(1f)
         ) {
-            itemsIndexed(rows, key = { _, r -> r.id }) { index, row ->
-                val isDragging = draggingId == row.id
-
-                val checked = when (row.id) {
-                    "hazard" -> hazardOn
-                    "left" -> states.getOrElse(0) { false }
-                    "right" -> states.getOrElse(4) { false }
-                    else -> {
-                        val num = row.id.removePrefix("out_").toIntOrNull() ?: 0
-                        states.getOrElse(num - 1) { false }
-                    }
-                }
-
-                val rowsLatest by rememberUpdatedState(rows)
-                val indexLatest by rememberUpdatedState(index)
-
-                // Stan wciśnięcia (do rozjaśnienia)
-                var isPressed by remember { mutableStateOf(false) }
-                var pressStartTime by remember { mutableStateOf(0L) }
-
-                val backgroundColor by animateColorAsState(
-                    targetValue = when {
-                        isPressed -> MaterialTheme.colorScheme.primary.copy(alpha = 0.18f)
-                        checked -> MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.35f)
-                        else -> MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f)
+            items(rows, key = { it.inNum }) { row ->
+                ControlInItem(
+                    row = row,
+                    outLit = { out ->
+                        when (row.mode) {
+                            2 -> states.getOrElse(0) { false }  // STATE: left
+                            3 -> states.getOrElse(4) { false }  // STATE: right
+                            else -> outLit(out)
+                        }
                     },
-                    label = "rowBg"
+                    enabled = isConnected,
+                    onDown = { pressDown(row) },
+                    onUp = { held -> pressUp(row, held) }
                 )
-
-                Card(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .zIndex(if (isDragging) 1f else 0f)
-                        .graphicsLayer {
-                            translationY = if (isDragging) dragOffset else 0f
-                            shadowElevation = if (isDragging) 12f else 0f
-                        }
-                        // Drag do zmiany kolejności – tylko po długim przytrzymaniu
-                        .pointerInput(row.id) {
-                            detectDragGesturesAfterLongPress(
-                                onDragStart = {
-                                    draggingId = row.id
-                                    dragIndex = indexLatest
-                                    dragOffset = 0f
-                                },
-                                onDragEnd = {
-                                    draggingId = null
-                                    dragOffset = 0f
-                                    dragIndex = -1
-                                },
-                                onDragCancel = {
-                                    draggingId = null
-                                    dragOffset = 0f
-                                    dragIndex = -1
-                                },
-                                onDrag = { change, amount ->
-                                    change.consume()
-                                    dragOffset += amount.y
-
-                                    val from = dragIndex
-                                    if (from < 0) return@detectDragGesturesAfterLongPress
-
-                                    val current = rowsLatest
-                                    if (from !in current.indices) return@detectDragGesturesAfterLongPress
-
-                                    val layoutInfo = listState.layoutInfo
-                                    val draggedInfo = layoutInfo.visibleItemsInfo
-                                        .find { it.index == from }
-                                        ?: return@detectDragGesturesAfterLongPress
-
-                                    val draggedCenter =
-                                        draggedInfo.offset + draggedInfo.size / 2f + dragOffset
-
-                                    val target = layoutInfo.visibleItemsInfo
-                                        .minByOrNull { abs((it.offset + it.size / 2f) - draggedCenter) }
-                                        ?: return@detectDragGesturesAfterLongPress
-
-                                    val to = target.index
-                                    if (to != from && to in current.indices) {
-                                        val mutable = current.toMutableList()
-                                        val item = mutable.removeAt(from)
-                                        mutable.add(to, item)
-                                        persistOrder(mutable)
-
-                                        val newInfo = listState.layoutInfo.visibleItemsInfo
-                                            .find { it.index == to }
-                                        if (newInfo != null) {
-                                            dragOffset =
-                                                draggedCenter - (newInfo.offset + newInfo.size / 2f)
-                                        }
-                                        dragIndex = to
-                                    }
-                                }
-                            )
-                        }
-                ) {
-                    // Cały pasek jest przyciskiem
-                    Box(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clip(RoundedCornerShape(12.dp))
-                            .background(backgroundColor)
-                            .pointerInput(row.id, shortThresholdMs) {
-                                detectTapGestures(
-                                    onPress = {
-                                        if (!isConnected) return@detectTapGestures
-                                        isPressed = true
-                                        pressStartTime = System.currentTimeMillis()
-                                        tryAwaitRelease()
-                                        isPressed = false
-                                        val duration = System.currentTimeMillis() - pressStartTime
-                                        val isLong = duration >= shortThresholdMs
-                                        performAction(row.id, isLong)
-                                    }
-                                )
-                            }
-                            .padding(horizontal = 16.dp, vertical = 18.dp)
-                    ) {
-                        Row(
-                            Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Text(
-                                text = row.title,
-                                style = MaterialTheme.typography.titleMedium,
-                                color = if (checked)
-                                    MaterialTheme.colorScheme.onPrimaryContainer
-                                else
-                                    MaterialTheme.colorScheme.onSurface
-                            )
-
-                            // Wskaźnik stanu (mała kropka zamiast Switcha)
-                            Box(
-                                modifier = Modifier
-                                    .size(12.dp)
-                                    .clip(RoundedCornerShape(50))
-                                    .background(
-                                        if (checked) MaterialTheme.colorScheme.primary
-                                        else MaterialTheme.colorScheme.outline.copy(alpha = 0.4f)
-                                    )
-                            )
-                        }
-                    }
-                }
             }
         }
+    }
+}
+
+@Composable
+private fun HazardRow(
+    enabled: Boolean,
+    active: Boolean,
+    leftOut: Int,
+    rightOut: Int,
+    onToggle: () -> Unit
+) {
+    var pressed by remember { mutableStateOf(false) }
+    // karta: tylko onPress (nie stan wyjścia)
+    val cardBg by animateColorAsState(
+        if (pressed) MaterialTheme.colorScheme.primary.copy(alpha = 0.35f)
+        else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.55f),
+        label = "hazardCard"
+    )
+
+    Row(
+        Modifier.fillMaxWidth(),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Box(
+            Modifier
+                .weight(1f)
+                .height(56.dp)
+                .background(cardBg, RoundedCornerShape(10.dp))
+                .border(
+                    1.dp,
+                    MaterialTheme.colorScheme.outline.copy(alpha = 0.25f),
+                    RoundedCornerShape(10.dp)
+                )
+                .pointerInput(enabled) {
+                    detectTapGestures(
+                        onPress = {
+                            if (!enabled) return@detectTapGestures
+                            pressed = true
+                            tryAwaitRelease()
+                            pressed = false
+                            onToggle()
+                        }
+                    )
+                }
+                .padding(horizontal = 16.dp),
+            contentAlignment = Alignment.CenterStart
+        ) {
+            Text(
+                "AWARYJNE",
+                style = MaterialTheme.typography.titleSmall,
+                fontWeight = FontWeight.SemiBold
+            )
+        }
+        Spacer(Modifier.width(8.dp))
+        OutSquare(label = "OUT_%02d".format(leftOut), lit = active)
+        Spacer(Modifier.width(6.dp))
+        OutSquare(label = "OUT_%02d".format(rightOut), lit = active)
+    }
+}
+
+@Composable
+private fun ControlInItem(
+    row: ControlInRow,
+    outLit: (Int) -> Boolean,
+    enabled: Boolean,
+    onDown: () -> Unit,
+    onUp: (heldMs: Long) -> Unit
+) {
+    var pressed by remember { mutableStateOf(false) }
+    var downAt by remember { mutableLongStateOf(0L) }
+
+    // karta: tylko podświetlenie wciśnięcia
+    val cardBg by animateColorAsState(
+        if (pressed) MaterialTheme.colorScheme.primary.copy(alpha = 0.35f)
+        else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.55f),
+        label = "card${row.inNum}"
+    )
+
+    Row(
+        Modifier.fillMaxWidth(),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Column(
+            Modifier
+                .weight(1f)
+                .height(56.dp)
+                .background(cardBg, RoundedCornerShape(10.dp))
+                .border(
+                    1.dp,
+                    MaterialTheme.colorScheme.outline.copy(alpha = 0.25f),
+                    RoundedCornerShape(10.dp)
+                )
+                .pointerInput(row.inNum, enabled) {
+                    detectTapGestures(
+                        onPress = {
+                            if (!enabled) return@detectTapGestures
+                            pressed = true
+                            downAt = System.currentTimeMillis()
+                            onDown()
+                            tryAwaitRelease()
+                            pressed = false
+                            onUp(System.currentTimeMillis() - downAt)
+                        }
+                    )
+                }
+                .padding(horizontal = 14.dp, vertical = 8.dp),
+            verticalArrangement = Arrangement.Center
+        ) {
+            Text(
+                row.title,
+                style = MaterialTheme.typography.titleSmall,
+                fontWeight = FontWeight.SemiBold,
+                maxLines = 1
+            )
+            if (row.subtitle != null) {
+                Text(
+                    row.subtitle,
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    maxLines = 1
+                )
+            }
+        }
+
+        Spacer(Modifier.width(8.dp))
+
+        row.outNums.forEachIndexed { i, out ->
+            if (i > 0) Spacer(Modifier.width(6.dp))
+            OutSquare(
+                label = "OUT_%02d".format(out),
+                lit = outLit(out)
+            )
+        }
+    }
+}
+
+@Composable
+private fun OutSquare(label: String, lit: Boolean) {
+    val bg by animateColorAsState(
+        if (lit) MaterialTheme.colorScheme.primary
+        else MaterialTheme.colorScheme.surface,
+        label = "sq$label"
+    )
+    val fg = if (lit)
+        MaterialTheme.colorScheme.onPrimary
+    else
+        MaterialTheme.colorScheme.onSurface
+
+    Box(
+        Modifier
+            .size(width = 56.dp, height = 56.dp)
+            .background(bg, RoundedCornerShape(8.dp))
+            .border(
+                1.dp,
+                MaterialTheme.colorScheme.outline.copy(alpha = 0.45f),
+                RoundedCornerShape(8.dp)
+            ),
+        contentAlignment = Alignment.Center
+    ) {
+        Text(
+            label,
+            style = MaterialTheme.typography.labelMedium,
+            fontWeight = FontWeight.Bold,
+            color = fg,
+            textAlign = TextAlign.Center
+        )
     }
 }
