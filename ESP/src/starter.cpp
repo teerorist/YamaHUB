@@ -69,15 +69,15 @@ void starterSet(bool on, Output* outputs, bool& stateChanged) {
         }
         if (!starterActive) {
             starterActive = true;
+            suspendBlinkers();
             for (int i = 0; i < 10; i++) {
                 if (i == soi) continue;
                 savedOn[i] = outputs[i].isOn();
                 outputs[i].off();
             }
-            suspendBlinkers();
             outputs[soi].on();
             stateChanged = true;
-            Serial.printf("STARTER ON (OUT_%d)\n", soi + 1);
+            Serial.printf("STARTER ON (OUT_%d) – saved others\n", soi + 1);
         }
     } else if (!on && starterActive) {
         starterActive = false;
@@ -89,7 +89,7 @@ void starterSet(bool on, Output* outputs, bool& stateChanged) {
         }
         resumeBlinkers();
         stateChanged = true;
-        Serial.printf("STARTER OFF (OUT_%d)\n", soi + 1);
+        Serial.printf("STARTER OFF (OUT_%d) – restored\n", soi + 1);
     }
 }
 

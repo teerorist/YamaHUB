@@ -14,9 +14,19 @@ extern unsigned long connectionBlinkStart;
 
 void setupBlinkers();
 void refreshBlinkerPins();
+/** Indeks OUT 0..9 albo -1 gdy brak w inputCfg. */
 int blinkerLeftOutIndex();
 int blinkerRightOutIndex();
+bool isBlinkerOut(int outIndex0);
+
 void forceMode(BlinkerMode mode);
+/** Jak fizyczny short/long – tabela stanów (N z cfg.blinkCount / NS). */
+void applyLeftShort();
+void applyLeftLong();
+void applyRightShort();
+void applyRightLong();
+void applyLeftHoldLong();
+void applyRightHoldLong();
 void handleBlinkerButtons(Button* buttons, bool& stateChanged);
 void updateBlinkers(bool& stateChanged);
 void setLeft(int v);

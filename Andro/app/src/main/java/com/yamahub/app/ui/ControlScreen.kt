@@ -247,10 +247,27 @@ fun ControlScreen() {
         return if (on) 1f else 0f
     }
 
+    var leftDownWasActive by remember { mutableStateOf(false) }
+    var rightDownWasActive by remember { mutableStateOf(false) }
+
     fun pressDown(row: ControlInRow) {
         if (!isConnected) return
         when (row.mode) {
             1 -> row.outNums.forEach { ble.setOutput(it, true) }
+            2 -> {
+                leftDownWasActive = leftActive
+                if (!hazardOn && !leftActive) {
+                    if (rightActive) ble.sendCommand("RIGHT:0")
+                    ble.sendCommand("LEFT:1") // od razu N
+                }
+            }
+            3 -> {
+                rightDownWasActive = rightActive
+                if (!hazardOn && !rightActive) {
+                    if (leftActive) ble.sendCommand("LEFT:0")
+                    ble.sendCommand("RIGHT:1")
+                }
+            }
             6 -> ble.sendCommand("IN10:1")
             else -> {}
         }
@@ -266,35 +283,20 @@ fun ControlScreen() {
                 row.outNums.forEach { ble.setOutput(it, !cur) }
             }
             2 -> {
-                // lewy – toggle / przełączenie z prawego
-                if (hazardOn) {
-                    ble.setHazard(false)
-                } else if (leftActive && !hazardOn) {
-                    ble.setOutput(leftOutNum, false)
-                    // też klasyczne OUT:1 na wypadek remap
-                    if (leftOutNum != 1) ble.setOutput(1, false)
-                } else {
-                    if (rightActive) {
-                        ble.setOutput(rightOutNum, false)
-                        if (rightOutNum != 5) ble.setOutput(5, false)
-                    }
-                    ble.setOutput(leftOutNum, true)
-                    if (leftOutNum != 1) ble.setOutput(1, true)
+                when {
+                    hazardOn -> ble.setHazard(false)
+                    leftDownWasActive -> ble.sendCommand("LEFT:0")
+                    heldMs >= 400L -> ble.sendCommand("LEFT:2") // promocja N → NS
+                    // short: LEFT:1 już na pressDown
+                    else -> {}
                 }
             }
             3 -> {
-                if (hazardOn) {
-                    ble.setHazard(false)
-                } else if (rightActive && !hazardOn) {
-                    ble.setOutput(rightOutNum, false)
-                    if (rightOutNum != 5) ble.setOutput(5, false)
-                } else {
-                    if (leftActive) {
-                        ble.setOutput(leftOutNum, false)
-                        if (leftOutNum != 1) ble.setOutput(1, false)
-                    }
-                    ble.setOutput(rightOutNum, true)
-                    if (rightOutNum != 5) ble.setOutput(5, true)
+                when {
+                    hazardOn -> ble.setHazard(false)
+                    rightDownWasActive -> ble.sendCommand("RIGHT:0")
+                    heldMs >= 400L -> ble.sendCommand("RIGHT:2")
+                    else -> {}
                 }
             }
             6 -> ble.sendCommand("IN10:0")

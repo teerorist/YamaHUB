@@ -5,14 +5,12 @@
 #include "ble_hub.h"
 #include "inputs.h"
 #include "display_hub.h"
+#include "driver/gpio.h"
 #include <math.h>
 
-enum class RunMode {
-    OFF, LEFT_N, LEFT_NS, RIGHT_N, RIGHT_NS, HAZARD
-};
+enum class RunMode { OFF, LEFT_N, LEFT_NS, RIGHT_N, RIGHT_NS, HAZARD };
 
 static RunMode runMode = RunMode::OFF;
-
 BlinkerMode currentMode = MODE_OFF;
 int blinksRemaining = -1;
 bool connectionBlink = false;
@@ -25,14 +23,12 @@ static int blinkTarget = 0;
 static int blinkDone = 0;
 static float currentSpeed = 0.0f;
 
-enum class Pending {
-    NONE, OFF, LEFT_N, RIGHT_N, LEFT_NS, RIGHT_NS, HAZARD
-};
+enum class Pending { NONE, OFF, LEFT_N, RIGHT_N, LEFT_NS, RIGHT_NS, HAZARD };
 static Pending pending = Pending::NONE;
 
 static const int PWM_CH_LEFT  = 2;
 static const int PWM_CH_RIGHT = 3;
-static const unsigned long LONG_MS = 500;
+static const unsigned long LONG_MS = 400;  // <400 short=N, >=400 long=NS
 static const unsigned long IGNORE_MS = 350;
 static unsigned long ignoreInputUntil = 0;
 
@@ -41,84 +37,100 @@ static int suspendedTarget = 0;
 static int suspendedDone = 0;
 static bool suspended = false;
 
-// OUT_1..OUT_10 → GPIO (pins.h)
 static const uint8_t OUT_PINS[10] = {
     OUT_1, OUT_2, OUT_3, OUT_4, OUT_5,
     OUT_6, OUT_7, OUT_8, OUT_9, OUT_10
 };
 
-static int leftOutIdx  = 0;  // 0..9
-static int rightOutIdx = 4;
-static uint8_t leftGpio  = OUT_1;
-static uint8_t rightGpio = OUT_5;
-static bool pinsReady = false;
+// -1 = nieprzypisany (brak PWM)
+static int leftOutIdx  = -1;
+static int rightOutIdx = -1;
+static int leftGpio    = -1;
+static int rightGpio   = -1;
+static bool pinsReady  = false;
 
-/** Indeks OUT (0..9) dla trybu LEFT/RIGHT z inputCfg. */
 int blinkerLeftOutIndex() {
     for (int i = 0; i < INPUT_COUNT; i++)
-        if (inputCfg[i].mode == IN_LEFT) return (int)inputCfg[i].outIndex;
-    return 0;
-}
-int blinkerRightOutIndex() {
-    for (int i = 0; i < INPUT_COUNT; i++)
-        if (inputCfg[i].mode == IN_RIGHT) return (int)inputCfg[i].outIndex;
-    return 4;
+        if (inputCfg[i].mode == IN_LEFT)
+            return (int)inputCfg[i].outIndex;
+    return -1;
 }
 
-/** Przepnij PWM na aktualne OUT z konfiguracji (po SET_INCFG / starcie). */
+int blinkerRightOutIndex() {
+    for (int i = 0; i < INPUT_COUNT; i++)
+        if (inputCfg[i].mode == IN_RIGHT)
+            return (int)inputCfg[i].outIndex;
+    return -1;
+}
+
+bool isBlinkerOut(int outIndex0) {
+    if (outIndex0 < 0 || outIndex0 > 9) return false;
+    int li = blinkerLeftOutIndex();
+    int ri = blinkerRightOutIndex();
+    return outIndex0 == li || outIndex0 == ri;
+}
+
+static void hardReleaseGpio(int gpio) {
+    if (gpio < 0) return;
+    ledcDetachPin((uint8_t)gpio);
+    gpio_reset_pin((gpio_num_t)gpio);
+    pinMode((uint8_t)gpio, OUTPUT);
+    digitalWrite((uint8_t)gpio, LOW);
+}
+
 void refreshBlinkerPins() {
     int nl = blinkerLeftOutIndex();
     int nr = blinkerRightOutIndex();
-    if (nl < 0 || nl > 9) nl = 0;
-    if (nr < 0 || nr > 9) nr = 4;
 
     if (pinsReady && nl == leftOutIdx && nr == rightOutIdx) return;
 
-    // odłącz stare piny
+    // Zawsze zeruj poziomy starych slotów na LCD
+    if (leftOutIdx >= 0)  setOutLevel(leftOutIdx, 0);
+    if (rightOutIdx >= 0) setOutLevel(rightOutIdx, 0);
+
     if (pinsReady) {
-        ledcDetachPin(leftGpio);
-        if (rightGpio != leftGpio) ledcDetachPin(rightGpio);
-        pinMode(leftGpio, OUTPUT);
-        digitalWrite(leftGpio, LOW);
-        if (rightGpio != leftGpio) {
-            pinMode(rightGpio, OUTPUT);
-            digitalWrite(rightGpio, LOW);
-        }
-        setOutLevel(leftOutIdx, 0);
-        setOutLevel(rightOutIdx, 0);
+        hardReleaseGpio(leftGpio);
+        if (rightGpio != leftGpio) hardReleaseGpio(rightGpio);
     }
 
     leftOutIdx  = nl;
     rightOutIdx = nr;
-    leftGpio  = OUT_PINS[leftOutIdx];
-    rightGpio = OUT_PINS[rightOutIdx];
+    leftGpio  = (nl >= 0 && nl <= 9) ? (int)OUT_PINS[nl] : -1;
+    rightGpio = (nr >= 0 && nr <= 9) ? (int)OUT_PINS[nr] : -1;
 
-    ledcAttachPin(leftGpio, PWM_CH_LEFT);
-    ledcAttachPin(rightGpio, PWM_CH_RIGHT);
+    if (leftGpio >= 0)  ledcAttachPin((uint8_t)leftGpio, PWM_CH_LEFT);
+    if (rightGpio >= 0) ledcAttachPin((uint8_t)rightGpio, PWM_CH_RIGHT);
+
+    ledcWrite(PWM_CH_LEFT, 0);
+    ledcWrite(PWM_CH_RIGHT, 0);
     pinsReady = true;
 
     Serial.printf("PWM kierunków: L=OUT_%02d(gpio%d) R=OUT_%02d(gpio%d)\n",
-                  leftOutIdx + 1, leftGpio, rightOutIdx + 1, rightGpio);
+                  nl >= 0 ? nl + 1 : -1, leftGpio,
+                  nr >= 0 ? nr + 1 : -1, rightGpio);
 }
 
 void setLeft(int v) {
     v = constrain(v, 0, 255);
     if (!pinsReady) refreshBlinkerPins();
-    ledcWrite(PWM_CH_LEFT, v);
-    setOutLevel(leftOutIdx, (uint8_t)v);
+    if (leftGpio >= 0) ledcWrite(PWM_CH_LEFT, v);
+    if (leftOutIdx >= 0) setOutLevel(leftOutIdx, (uint8_t)v);
+    // NIGDY nie ruszaj innych indeksów (np. OUT_01 / low beam)
 }
 
 void setRight(int v) {
     v = constrain(v, 0, 255);
     if (!pinsReady) refreshBlinkerPins();
-    ledcWrite(PWM_CH_RIGHT, v);
-    setOutLevel(rightOutIdx, (uint8_t)v);
+    if (rightGpio >= 0) ledcWrite(PWM_CH_RIGHT, v);
+    if (rightOutIdx >= 0) setOutLevel(rightOutIdx, (uint8_t)v);
 }
 
 void setupBlinkers() {
     ledcSetup(PWM_CH_LEFT, 5000, 8);
     ledcSetup(PWM_CH_RIGHT, 5000, 8);
     pinsReady = false;
+    leftOutIdx = rightOutIdx = -1;
+    leftGpio = rightGpio = -1;
     refreshBlinkerPins();
     setLeft(0);
     setRight(0);
@@ -160,7 +172,6 @@ static void enter(RunMode m) {
         setLeft(0);
         setRight(0);
     }
-
     syncCurrentMode();
     Serial.printf("ENTER %d target=%d\n", (int)m, blinkTarget);
 }
@@ -173,15 +184,123 @@ static void queuePend(Pending p) {
 void forceMode(BlinkerMode mode) {
     pending = Pending::NONE;
     ignoreInputUntil = millis() + IGNORE_MS;
+    if (mode == MODE_OFF)         enter(RunMode::OFF);
+    else if (mode == MODE_LEFT)   enter(RunMode::LEFT_N);   // short / N – nie NS
+    else if (mode == MODE_RIGHT)  enter(RunMode::RIGHT_N);
+    else if (mode == MODE_HAZARD) enter(RunMode::HAZARD);
+}
 
-    if (mode == MODE_OFF) {
-        enter(RunMode::OFF);
-    } else if (mode == MODE_LEFT) {
+/*
+ * Tabela (ustalona, gdy działało „jak trzeba”):
+ *
+ * stan \ akcja     L short      L long       R short      R long
+ * OFF              LEFT N       LEFT NS      RIGHT N      RIGHT NS
+ * LEFT N           → LEFT N     → OFF        → RIGHT N    → RIGHT NS
+ * RIGHT N          → LEFT N     → LEFT NS    → RIGHT N    → OFF
+ * LEFT NS          → OFF        → OFF        → RIGHT N    → RIGHT NS
+ * RIGHT NS         → LEFT N     → LEFT NS    → OFF        → OFF
+ * HAZARD           → OFF        → LEFT NS    → OFF        → RIGHT NS
+ *
+ * „→” = dokończ bieżący fade (pending), potem nowy stan.
+ * N = cfg.blinkCount mrugnięć; NS = non-stop.
+ */
+void applyLeftShort() {
+    ignoreInputUntil = millis() + IGNORE_MS;
+    if (runMode == RunMode::OFF) {
+        enter(RunMode::LEFT_N);
+    } else if (runMode == RunMode::LEFT_N) {
+        queuePend(Pending::LEFT_N);
+    } else if (runMode == RunMode::LEFT_NS) {
+        queuePend(Pending::OFF);
+    } else if (runMode == RunMode::RIGHT_N || runMode == RunMode::RIGHT_NS) {
+        queuePend(Pending::LEFT_N);
+    } else if (runMode == RunMode::HAZARD) {
+        queuePend(Pending::OFF);
+    }
+}
+
+
+/** Promocja N → NS w trakcie tego samego wciśnięcia (po LONG_MS). */
+static void promoteLeftToNS() {
+    if (runMode == RunMode::LEFT_N) {
+        runMode = RunMode::LEFT_NS;
+        blinkTarget = -1;
+        blinksRemaining = -1;
+        syncCurrentMode();
+        Serial.println("PROMOTE LEFT N → NS");
+    } else if (runMode == RunMode::OFF) {
         enter(RunMode::LEFT_NS);
-    } else if (mode == MODE_RIGHT) {
+    }
+}
+
+static void promoteRightToNS() {
+    if (runMode == RunMode::RIGHT_N) {
+        runMode = RunMode::RIGHT_NS;
+        blinkTarget = -1;
+        blinksRemaining = -1;
+        syncCurrentMode();
+        Serial.println("PROMOTE RIGHT N → NS");
+    } else if (runMode == RunMode::OFF) {
         enter(RunMode::RIGHT_NS);
-    } else if (mode == MODE_HAZARD) {
-        enter(RunMode::HAZARD);
+    }
+}
+
+void applyLeftLong() {
+    ignoreInputUntil = millis() + IGNORE_MS;
+    if (runMode == RunMode::OFF) {
+        enter(RunMode::LEFT_NS);
+    } else if (runMode == RunMode::LEFT_N || runMode == RunMode::LEFT_NS) {
+        queuePend(Pending::OFF);
+    } else if (runMode == RunMode::RIGHT_N || runMode == RunMode::RIGHT_NS) {
+        queuePend(Pending::LEFT_NS);
+    } else if (runMode == RunMode::HAZARD) {
+        queuePend(Pending::LEFT_NS);
+    }
+}
+
+void applyRightShort() {
+    ignoreInputUntil = millis() + IGNORE_MS;
+    if (runMode == RunMode::OFF) {
+        enter(RunMode::RIGHT_N);
+    } else if (runMode == RunMode::RIGHT_N) {
+        queuePend(Pending::RIGHT_N);
+    } else if (runMode == RunMode::RIGHT_NS) {
+        queuePend(Pending::OFF);
+    } else if (runMode == RunMode::LEFT_N || runMode == RunMode::LEFT_NS) {
+        queuePend(Pending::RIGHT_N);
+    } else if (runMode == RunMode::HAZARD) {
+        queuePend(Pending::OFF);
+    }
+}
+
+void applyRightLong() {
+    ignoreInputUntil = millis() + IGNORE_MS;
+    if (runMode == RunMode::OFF) {
+        enter(RunMode::RIGHT_NS);
+    } else if (runMode == RunMode::RIGHT_N || runMode == RunMode::RIGHT_NS) {
+        queuePend(Pending::OFF);
+    } else if (runMode == RunMode::LEFT_N || runMode == RunMode::LEFT_NS) {
+        queuePend(Pending::RIGHT_NS);
+    } else if (runMode == RunMode::HAZARD) {
+        queuePend(Pending::RIGHT_NS);
+    }
+}
+
+void applyLeftHoldLong() {
+    ignoreInputUntil = millis() + IGNORE_MS;
+    if (runMode == RunMode::OFF || runMode == RunMode::LEFT_N) {
+        promoteLeftToNS();
+    } else {
+        applyLeftLong();
+    }
+}
+
+void applyRightHoldLong() {
+    ignoreInputUntil = millis() + IGNORE_MS;
+    if (runMode == RunMode::OFF || runMode == RunMode::RIGHT_N) {
+        promoteRightToNS();
+    } else {
+        applyRightLong();
     }
 }
 
@@ -222,30 +341,37 @@ bool blinkersAreOff() {
     return runMode == RunMode::OFF && pending == Pending::NONE && fadeValue == 0;
 }
 
-void setCurrentSpeed(float kmh) {
-    currentSpeed = kmh;
-}
+void setCurrentSpeed(float kmh) { currentSpeed = kmh; }
 
 static void checkAutoCancel() {
-    if (cfg.autoCancelSpeed <= 0) return;
-    if (currentSpeed < (float)cfg.autoCancelSpeed) return;
-
-    if (runMode == RunMode::LEFT_NS) {
-        enter(RunMode::LEFT_N);
-    } else if (runMode == RunMode::RIGHT_NS) {
-        enter(RunMode::RIGHT_N);
+    if (cfg.autoCancelSpeed == 0) return;
+    if (runMode != RunMode::LEFT_NS && runMode != RunMode::RIGHT_NS) return;
+    if (currentSpeed >= (float)cfg.autoCancelSpeed) {
+        // NS → N (dokończ serię short)
+        if (runMode == RunMode::LEFT_NS) {
+            runMode = RunMode::LEFT_N;
+            blinkTarget = shortN();
+            blinkDone = 0;
+            blinksRemaining = blinkTarget;
+        } else {
+            runMode = RunMode::RIGHT_N;
+            blinkTarget = shortN();
+            blinkDone = 0;
+            blinksRemaining = blinkTarget;
+        }
+        syncCurrentMode();
+        Serial.println("AutoCancel NS→N");
     }
 }
 
 static float curveFactor(float t) {
     if (cfg.curve == 1) return t * t * (3.0f - 2.0f * t);
-    if (cfg.curve == 2) return t * t;
+    if (cfg.curve == 2) return (t < 0.5f) ? 0.0f : 1.0f;
     return t;
 }
 
 void updateBlinkers(bool& stateChanged) {
     if (suspended) return;
-
     checkAutoCancel();
 
     if (pending != Pending::NONE && fadeValue == 0 && fadeDirection == 1) {
@@ -278,10 +404,7 @@ void updateBlinkers(bool& stateChanged) {
         int delta = 8;
         if (fadeDirection > 0) {
             fadeValue += delta;
-            if (fadeValue >= 255) {
-                fadeValue = 255;
-                fadeDirection = -1;
-            }
+            if (fadeValue >= 255) { fadeValue = 255; fadeDirection = -1; }
         } else {
             fadeValue -= delta;
             if (fadeValue <= 0) {
@@ -289,7 +412,6 @@ void updateBlinkers(bool& stateChanged) {
                 fadeDirection = 1;
                 blinkDone++;
                 Serial.printf("BLINK %d/%d\n", blinkDone, blinkTarget);
-
                 if (blinkTarget > 0 && blinkDone >= blinkTarget) {
                     enter(RunMode::OFF);
                     stateChanged = true;
@@ -319,42 +441,42 @@ void updateBlinkers(bool& stateChanged) {
 }
 
 static int findLeftBtn() {
-    for (int i = 0; i < INPUT_COUNT; i++) {
+    for (int i = 0; i < INPUT_COUNT; i++)
         if (inputCfg[i].mode == IN_LEFT) return i;
-    }
     return -1;
 }
-
 static int findRightBtn() {
-    for (int i = 0; i < INPUT_COUNT; i++) {
+    for (int i = 0; i < INPUT_COUNT; i++)
         if (inputCfg[i].mode == IN_RIGHT) return i;
-    }
     return -1;
 }
 
 void handleBlinkerButtons(Button* buttons, bool& stateChanged) {
     if (millis() < ignoreInputUntil) return;
-    if (suspended) return;
+    if (!tryArm()) return;
 
     int li = findLeftBtn();
     int ri = findRightBtn();
+    if (li < 0 && ri < 0) return;
 
+    static bool leftWas = false, rightWas = false;
     static unsigned long leftDown = 0, rightDown = 0;
     static bool leftLong = false, rightLong = false;
-    static bool leftWas = false, rightWas = false;
+    // gest z OFF: press = od razu N; po LONG_MS = promocja NS; release < LONG_MS = zostaje N
+    static bool leftProvisional = false, rightProvisional = false;
 
-    bool leftNow  = (li >= 0) ? buttons[li].isPressed() : false;
-    bool rightNow = (ri >= 0) ? buttons[ri].isPressed() : false;
+    bool leftNow  = (li >= 0) && buttons[li].isPressed();
+    bool rightNow = (ri >= 0) && buttons[ri].isPressed();
 
-    // oba naraz → hazard
+    // oba naraz long → HAZARD
     if (leftNow && rightNow) {
-        if (!leftWas || !rightWas) {
-            if (runMode == RunMode::HAZARD) {
-                queuePend(Pending::OFF);
-            } else {
-                queuePend(Pending::HAZARD);
-            }
-            ignoreInputUntil = millis() + IGNORE_MS;
+        unsigned long ld = leftDown ? (millis() - leftDown) : 0;
+        unsigned long rd = rightDown ? (millis() - rightDown) : 0;
+        if (!leftLong && !rightLong && leftDown && rightDown && ld > LONG_MS && rd > LONG_MS) {
+            leftLong = rightLong = true;
+            leftProvisional = rightProvisional = false;
+            if (runMode == RunMode::HAZARD) queuePend(Pending::OFF);
+            else enter(RunMode::HAZARD);
             stateChanged = true;
         }
         leftWas = leftNow;
@@ -362,38 +484,37 @@ void handleBlinkerButtons(Button* buttons, bool& stateChanged) {
         return;
     }
 
-    // LEWY
+    // ----- LEWY -----
     if (leftNow && !leftWas) {
         leftDown = millis();
         leftLong = false;
+        leftProvisional = false;
+        if (runMode == RunMode::OFF) {
+            enter(RunMode::LEFT_N);          // od razu włącz
+            leftProvisional = true;
+            stateChanged = true;
+            Serial.println("LEFT press → N");
+        }
     }
     if (leftNow && !leftLong && leftDown > 0 && (millis() - leftDown) > LONG_MS) {
         leftLong = true;
-        if (runMode == RunMode::OFF) {
-            enter(RunMode::LEFT_NS);
-        } else if (runMode == RunMode::LEFT_N || runMode == RunMode::LEFT_NS) {
-            queuePend(Pending::OFF);
-        } else if (runMode == RunMode::RIGHT_N || runMode == RunMode::RIGHT_NS) {
-            queuePend(Pending::LEFT_NS);
-        } else if (runMode == RunMode::HAZARD) {
-            queuePend(Pending::LEFT_NS);
+        if (leftProvisional) {
+            promoteLeftToNS();               // N → NS w tym samym geście
+            stateChanged = true;
+        } else {
+            applyLeftLong();                 // tabela: aktywny + long → off / switch
+            stateChanged = true;
         }
-        stateChanged = true;
     }
     if (!leftNow && leftWas) {
         unsigned long held = millis() - leftDown;
-        if (!leftLong && held > 30) {
-            if (runMode == RunMode::OFF) {
-                enter(RunMode::LEFT_N);
-            } else if (runMode == RunMode::LEFT_N) {
-                queuePend(Pending::LEFT_N);
-            } else if (runMode == RunMode::LEFT_NS) {
-                queuePend(Pending::OFF);
-            } else if (runMode == RunMode::RIGHT_N || runMode == RunMode::RIGHT_NS) {
-                queuePend(Pending::LEFT_N);
-            } else if (runMode == RunMode::HAZARD) {
-                queuePend(Pending::OFF);
-            }
+        if (leftProvisional) {
+            // short: LEFT_N już jedzie z target=N; long: już NS
+            leftProvisional = false;
+            Serial.println(leftLong ? "LEFT release → NS" : "LEFT release → N");
+            stateChanged = true;
+        } else if (!leftLong && held > 30) {
+            applyLeftShort();
             stateChanged = true;
         }
         leftDown = 0;
@@ -401,38 +522,36 @@ void handleBlinkerButtons(Button* buttons, bool& stateChanged) {
     }
     leftWas = leftNow;
 
-    // PRAWY
+    // ----- PRAWY -----
     if (rightNow && !rightWas) {
         rightDown = millis();
         rightLong = false;
+        rightProvisional = false;
+        if (runMode == RunMode::OFF) {
+            enter(RunMode::RIGHT_N);
+            rightProvisional = true;
+            stateChanged = true;
+            Serial.println("RIGHT press → N");
+        }
     }
     if (rightNow && !rightLong && rightDown > 0 && (millis() - rightDown) > LONG_MS) {
         rightLong = true;
-        if (runMode == RunMode::OFF) {
-            enter(RunMode::RIGHT_NS);
-        } else if (runMode == RunMode::RIGHT_N || runMode == RunMode::RIGHT_NS) {
-            queuePend(Pending::OFF);
-        } else if (runMode == RunMode::LEFT_N || runMode == RunMode::LEFT_NS) {
-            queuePend(Pending::RIGHT_NS);
-        } else if (runMode == RunMode::HAZARD) {
-            queuePend(Pending::RIGHT_NS);
+        if (rightProvisional) {
+            promoteRightToNS();
+            stateChanged = true;
+        } else {
+            applyRightLong();
+            stateChanged = true;
         }
-        stateChanged = true;
     }
     if (!rightNow && rightWas) {
         unsigned long held = millis() - rightDown;
-        if (!rightLong && held > 30) {
-            if (runMode == RunMode::OFF) {
-                enter(RunMode::RIGHT_N);
-            } else if (runMode == RunMode::RIGHT_N) {
-                queuePend(Pending::RIGHT_N);
-            } else if (runMode == RunMode::RIGHT_NS) {
-                queuePend(Pending::OFF);
-            } else if (runMode == RunMode::LEFT_N || runMode == RunMode::LEFT_NS) {
-                queuePend(Pending::RIGHT_N);
-            } else if (runMode == RunMode::HAZARD) {
-                queuePend(Pending::OFF);
-            }
+        if (rightProvisional) {
+            rightProvisional = false;
+            Serial.println(rightLong ? "RIGHT release → NS" : "RIGHT release → N");
+            stateChanged = true;
+        } else if (!rightLong && held > 30) {
+            applyRightShort();
             stateChanged = true;
         }
         rightDown = 0;

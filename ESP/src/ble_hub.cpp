@@ -5,12 +5,12 @@
 #include "starter.h"
 #include "arming.h"
 #include "inputs.h"
+#include "beams.h"
 #include <NimBLEDevice.h>
 #include <cstdio>
 #include <cstring>
 
 bool deviceConnected = false;
-
 bool isBleConnected() { return deviceConnected; }
 
 static NimBLEServer* pServer = nullptr;
@@ -20,7 +20,6 @@ static Output* gOutputs = nullptr;
 #define SERVICE_UUID        "FFE0"
 #define CHARACTERISTIC_UUID "FFE1"
 
-// ---------- kolejka komend z callbacka (żeby nie blokować nimble host) ----------
 static const int CMD_Q = 8;
 static char cmdQueue[CMD_Q][96];
 static volatile int cmdHead = 0;
@@ -28,7 +27,7 @@ static volatile int cmdTail = 0;
 
 static void enqueueCmd(const std::string& value) {
     int next = (cmdHead + 1) % CMD_Q;
-    if (next == cmdTail) return; // pełna – drop
+    if (next == cmdTail) return;
     strncpy(cmdQueue[cmdHead], value.c_str(), 95);
     cmdQueue[cmdHead][95] = '\0';
     cmdHead = next;
@@ -42,15 +41,17 @@ void sendState(Output* outputs) {
     bool leftOn  = (currentMode == MODE_LEFT  || currentMode == MODE_HAZARD);
     bool rightOn = (currentMode == MODE_RIGHT || currentMode == MODE_HAZARD);
 
-    // bit i = OUT_(i+1): digital LUB aktywny kierunek na tym OUT
     char bits[11];
     for (int i = 0; i < 10; i++) {
-        bool on = outputs[i].isOn();
-        if (i == li && leftOn)  on = true;
-        if (i == ri && rightOn) on = true;
-        // wyjścia kierunków nie bierz z digital (PWM)
-        if (i == li || i == ri) {
-            on = (i == li && leftOn) || (i == ri && rightOn);
+        bool on = false;
+        if (i == li) {
+            on = leftOn;
+        } else if (i == ri) {
+            on = rightOn;
+        } else if (isBeamOutput(i)) {
+            on = (outLevel[i] > 20);
+        } else {
+            on = outputs[i].isOn();
         }
         bits[i] = on ? '1' : '0';
     }
@@ -80,45 +81,48 @@ void sendInputCfg() {
     for (int i = 0; i < INPUT_COUNT; i++) {
         pos += snprintf(msg + pos, sizeof(msg) - pos, "%s%d,%d,%s",
                         (i ? ";" : ""),
-                        inputCfg[i].mode,
-                        inputCfg[i].outIndex + 1,
+                        (int)inputCfg[i].mode,
+                        (int)inputCfg[i].outIndex + 1,
                         inputCfg[i].name);
-        if (pos >= (int)sizeof(msg) - 4) break;
+        if (pos >= (int)sizeof(msg) - 8) break;
     }
     pCharacteristic->setValue(msg);
     pCharacteristic->notify();
-    Serial.println(msg);
+    Serial.printf("INCFG sent (%d bytes)\n", pos);
 }
 
-void bleLog(const char* msg) {
-    Serial.println(msg);
-    if (!deviceConnected || !pCharacteristic) return;
-    char buf[128];
-    snprintf(buf, sizeof(buf), "LOG:%s", msg);
-    pCharacteristic->setValue(buf);
-    pCharacteristic->notify();
+static void applyDigitalOrBeam(Output* outputs, int oi, bool on) {
+    if (oi < 0 || oi > 9 || !outputs) return;
+    if (isBlinkerOut(oi)) {
+        Serial.printf("OUT_%d zablokowany (kierunek)\n", oi + 1);
+        return;
+    }
+    if (isBeamOutput(oi)) {
+        requestBeamLevel(oi, on ? 255 : 0);
+        return;
+    }
+    if (on) outputs[oi].on();
+    else    outputs[oi].off();
+    setOutLevel(oi, on ? 255 : 0);
 }
 
-// ---------- obsługa komend (wywoływana z processBle w loop) ----------
 static void handleCommand(const char* value) {
+    if (!value || !value[0]) return;
     Serial.printf("Otrzymano: %s\n", value);
 
     if (strcmp(value, "GET") == 0) {
         if (gOutputs) sendState(gOutputs);
         return;
     }
-
     if (strcmp(value, "GET_CFG") == 0) {
         sendConfig();
         return;
     }
-
     if (strcmp(value, "GET_INCFG") == 0) {
         sendInputCfg();
         return;
     }
 
-    // SET_CFG:fade,blinks,curve,acSpeed[,beamFade]
     if (strncmp(value, "SET_CFG:", 8) == 0) {
         int fade = 12, blinks = 3, curve = 1, ac = 20, beamFade = (int)cfg.beamFade;
         int n = sscanf(value + 8, "%d,%d,%d,%d,%d",
@@ -131,12 +135,10 @@ static void handleCommand(const char* value) {
             if (n >= 5) cfg.beamFade = beamFade ? 1 : 0;
             saveConfig();
             sendConfig();
-            Serial.printf("SET_CFG OK beamFade=%d\n", cfg.beamFade);
         }
         return;
     }
 
-        // SET_INCFG:in1-10,mode,out1-10,name
     if (strncmp(value, "SET_INCFG:", 10) == 0) {
         int inNum = 0, mode = 0, outNum = 0;
         char name[16] = {0};
@@ -147,57 +149,51 @@ static void handleCommand(const char* value) {
                                   (uint8_t)(outNum - 1),
                                   n >= 4 ? name : nullptr);
             Serial.println(ok ? "SET_INCFG OK" : "SET_INCFG FAIL");
-            sendInputCfg();
             refreshBlinkerPins();
+            setupBeams();
+            sendInputCfg();
         } else {
             Serial.println("SET_INCFG FAIL (range)");
         }
         return;
     }
 
-    // OUT:n:0/1  (1..10)
-    if (strncmp(value, "OUT:", 4) == 0) {
-        int num = 0, state = 0;
-        if (sscanf(value + 4, "%d:%d", &num, &state) == 2 &&
-            num >= 1 && num <= 10 && gOutputs) {
-            int oi = num - 1;
-            bool isLeft = false, isRight = false;
-            for (int i = 0; i < INPUT_COUNT; i++) {
-                if ((int)inputCfg[i].outIndex == oi) {
-                    if (inputCfg[i].mode == IN_LEFT)  isLeft = true;
-                    if (inputCfg[i].mode == IN_RIGHT) isRight = true;
-                }
-            }
-            // fallback: klasyczne 1/5 gdy brak cfg
-            if (!isLeft && !isRight) {
-                if (num == 1) isLeft = true;
-                if (num == 5) isRight = true;
-            }
-
-            if (isLeft && !isRight) {
-                if (state) {
-                    connectionBlink = false;
-                    forceMode(MODE_LEFT);
-                } else if (currentMode == MODE_LEFT || currentMode == MODE_HAZARD) {
-                    forceMode(MODE_OFF);
-                }
-                Serial.println(state ? "LEFT ON" : "LEFT OFF");
-            } else if (isRight && !isLeft) {
-                if (state) {
-                    connectionBlink = false;
-                    forceMode(MODE_RIGHT);
-                } else if (currentMode == MODE_RIGHT || currentMode == MODE_HAZARD) {
-                    forceMode(MODE_OFF);
-                }
-                Serial.println(state ? "RIGHT ON" : "RIGHT OFF");
-            } else if (num == 10 || (oi == starterOutIndex())) {
-                setBleStarterPressed(state != 0);
+    // LEFT:0=off  LEFT:1=short(N)  LEFT:2=long(NS)
+    if (strncmp(value, "LEFT:", 5) == 0) {
+        int state = 0;
+        if (sscanf(value + 5, "%d", &state) == 1) {
+            connectionBlink = false;
+            if (state == 0) {
+                forceMode(MODE_OFF);
+                Serial.println("LEFT OFF");
+            } else if (state == 2) {
+                applyLeftHoldLong();
+                Serial.println("LEFT HOLD/NS");
             } else {
-                if (state) gOutputs[oi].on();
-                else gOutputs[oi].off();
-                Serial.printf("Wyjście %d → %s\n", num, state ? "ON" : "OFF");
+                applyLeftShort();
+                Serial.println("LEFT SHORT/N");
             }
-            sendState(gOutputs);
+            if (gOutputs) sendState(gOutputs);
+        }
+        return;
+    }
+
+    // RIGHT:0=off  RIGHT:1=short(N)  RIGHT:2=long(NS)
+    if (strncmp(value, "RIGHT:", 6) == 0) {
+        int state = 0;
+        if (sscanf(value + 6, "%d", &state) == 1) {
+            connectionBlink = false;
+            if (state == 0) {
+                forceMode(MODE_OFF);
+                Serial.println("RIGHT OFF");
+            } else if (state == 2) {
+                applyRightHoldLong();
+                Serial.println("RIGHT HOLD/NS");
+            } else {
+                applyRightShort();
+                Serial.println("RIGHT SHORT/N");
+            }
+            if (gOutputs) sendState(gOutputs);
         }
         return;
     }
@@ -213,25 +209,55 @@ static void handleCommand(const char* value) {
         return;
     }
 
-    // IN10:0/1 – jak fizyczny przycisk starter/kill
+    // OUT:n:0/1 — TYLKO po inputCfg.mode, BEZ fallbacku 1=L / 5=P
+    if (strncmp(value, "OUT:", 4) == 0) {
+        int num = 0, state = 0;
+        if (sscanf(value + 4, "%d:%d", &num, &state) == 2 &&
+            num >= 1 && num <= 10 && gOutputs) {
+            int oi = num - 1;
+
+            bool isLeft = false, isRight = false;
+            for (int i = 0; i < INPUT_COUNT; i++) {
+                if ((int)inputCfg[i].outIndex != oi) continue;
+                if (inputCfg[i].mode == IN_LEFT)  isLeft = true;
+                if (inputCfg[i].mode == IN_RIGHT) isRight = true;
+            }
+
+            if (isLeft && !isRight) {
+                connectionBlink = false;
+                if (state) applyLeftShort();
+                else forceMode(MODE_OFF);
+                Serial.println(state ? "LEFT SHORT/N" : "LEFT OFF");
+            } else if (isRight && !isLeft) {
+                connectionBlink = false;
+                if (state) applyRightShort();
+                else forceMode(MODE_OFF);
+                Serial.println(state ? "RIGHT SHORT/N" : "RIGHT OFF");
+            } else if (oi == starterOutIndex() || num == 10) {
+                setBleStarterPressed(state != 0);
+            } else {
+                applyDigitalOrBeam(gOutputs, oi, state != 0);
+                Serial.printf("Wyjście %d → %s\n", num, state ? "ON" : "OFF");
+            }
+            sendState(gOutputs);
+        }
+        return;
+    }
+
     if (strncmp(value, "IN10:", 5) == 0) {
         int state = 0;
-        if (sscanf(value + 5, "%d", &state) == 1) {
+        if (sscanf(value + 5, "%d", &state) == 1)
             setBleStarterPressed(state != 0);
-        }
         return;
     }
 
-    // SPEED:xx.x
     if (strncmp(value, "SPEED:", 6) == 0) {
         float kmh = 0;
-        if (sscanf(value + 6, "%f", &kmh) == 1) {
+        if (sscanf(value + 6, "%f", &kmh) == 1)
             setCurrentSpeed(kmh);
-        }
         return;
     }
 
-    // SHUTDOWN_NOW – hard kill z apki
     if (strcmp(value, "SHUTDOWN_NOW") == 0) {
         if (gOutputs) requestShutdown(gOutputs);
         return;
@@ -248,16 +274,14 @@ void processBle() {
     }
 }
 
-// ---------- callbacks ----------
 class ServerCallbacks : public NimBLEServerCallbacks {
-    void onConnect(NimBLEServer* pServer) {
+    void onConnect(NimBLEServer* s) {
         deviceConnected = true;
         tryArm();
         Serial.println("BLE: Połączono");
         Serial.println("HUB ARMED (apka)");
     }
-
-    void onDisconnect(NimBLEServer* pServer) {
+    void onDisconnect(NimBLEServer* s) {
         deviceConnected = false;
         Serial.println("BLE: Rozłączono");
         NimBLEDevice::startAdvertising();
@@ -265,10 +289,9 @@ class ServerCallbacks : public NimBLEServerCallbacks {
 };
 
 class CharacteristicCallbacks : public NimBLECharacteristicCallbacks {
-    void onWrite(NimBLECharacteristic* pCharacteristic) {
-        std::string value = pCharacteristic->getValue();
-        if (value.empty()) return;
-        enqueueCmd(value);
+    void onWrite(NimBLECharacteristic* c) {
+        std::string value = c->getValue();
+        if (!value.empty()) enqueueCmd(value);
     }
 };
 
@@ -278,10 +301,8 @@ void setupBLE(Output* outputs) {
     NimBLEDevice::init("YamaHub");
     NimBLEDevice::setMTU(256);
     NimBLEDevice::setPower(ESP_PWR_LVL_P9);
-
     pServer = NimBLEDevice::createServer();
     pServer->setCallbacks(new ServerCallbacks());
-
     NimBLEService* pService = pServer->createService(SERVICE_UUID);
     pCharacteristic = pService->createCharacteristic(
         CHARACTERISTIC_UUID,
@@ -291,10 +312,18 @@ void setupBLE(Output* outputs) {
     pCharacteristic->setCallbacks(new CharacteristicCallbacks());
     pCharacteristic->setValue("YamaHub ready");
     pService->start();
-
     NimBLEAdvertising* pAdv = NimBLEDevice::getAdvertising();
     pAdv->addServiceUUID(SERVICE_UUID);
     pAdv->setName("YamaHub");
     pAdv->start();
     Serial.println("BLE gotowe");
+}
+
+void bleLog(const char* msg) {
+    Serial.println(msg);
+    if (!deviceConnected || !pCharacteristic) return;
+    char buf[128];
+    snprintf(buf, sizeof(buf), "LOG:%s", msg);
+    pCharacteristic->setValue(buf);
+    pCharacteristic->notify();
 }
