@@ -27,12 +27,12 @@ static unsigned long bootCheckAt = 0;
 
 void setup() {
     Serial.begin(115200);
-    delay(400);
+    delay(500);
 
     loadConfig();
     loadInputModes();
 
-    Serial.println("=== YamaHub v1.6 clean outs ===");
+    Serial.println("=== YamaHub v1.5 modular ===");
     Serial.printf("Config: fade=%d N=%d curve=%d acSpeed=%d\n",
                   cfg.fadeSpeed, cfg.blinkCount, cfg.curve, cfg.autoCancelSpeed);
 
@@ -41,30 +41,28 @@ void setup() {
         outputs[i].begin();
     }
 
-    // najpierw kierunki (PWM), potem beams (nie wolno zająć pinów L/R)
     setupBlinkers();
     setupBeams();
     setupDisplay();
 
-    // log mapowania
-    Serial.printf("Map: LEFT→OUT_%d RIGHT→OUT_%d\n",
-                  blinkerLeftOutIndex() + 1, blinkerRightOutIndex() + 1);
-
     esp_sleep_wakeup_cause_t cause = esp_sleep_get_wakeup_cause();
+
     if (cause == ESP_SLEEP_WAKEUP_TIMER) {
         Serial.println("Wake: TIMER → okno BLE 2s");
         setupBLE(outputs);
+
         unsigned long t0 = millis();
         while (millis() - t0 < 2000) {
             processBle();
             if (isBleConnected()) {
                 Serial.println("Apka w oknie → normalna praca");
-                bootCheckDone = true;
                 Serial.println("Gotowy");
+                bootCheckDone = true;
                 return;
             }
             delay(20);
         }
+
         Serial.println("Brak apki → sleep 8s");
         delay(30);
         Serial.flush();
@@ -77,17 +75,21 @@ void setup() {
     Serial.println("Wake: power-on / reset");
     setupBLE(outputs);
     Serial.println("Gotowy");
+
     bootCheckDone = false;
     bootCheckAt = millis() + 60000UL;
+    Serial.println("Za 60s: check HUB ARMED (apka)");
 }
 
 void loop() {
+    bool stateChanged = false;
     processBle();
+    updateBeams(stateChanged);
 
     if (!bootCheckDone && millis() >= bootCheckAt) {
         bootCheckDone = true;
         if (hubArmed) {
-            Serial.println("Check: HUB ARMED – OK");
+            Serial.println("Check: HUB ARMED – OK, bez 8/2");
         } else {
             Serial.println("Check: brak ARMED → sleep 8/2");
             delay(50);
@@ -100,24 +102,26 @@ void loop() {
 
     updateShutdown();
 
-    bool stateChanged = false;
     handleBlinkerButtons(buttons, stateChanged);
     handleConfigurableInputs(buttons, outputs, stateChanged);
 
+    // STARTER: przycisk z konfiguracji (domyślnie IN_10, indeks 9)
     int si = findStarterInIndex();
-    if (si >= 0 && si < 10)
+    if (si >= 0 && si < 10) {
         handleStarter(buttons[si], outputs, stateChanged);
+    }
 
-    updateBeams(stateChanged);
     updateBlinkers(stateChanged);
     if (stateChanged) sendState(outputs);
 
     static unsigned long lastDraw = 0;
     if (millis() - lastDraw >= 40) {
         lastDraw = millis();
+        int li = blinkerLeftOutIndex();
+        int ri = blinkerRightOutIndex();
         for (int i = 0; i < 10; i++) {
-            if (isBlinkerOut(i)) continue;          // poziom z PWM
-            if (isBeamOutput(i)) continue;           // poziom z beams
+            // poziomy PWM kierunków ustawia setLeft/setRight
+            if (i == li || i == ri) continue;
             setOutLevel(i, outputs[i].isOn() ? 255 : 0);
         }
         drawOutputs();

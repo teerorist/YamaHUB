@@ -1,5 +1,7 @@
 package com.yamahub.app
 
+import com.yamahub.app.InputCfgItem
+
 import android.annotation.SuppressLint
 import android.bluetooth.*
 import android.content.Context
@@ -8,13 +10,6 @@ import android.os.Looper
 import android.util.Log
 import java.util.ArrayDeque
 import java.util.UUID
-
-data class InputCfgItem(
-    val inNum: Int,
-    val mode: Int,
-    val outNum: Int,
-    val name: String
-)
 
 class BleManager(private val context: Context) {
 

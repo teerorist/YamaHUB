@@ -1,5 +1,10 @@
 package com.yamahub.app.ui
 
+import com.yamahub.app.ui.InputSettingsTab
+import com.yamahub.app.ui.BlinkerSettingsTab
+import com.yamahub.app.ui.BleSettingsTab
+import com.yamahub.app.ui.ControlScreen
+
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material.icons.Icons

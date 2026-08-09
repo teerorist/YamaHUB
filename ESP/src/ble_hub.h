@@ -1,12 +1,10 @@
 #pragma once
 #include "Output.h"
+#include "ble_protocol.h"
 
 extern bool deviceConnected;
+extern Output* gOutputs;
 
 void setupBLE(Output* outputs);
 void processBle();
-void sendState(Output* outputs);
-void sendConfig();
-void sendInputCfg();
-void bleLog(const char* msg);
 bool isBleConnected();
