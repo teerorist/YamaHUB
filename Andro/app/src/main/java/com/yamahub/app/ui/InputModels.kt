@@ -1,6 +1,7 @@
 package com.yamahub.app.ui
 
 import com.yamahub.app.InputCfgItem
+import com.yamahub.app.displayName
 
 object Mode {
     const val TOGGLE = 0
@@ -65,7 +66,7 @@ fun FnSlot.isFixed(): Boolean = when (kind) {
 }
 
 fun FnSlot.hasOutPicker(): Boolean = when (kind) {
-    FnKind.DISABLED, FnKind.SENSOR, FnKind.NEUTRAL -> false
+    FnKind.DISABLED, FnKind.SENSOR -> false
     else -> true
 }
 
@@ -95,28 +96,34 @@ fun FnSlot.toWireName(lightsCount: Int): String = when (kind) {
     FnKind.DISABLED -> "DISABLED"
 }
 
+/** Nazwa bez podkreśleń – lokalny helper na String. */
+private fun prettyName(raw: String): String =
+    raw.replace('_', ' ').trim()
+
 fun InputCfgItem.toFnSlot(): FnSlot {
     val n = name.trim()
-    val nd = displayName(n).lowercase()
+    val nd = prettyName(n).lowercase()
+    val pretty = this.displayName()
     val o = outNum.coerceIn(1, 10)
     return when (mode) {
-        Mode.LEFT -> FnSlot(FnKind.LEFT, outNum = o)
-        Mode.RIGHT -> FnSlot(FnKind.RIGHT, outNum = o)
+        Mode.LEFT -> FnSlot(kind = FnKind.LEFT, outNum = o)
+        Mode.RIGHT -> FnSlot(kind = FnKind.RIGHT, outNum = o)
         Mode.SENSOR -> FnSlot(
-            FnKind.SENSOR, outNum = o,
-            customName = displayName(n).ifBlank { "SENSOR" }
+            kind = FnKind.SENSOR,
+            outNum = 0,
+            customName = pretty.ifBlank { "SENSOR" }
         )
-        Mode.DISABLED -> FnSlot(FnKind.DISABLED, outNum = o)
-        Mode.STARTER -> FnSlot(FnKind.STARTER, outNum = o)
+        Mode.DISABLED -> FnSlot(kind = FnKind.DISABLED, outNum = o)
+        Mode.STARTER -> FnSlot(kind = FnKind.STARTER, outNum = o)
         Mode.MOMENT -> when {
-            nd.contains("neutral") -> FnSlot(FnKind.NEUTRAL, outNum = o)
+            nd.contains("neutral") -> FnSlot(kind = FnKind.NEUTRAL, outNum = o)
             nd.contains("brake") && (nd.contains("rear") || nd.contains("2")) ->
-                FnSlot(FnKind.BRAKE, variant = 2, outNum = o)
-            nd.contains("starter") -> FnSlot(FnKind.STARTER, outNum = o)
-            else -> FnSlot(FnKind.BRAKE, variant = 1, outNum = o)
+                FnSlot(kind = FnKind.BRAKE, variant = 2, outNum = o)
+            nd.contains("starter") -> FnSlot(kind = FnKind.STARTER, outNum = o)
+            else -> FnSlot(kind = FnKind.BRAKE, variant = 1, outNum = o)
         }
         else -> when {
-            nd.contains("starter") -> FnSlot(FnKind.STARTER, outNum = o)
+            nd.contains("starter") -> FnSlot(kind = FnKind.STARTER, outNum = o)
             nd.startsWith("lights") || nd.contains("light") ||
                 nd.contains("hi_beam") || nd.contains("low_beam") ||
                 nd.contains("hibeam") || nd.contains("lowbeam") -> {
@@ -127,31 +134,35 @@ fun InputCfgItem.toFnSlot(): FnSlot {
                     nd.contains("2") || n.contains("_2") -> 2
                     else -> 1
                 }
-                FnSlot(FnKind.LIGHTS, variant = v, outNum = o, outNum2 = hi)
+                FnSlot(kind = FnKind.LIGHTS, variant = v, outNum = o, outNum2 = hi)
             }
-            else -> FnSlot(FnKind.BUTTON, outNum = o, customName = displayName(n))
+            else -> FnSlot(
+                kind = FnKind.BUTTON,
+                outNum = o,
+                customName = pretty.ifBlank { "BUTTON" }
+            )
         }
     }
 }
 
 fun defaultSlots(): List<FnSlot> = listOf(
-    FnSlot(FnKind.LEFT, outNum = 1),
-    FnSlot(FnKind.RIGHT, outNum = 5),
-    FnSlot(FnKind.LIGHTS, variant = 1, outNum = 3, outNum2 = 7),
-    FnSlot(FnKind.BRAKE, variant = 1, outNum = 4),
-    FnSlot(FnKind.NEUTRAL, outNum = 6),
-    FnSlot(FnKind.STARTER, outNum = 10),
-    FnSlot(FnKind.BUTTON, outNum = 2, customName = "BUTTON"),
-    FnSlot(FnKind.BUTTON, outNum = 8, customName = "BUTTON"),
-    FnSlot(FnKind.DISABLED, outNum = 9),
-    FnSlot(FnKind.DISABLED, outNum = 1)
+    FnSlot(kind = FnKind.LEFT, outNum = 1),
+    FnSlot(kind = FnKind.RIGHT, outNum = 5),
+    FnSlot(kind = FnKind.LIGHTS, variant = 1, outNum = 3, outNum2 = 7),
+    FnSlot(kind = FnKind.BRAKE, variant = 1, outNum = 4),
+    FnSlot(kind = FnKind.NEUTRAL, outNum = 6),
+    FnSlot(kind = FnKind.STARTER, outNum = 10),
+    FnSlot(kind = FnKind.BUTTON, outNum = 2, customName = "BUTTON"),
+    FnSlot(kind = FnKind.BUTTON, outNum = 8, customName = "BUTTON"),
+    FnSlot(kind = FnKind.DISABLED, outNum = 9),
+    FnSlot(kind = FnKind.DISABLED, outNum = 1)
 )
 
 /** Uzupełnia brakujące wymagane funkcje; nie rusza istniejącego STARTER / LIGHTS OUT. */
 fun normalizeSlots(raw: List<FnSlot>): List<FnSlot> {
     val list = raw.take(10).toMutableList()
     while (list.size < 10) {
-        list.add(FnSlot(FnKind.DISABLED, outNum = (list.size + 1).coerceAtMost(10)))
+        list.add(FnSlot(kind = FnKind.DISABLED, outNum = (list.size + 1).coerceAtMost(10)))
     }
 
     fun ensureOne(kind: FnKind, variant: Int = 1, outFallback: Int) {
@@ -160,7 +171,7 @@ fun normalizeSlots(raw: List<FnSlot>): List<FnSlot> {
                 it.kind == FnKind.DISABLED || it.kind == FnKind.BUTTON
             }
             if (free >= 0) {
-                list[free] = FnSlot(kind, variant, outFallback)
+                list[free] = FnSlot(kind = kind, variant = variant, outNum = outFallback)
             }
         }
     }
@@ -181,29 +192,29 @@ fun normalizeSlots(raw: List<FnSlot>): List<FnSlot> {
         val s = list[i]
         when (s.kind) {
             FnKind.LEFT -> {
-                if (leftSeen) list[i] = FnSlot(FnKind.DISABLED, outNum = s.outNum)
+                if (leftSeen) list[i] = FnSlot(kind = FnKind.DISABLED, outNum = s.outNum)
                 else leftSeen = true
             }
             FnKind.RIGHT -> {
-                if (rightSeen) list[i] = FnSlot(FnKind.DISABLED, outNum = s.outNum)
+                if (rightSeen) list[i] = FnSlot(kind = FnKind.DISABLED, outNum = s.outNum)
                 else rightSeen = true
             }
             FnKind.LIGHTS -> {
                 lights++
-                if (lights > 2) list[i] = FnSlot(FnKind.DISABLED, outNum = s.outNum)
+                if (lights > 2) list[i] = FnSlot(kind = FnKind.DISABLED, outNum = s.outNum)
                 else list[i] = s.copy(variant = lights)
             }
             FnKind.BRAKE -> {
                 brakes++
-                if (brakes > 2) list[i] = FnSlot(FnKind.DISABLED, outNum = s.outNum)
+                if (brakes > 2) list[i] = FnSlot(kind = FnKind.DISABLED, outNum = s.outNum)
                 else list[i] = s.copy(variant = brakes)
             }
             FnKind.NEUTRAL -> {
-                if (neutralSeen) list[i] = FnSlot(FnKind.DISABLED, outNum = s.outNum)
+                if (neutralSeen) list[i] = FnSlot(kind = FnKind.DISABLED, outNum = s.outNum)
                 else neutralSeen = true
             }
             FnKind.STARTER -> {
-                if (starterSeen) list[i] = FnSlot(FnKind.DISABLED, outNum = s.outNum)
+                if (starterSeen) list[i] = FnSlot(kind = FnKind.DISABLED, outNum = s.outNum)
                 else starterSeen = true
             }
             else -> {}
@@ -221,8 +232,3 @@ fun normalizeSlots(raw: List<FnSlot>): List<FnSlot> {
     }
     return list
 }
-
-// ---------------------------------------------------------------------------
-// UI
-// ---------------------------------------------------------------------------
-@OptIn(ExperimentalMaterial3Api::class)

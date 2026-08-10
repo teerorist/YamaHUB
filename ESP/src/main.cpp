@@ -120,8 +120,8 @@ void loop() {
         int li = blinkerLeftOutIndex();
         int ri = blinkerRightOutIndex();
         for (int i = 0; i < 10; i++) {
-            // poziomy PWM kierunków ustawia setLeft/setRight
             if (i == li || i == ri) continue;
+            if (isBeamOutput(i)) continue;   // ← TO
             setOutLevel(i, outputs[i].isOn() ? 255 : 0);
         }
         drawOutputs();

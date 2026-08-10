@@ -192,7 +192,7 @@ void handleBleCommand(const char* value) {
         return;
     }
 
-    // OUT:n:0/1 — TYLKO po inputCfg.mode, BEZ fallbacku 1=L / 5=P
+    // OUT:n:0/1 — wg inputCfg, BEZ twardego OUT_10 = starter
     if (strncmp(value, "OUT:", 4) == 0) {
         int num = 0, state = 0;
         if (sscanf(value + 4, "%d:%d", &num, &state) == 2 &&
@@ -200,10 +200,12 @@ void handleBleCommand(const char* value) {
             int oi = num - 1;
 
             bool isLeft = false, isRight = false;
+            bool isStarterOut = false;
             for (int i = 0; i < INPUT_COUNT; i++) {
                 if ((int)inputCfg[i].outIndex != oi) continue;
-                if (inputCfg[i].mode == IN_LEFT)  isLeft = true;
-                if (inputCfg[i].mode == IN_RIGHT) isRight = true;
+                if (inputCfg[i].mode == IN_LEFT)    isLeft = true;
+                if (inputCfg[i].mode == IN_RIGHT)   isRight = true;
+                if (inputCfg[i].mode == IN_STARTER) isStarterOut = true;
             }
 
             if (isLeft && !isRight) {
@@ -216,8 +218,10 @@ void handleBleCommand(const char* value) {
                 if (state) applyRightShort();
                 else forceMode(MODE_OFF);
                 Serial.println(state ? "RIGHT SHORT/N" : "RIGHT OFF");
-            } else if (oi == starterOutIndex() || num == 10) {
+            } else if (isStarterOut) {
+                // tylko OUT przypisany do STARTER w InputSettings
                 setBleStarterPressed(state != 0);
+                Serial.printf("STARTER via OUT_%d → %s\n", num, state ? "press" : "release");
             } else {
                 applyDigitalOrBeam(gOutputs, oi, state != 0);
                 Serial.printf("Wyjście %d → %s\n", num, state ? "ON" : "OFF");
@@ -227,13 +231,13 @@ void handleBleCommand(const char* value) {
         return;
     }
 
+    // IN10: = wirtualny przycisk startera (Dashboard / Control), niezależny od numeru OUT
     if (strncmp(value, "IN10:", 5) == 0) {
         int state = 0;
         if (sscanf(value + 5, "%d", &state) == 1)
             setBleStarterPressed(state != 0);
         return;
     }
-
     if (strncmp(value, "SPEED:", 6) == 0) {
         float kmh = 0;
         if (sscanf(value + 6, "%f", &kmh) == 1)

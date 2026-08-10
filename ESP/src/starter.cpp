@@ -1,9 +1,11 @@
 #include "starter.h"
 #include "arming.h"
 #include "blinkers.h"
+#include "beams.h"
 #include "config.h"
 #include "pins.h"
 #include "inputs.h"
+#include "display_hub.h"
 #include <esp_sleep.h>
 
 static const unsigned long LONG_MS = 400;
@@ -13,7 +15,8 @@ static const unsigned long MIN_SHORT_MS = 40;
 static const unsigned long SHUTDOWN_DELAY_MS = 10000;
 
 static bool starterActive = false;
-static bool savedOn[10] = {false};
+static bool savedOn[10] = {false};       // digital Output
+static uint8_t savedBeam[10] = {0};      // poziom beamów 0/255
 static bool shutdownPending = false;
 static unsigned long shutdownAt = 0;
 static bool blePressed = false;
@@ -21,6 +24,15 @@ static Output* sdOutputs = nullptr;
 
 void setBleStarterPressed(bool pressed) {
     blePressed = pressed;
+}
+
+static void allBeamsOff() {
+    for (int i = 0; i < 10; i++) {
+        if (isBeamOutput(i)) {
+            requestBeamLevel(i, 0);
+            setOutLevel(i, 0);
+        }
+    }
 }
 
 static void beginShutdown(Output* outputs, bool& stateChanged) {
@@ -32,7 +44,7 @@ static void beginShutdown(Output* outputs, bool& stateChanged) {
         starterSet(false, outputs, stateChanged);
     }
 
-    // tylko odliczanie – OUT zostają
+    // tylko odliczanie – OUT zostają do końca 10s
     shutdownPending = true;
     shutdownAt = millis() + SHUTDOWN_DELAY_MS;
     Serial.println("KILL → odliczanie 10s");
@@ -53,7 +65,6 @@ void requestShutdownNow(Output* outputs) {
         starterSet(false, outputs, sc);
     }
 
-    // bez 10 s – od razu faza „po odliczaniu”
     shutdownPending = true;
     shutdownAt = millis();
     Serial.println("KILL NOW → off + HAZARD + sleep");
@@ -70,26 +81,54 @@ void starterSet(bool on, Output* outputs, bool& stateChanged) {
         if (!starterActive) {
             starterActive = true;
             suspendBlinkers();
+
             for (int i = 0; i < 10; i++) {
                 if (i == soi) continue;
-                savedOn[i] = outputs[i].isOn();
-                outputs[i].off();
+
+                if (isBeamOutput(i)) {
+                    // zapamiętaj jasność beamu i zgaś
+                    savedBeam[i] = (outLevel[i] > 20) ? 255 : 0;
+                    savedOn[i] = false;
+                    requestBeamLevel(i, 0);
+                    setOutLevel(i, 0);
+                } else {
+                    savedOn[i] = outputs[i].isOn();
+                    savedBeam[i] = 0;
+                    outputs[i].off();
+                    setOutLevel(i, 0);
+                }
             }
+
             outputs[soi].on();
+            setOutLevel(soi, 255);
             stateChanged = true;
-            Serial.printf("STARTER ON (OUT_%d) – saved others\n", soi + 1);
+            Serial.printf("STARTER ON (OUT_%d) – saved others (incl. beams)\n", soi + 1);
         }
     } else if (!on && starterActive) {
         starterActive = false;
         outputs[soi].off();
+        setOutLevel(soi, 0);
+
         for (int i = 0; i < 10; i++) {
             if (i == soi) continue;
-            if (savedOn[i]) outputs[i].on();
-            else outputs[i].off();
+
+            if (isBeamOutput(i)) {
+                requestBeamLevel(i, savedBeam[i]);
+                if (!cfg.beamFade) setOutLevel(i, savedBeam[i]);
+            } else {
+                if (savedOn[i]) {
+                    outputs[i].on();
+                    setOutLevel(i, 255);
+                } else {
+                    outputs[i].off();
+                    setOutLevel(i, 0);
+                }
+            }
         }
+
         resumeBlinkers();
         stateChanged = true;
-        Serial.printf("STARTER OFF (OUT_%d) – restored\n", soi + 1);
+        Serial.printf("STARTER OFF (OUT_%d) – restored (incl. beams)\n", soi + 1);
     }
 }
 
@@ -169,16 +208,18 @@ void updateShutdown() {
         return;
     }
 
-    // 2) wszystkie OUT off
+    // 2) wszystkie OUT off (digital + beamy)
     if (!outsOffDone) {
         suspendBlinkers();
         if (sdOutputs) {
             for (int i = 0; i < 10; i++) {
                 sdOutputs[i].off();
+                setOutLevel(i, 0);
             }
         }
+        allBeamsOff();
         outsOffDone = true;
-        Serial.println("KILL → wszystkie OUT off");
+        Serial.println("KILL → wszystkie OUT off (incl. beams)");
         return;
     }
 

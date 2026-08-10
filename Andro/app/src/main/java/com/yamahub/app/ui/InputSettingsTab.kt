@@ -7,6 +7,7 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -14,6 +15,8 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.imePadding
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -26,15 +29,10 @@ import androidx.compose.material.icons.filled.ExpandLess
 import androidx.compose.material.icons.filled.ExpandMore
 import androidx.compose.material.icons.filled.Menu
 import androidx.compose.material3.Button
-import androidx.compose.material3.DropdownMenuItem
-import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.ExposedDropdownMenuBox
-import androidx.compose.material3.ExposedDropdownMenuDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
@@ -59,13 +57,9 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.zIndex
 import com.yamahub.app.BleHub
 import com.yamahub.app.InputCfgItem
-import com.yamahub.app.displayName
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlin.math.round
-import com.yamahub.app.BleHub
-import com.yamahub.app.InputCfgItem
-import com.yamahub.app.displayName
 
 @Composable
 fun InputSettingsTab() {
@@ -89,7 +83,6 @@ fun InputSettingsTab() {
     val lightsCount = draft.count { it.kind == FnKind.LIGHTS }
     val brakesCount = draft.count { it.kind == FnKind.BRAKE }
 
-    // ----- claims / conflict -----
     fun collectOutClaims(slots: List<FnSlot> = draft): List<Pair<Int, String>> {
         val claims = mutableListOf<Pair<Int, String>>()
         val lc = slots.count { it.kind == FnKind.LIGHTS }
@@ -182,13 +175,12 @@ fun InputSettingsTab() {
         val dup = collectOutClaims().groupBy { it.first }.filter { it.value.size > 1 }
         if (dup.isNotEmpty()) {
             return dup.entries.joinToString("; ") { (out, who) ->
-                "OUT_" + out + ": " + who.joinToString(", ") { it.second }
+                "OUT %02d: ".format(out) + who.joinToString(", ") { it.second }
             }
         }
         return null
     }
 
-    // ----- ESP -----
     fun applyFromEsp(list: List<InputCfgItem>) {
         if (list.size !in 9..10) return
         val padded = list.toMutableList()
@@ -227,7 +219,7 @@ fun InputSettingsTab() {
         val dup = collectOutClaims(toSave).groupBy { it.first }.filter { it.value.size > 1 }
         if (dup.isNotEmpty()) {
             error = dup.entries.joinToString("; ") { (out, who) ->
-                "OUT_" + out + ": " + who.joinToString(", ") { it.second }
+                "OUT %02d: ".format(out) + who.joinToString(", ") { it.second }
             }
             return
         }
@@ -247,7 +239,6 @@ fun InputSettingsTab() {
                 }
                 delay(250)
                 ble.requestInputCfg()
-                // fallback: nie wisieć wiecznie, jeśli notify nie wróci
                 delay(2000)
                 if (saving) {
                     saved = toSave
@@ -260,7 +251,6 @@ fun InputSettingsTab() {
         }
     }
 
-    // ----- mutations -----
     fun setSlot(index: Int, slot: FnSlot) {
         if (index !in draft.indices) return
         val list = draft.toMutableList()
@@ -373,34 +363,44 @@ fun InputSettingsTab() {
     val liveError = remember(draft) { validate() }
     val showError = error ?: liveError
 
+    // Przy otwarciu edycji przewiń wiersz nad klawiaturę
+    LaunchedEffect(expandedIdx) {
+        if (expandedIdx in draft.indices) {
+            delay(80)
+            listState.animateScrollToItem(expandedIdx)
+            delay(280) // czas na IME
+            listState.animateScrollToItem(expandedIdx)
+        }
+    }
+
     Column(
         Modifier
             .fillMaxSize()
+            .imePadding()
             .padding(12.dp)
     ) {
         LazyColumn(
             state = listState,
             verticalArrangement = Arrangement.spacedBy(6.dp),
+            contentPadding = PaddingValues(bottom = 24.dp),
             modifier = Modifier.weight(1f)
         ) {
             itemsIndexed(
                 items = draft,
                 key = { _, s -> s.id }
             ) { index, slot ->
-                val inLabel = "IN_%02d".format(index + 1)
+                val inLabel = "IN %02d".format(index + 1)
                 val isDragging = dragId >= 0L && slot.id == dragId
                 val isExpanded = expandedIdx == index
                 val conflict = isOutConflictAt(index)
                 val sub = slot.subtitle(lightsCount, brakesCount)
 
-                // gdzie wyląduje przeciągany element (wizualna luka)
                 val dragFromIndex = if (dragId >= 0L) draft.indexOfFirst { it.id == dragId } else -1
                 val dragToIndex = if (dragFromIndex >= 0 && rowHeightPx > 0f) {
                     (dragFromIndex + kotlin.math.round(dragOffsetY / rowHeightPx).toInt())
                         .coerceIn(0, draft.lastIndex)
                 } else -1
 
-                // rozsuwanie: sąsiedzi ustępują miejsca w kierunku upuszczenia
                 val gapShiftY = when {
                     dragFromIndex < 0 || isDragging -> 0f
                     dragFromIndex < dragToIndex &&
@@ -521,7 +521,7 @@ fun InputSettingsTab() {
                                 )
                                 when {
                                     conflict && slot.hasOutPicker() -> Text(
-                                        text = "OUT_${slot.outNum}  · konflikt",
+                                        text = "OUT %02d  · konflikt".format(slot.outNum),
                                         style = MaterialTheme.typography.labelSmall,
                                         color = MaterialTheme.colorScheme.error
                                     )
@@ -579,5 +579,3 @@ fun InputSettingsTab() {
         }
     }
 }
-
-@OptIn(ExperimentalMaterial3Api::class)

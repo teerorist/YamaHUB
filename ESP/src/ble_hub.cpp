@@ -54,7 +54,7 @@ class ServerCallbacks : public NimBLEServerCallbacks {
 class CharacteristicCallbacks : public NimBLECharacteristicCallbacks {
     void onWrite(NimBLECharacteristic* c) {
         std::string value = c->getValue();
-        if (!value.empty()) enqueueCmd(value);
+        if (!value.empty()) enqueueCmd(value.c_str());
     }
 };
 
@@ -92,4 +92,3 @@ void bleLog(const char* msg) {
 }
 
 bool isBleConnected() { return deviceConnected; }
-
