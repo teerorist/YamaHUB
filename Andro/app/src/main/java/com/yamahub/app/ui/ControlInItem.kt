@@ -86,7 +86,7 @@ fun ControlInItem(
         Row(
             Modifier
                 .weight(1f)
-                .height(56.dp)
+                .height(46.dp)
                 .shadow(elev, RoundedCornerShape(10.dp))
                 .background(cardBg, RoundedCornerShape(10.dp))
                 .border(

@@ -70,7 +70,7 @@ fun ControlScreen() {
     // DnD
     var dragFromOut by remember { mutableIntStateOf(-1) }
     var dragOffsetY by remember { mutableFloatStateOf(0f) }
-    val rowHeightPx = with(density) { (56.dp + 6.dp).toPx() }
+    val rowHeightPx = with(density) { (46.dp + 6.dp).toPx() }
 
     fun applyCfg(list: List<InputCfgItem>) {
         cfg = list
@@ -127,10 +127,14 @@ fun ControlScreen() {
         }
         ble.onStateReceived = { list ->
             if (list.size >= 10) {
-                states = list
-                hazardOn = list.getOrElse(leftOutNum - 1) { false } &&
-                    list.getOrElse(rightOutNum - 1) { false } &&
-                    leftOutNum != rightOutNum
+                val next = list.take(10)
+                // unikaj recomposition gdy bitowo to samo
+                if (next != states) {
+                    states = next
+                    hazardOn = next.getOrElse(leftOutNum - 1) { false } &&
+                        next.getOrElse(rightOutNum - 1) { false } &&
+                        leftOutNum != rightOutNum
+                }
             }
             prevState?.invoke(list)
         }
@@ -173,11 +177,11 @@ fun ControlScreen() {
         }
     }
 
-    // STATE – rzadziej, żeby nie dławić UI/BLE
+    // STATE – rzadki poll; po lokalnej komendzie i tak leci odpowiedź/GET
     LaunchedEffect(isConnected) {
         while (isConnected) {
             ble.requestState()
-            delay(500)
+            delay(1000)
         }
     }
 

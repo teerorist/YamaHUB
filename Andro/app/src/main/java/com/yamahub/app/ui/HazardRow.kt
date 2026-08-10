@@ -74,7 +74,7 @@ fun HazardRow(
         Box(
             Modifier
                 .weight(1f)
-                .height(56.dp)
+                .height(46.dp)
                 .background(cardBg, RoundedCornerShape(10.dp))
                 .border(
                     1.dp,

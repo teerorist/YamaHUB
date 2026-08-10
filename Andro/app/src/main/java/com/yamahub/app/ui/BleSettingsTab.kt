@@ -30,7 +30,7 @@ fun BleSettingsTab(
         Text("$name")
         Text("${mac.ifBlank { "—" }}")
         Text(
-            if (connected) "połączono" else "rozłączono – łączenie…",
+            if (connected) "połączono" else "łączenie…",
             style = MaterialTheme.typography.bodySmall
         )
         Spacer(Modifier.height(8.dp))

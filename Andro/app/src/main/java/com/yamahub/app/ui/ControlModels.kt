@@ -310,16 +310,19 @@ fun rememberBlinkLevel(active: Boolean, fadeSpeed: Int, curve: Int): Float {
     LaunchedEffect(active, fadeSpeed, curve) {
         if (!active) {
             while (level > 0.01f) {
-                level = (level - 0.04f).coerceAtLeast(0f)
-                delay(16)
+                level = (level - 0.08f).coerceAtLeast(0f)
+                delay(32)
             }
             level = 0f
             return@LaunchedEffect
         }
+        // fadeSpeed z ESP (ms na krok hardware) – w UI nie schodzimy poniżej ~40 ms,
+        // inaczej cała lista ControlScreen rekomponuje się 80×/s i "muli".
         var phase = 0f
-        val stepMs = fadeSpeed.coerceIn(4, 60).toLong()
+        val stepMs = maxOf(40L, fadeSpeed.coerceIn(4, 60).toLong())
+        val phaseStep = 0.04f * (stepMs / 12f).coerceIn(1f, 4f)
         while (true) {
-            phase += 0.04f
+            phase += phaseStep
             if (phase >= 2f) phase -= 2f
             val raw = if (phase <= 1f) phase else (2f - phase)
             level = applyCurve(raw, curve)

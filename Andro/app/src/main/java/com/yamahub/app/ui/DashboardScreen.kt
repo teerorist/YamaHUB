@@ -344,14 +344,7 @@ fun DashboardScreen(
         Spacer(Modifier.weight(1f))
 
         // --- Panel testowy (kompakt) ---
-        Text(
-            "TEST",
-            style = MaterialTheme.typography.labelSmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(bottom = 2.dp)
-        )
+
         Surface(
             shape = RoundedCornerShape(10.dp),
             color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.45f),
@@ -392,19 +385,15 @@ fun DashboardScreen(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Text("Sym. prędkość  ${DashboardTestState.simSpeed.toInt()} km/h", style = tiny)
-                    Switch(checked = DashboardTestState.useSimSpeed, onCheckedChange = { DashboardTestState.useSimSpeed = it })
                 }
                 Slider(
                     value = DashboardTestState.simSpeed,
                     onValueChange = {
                         DashboardTestState.simSpeed = it
-                        if (DashboardTestState.useSimSpeed) {
                             speedKmh = it
                             if (isConnected) ble.sendSpeed(it)
-                        }
-                    },
+                         },
                     valueRange = 0f..200f,
-                    enabled = DashboardTestState.useSimSpeed,
                     modifier = Modifier
                         .fillMaxWidth()
                         .height(20.dp)

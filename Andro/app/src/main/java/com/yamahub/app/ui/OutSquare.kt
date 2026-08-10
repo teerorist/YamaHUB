@@ -74,7 +74,7 @@ fun OutSquare(label: String, level: Float, onColor: Color) {
 
     Box(
         Modifier
-            .size(width = 56.dp, height = 56.dp)
+            .size(width = 46.dp, height = 46.dp)
             .background(bg, RoundedCornerShape(8.dp))
             .border(
                 1.dp,

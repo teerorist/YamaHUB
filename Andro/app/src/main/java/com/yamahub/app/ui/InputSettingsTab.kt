@@ -79,7 +79,7 @@ fun InputSettingsTab() {
     var dragOffsetY by remember { mutableFloatStateOf(0f) }
 
     val dirty = draft != saved
-    val rowHeightPx = with(density) { (56.dp + 6.dp).toPx() }
+    val rowHeightPx = with(density) { (46.dp + 6.dp).toPx() }
     val lightsCount = draft.count { it.kind == FnKind.LIGHTS }
     val brakesCount = draft.count { it.kind == FnKind.BRAKE }
 
@@ -382,7 +382,7 @@ fun InputSettingsTab() {
         LazyColumn(
             state = listState,
             verticalArrangement = Arrangement.spacedBy(6.dp),
-            contentPadding = PaddingValues(bottom = 24.dp),
+            contentPadding = PaddingValues(bottom = 6.dp),
             modifier = Modifier.weight(1f)
         ) {
             itemsIndexed(
@@ -422,10 +422,11 @@ fun InputSettingsTab() {
                 Row(
                     Modifier.fillMaxWidth(),
                     verticalAlignment = Alignment.Top
+
                 ) {
                     Box(
                         Modifier
-                            .size(width = 56.dp, height = 56.dp)
+                            .size(width = 46.dp, height = 46.dp)
                             .background(
                                 MaterialTheme.colorScheme.surface,
                                 RoundedCornerShape(8.dp)
@@ -470,12 +471,14 @@ fun InputSettingsTab() {
                             .padding(horizontal = 4.dp, vertical = 4.dp)
                     ) {
                         Row(
-                            Modifier.fillMaxWidth(),
+                            Modifier
+                                .height(38.dp)
+                                .fillMaxWidth(),
                             verticalAlignment = Alignment.CenterVertically
                         ) {
                             Box(
                                 Modifier
-                                    .size(48.dp)
+                                    .size(36.dp)
                                     .pointerInput(slot.id) {
                                         detectDragGestures(
                                             onDragStart = {
@@ -496,11 +499,12 @@ fun InputSettingsTab() {
                                 Icon(
                                     imageVector = Icons.Default.Menu,
                                     contentDescription = null,
+
                                     tint = if (isDragging)
                                         MaterialTheme.colorScheme.primary
                                     else
                                         MaterialTheme.colorScheme.onSurfaceVariant
-                                )
+                            )
                             }
 
                             Column(
