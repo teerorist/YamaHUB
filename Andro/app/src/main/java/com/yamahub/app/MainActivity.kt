@@ -1,6 +1,7 @@
 package com.yamahub.app
 
 import android.Manifest
+import android.content.Intent
 import android.content.pm.PackageManager
 import android.os.Build
 import android.os.Bundle
@@ -23,6 +24,14 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
+        // Uruchomienie BleService (Foreground)
+        val serviceIntent = Intent(this, BleService::class.java)
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            startForegroundService(serviceIntent)
+        } else {
+            startService(serviceIntent)
+        }
+
         // Zapytanie o uprawnienia do powiadomień na Androidzie 13+
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             if (checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) {
@@ -42,11 +51,11 @@ class MainActivity : ComponentActivity() {
         }
     }
 
-    // Wyłapuje zamknięcie aplikacji (np. swipe-away w ostatnich aplikacjach) i czyści powiadomienie
+    // Wyłapuje zamknięcie aplikacji (np. swipe-away w ostatnich aplikacjach) i czyści usługę
     override fun onDestroy() {
         super.onDestroy()
         if (isFinishing) {
-            HubNotification.cancel(this)
+            stopService(Intent(this, BleService::class.java))
         }
     }
 }
@@ -65,25 +74,17 @@ fun YamaHubRoot() {
     var hadConnection by remember { mutableStateOf(false) }
     var settingsBeforeDrop by remember { mutableStateOf(false) }
 
-    // Inicjalizacja kanału i zarządzanie powiadomieniem przy zmianach połączenia
+    // Zarządzanie stanem połączenia w UI
     DisposableEffect(Unit) {
-        HubNotification.ensureChannel(context)
-        HubNotification.update(context, ble.isConnected)
-
         val prev = ble.onConnectionChanged
         ble.onConnectionChanged = { c ->
             connected = c
             if (c) hadConnection = true
-            HubNotification.update(context, c)
             prev?.invoke(c)
         }
         onDispose {
             ble.onConnectionChanged = prev
         }
-    }
-
-    LaunchedEffect(connected) {
-        HubNotification.update(context, connected)
     }
 
     LaunchedEffect(connected, screen) {

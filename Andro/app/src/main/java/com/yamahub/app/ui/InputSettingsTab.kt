@@ -47,6 +47,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
@@ -190,8 +191,23 @@ fun InputSettingsTab() {
         }
         val slots = normalizeSlots(padded.map { it.toFnSlot() })
         saved = slots
-        draft = slots
-        if (saving) saving = false
+
+        if (saving) {
+            // Sprawdzamy czy to co przyszło zgadza się z naszym szkicem (draft).
+            // Ignorujemy ID (lokalne), patrzymy na funkcje i piny.
+            val match = slots.size == draft.size && slots.indices.all { i ->
+                val s1 = slots[i]
+                val s2 = draft[i]
+                s1.kind == s2.kind && s1.variant == s2.variant &&
+                    s1.outNum == s2.outNum && s1.outNum2 == s2.outNum2 &&
+                    s1.customName == s2.customName
+            }
+            if (match) {
+                saving = false
+            }
+        } else {
+            draft = slots
+        }
         error = null
     }
 
@@ -428,7 +444,7 @@ fun InputSettingsTab() {
                         Modifier
                             .size(width = 46.dp, height = 46.dp)
                             .background(
-                                MaterialTheme.colorScheme.surface,
+                                if (slot.kind != FnKind.DISABLED) Color(0xFF000000) else Color(0xFF333333),
                                 RoundedCornerShape(8.dp)
                             )
                             .border(
@@ -442,6 +458,7 @@ fun InputSettingsTab() {
                             inLabel,
                             style = MaterialTheme.typography.labelMedium,
                             fontWeight = FontWeight.Bold,
+                            color = Color.White,
                             textAlign = TextAlign.Center
                         )
                     }

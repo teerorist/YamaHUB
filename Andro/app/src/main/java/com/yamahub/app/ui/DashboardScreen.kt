@@ -408,13 +408,11 @@ fun DashboardScreen(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Text("Sym. obroty  ${DashboardTestState.simRpm.toInt()} rpm", style = tiny)
-                    Switch(checked = DashboardTestState.useSimRpm, onCheckedChange = { DashboardTestState.useSimRpm = it })
                 }
                 Slider(
                     value = DashboardTestState.simRpm,
                     onValueChange = { DashboardTestState.simRpm = it },
                     valueRange = 0f..10000f,
-                    enabled = DashboardTestState.useSimRpm,
                     modifier = Modifier
                         .fillMaxWidth()
                         .height(20.dp)

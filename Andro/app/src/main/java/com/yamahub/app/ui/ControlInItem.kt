@@ -68,18 +68,7 @@ fun ControlInItem(
     val elev by animateDpAsState(if (isDragging) 8.dp else 0.dp, label = "elev${row.primaryOut}")
 
     Row(
-        Modifier
-            .fillMaxWidth()
-            .zIndex(if (isDragging) 10f else 0f)
-            .graphicsLayer {
-                if (isDragging) {
-                    translationY = dragOffsetY
-                    shadowElevation = 12f
-                    alpha = 0.95f
-                } else if (gapShiftY != 0f) {
-                    translationY = gapShiftY
-                }
-            },
+        Modifier.fillMaxWidth(),
         verticalAlignment = Alignment.CenterVertically
     ) {
         // Etykieta z uchwytem DnD w środku (jak InputSettings)
@@ -87,6 +76,16 @@ fun ControlInItem(
             Modifier
                 .weight(1f)
                 .height(46.dp)
+                .zIndex(if (isDragging) 10f else 0f)
+                .graphicsLayer {
+                    if (isDragging) {
+                        translationY = dragOffsetY
+                        shadowElevation = 12f
+                        alpha = 0.95f
+                    } else if (gapShiftY != 0f) {
+                        translationY = gapShiftY
+                    }
+                }
                 .shadow(elev, RoundedCornerShape(10.dp))
                 .background(cardBg, RoundedCornerShape(10.dp))
                 .border(
@@ -178,7 +177,8 @@ fun ControlInItem(
             OutSquare(
                 label = "OUT %02d".format(out),
                 level = if (unused) 0f else levelForOut(out),
-                onColor = colorForRow(row, i)
+                onColor = colorForRow(row, i),
+                isAssigned = row.inNum > 0
             )
         }
     }

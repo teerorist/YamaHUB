@@ -13,6 +13,6 @@ object DashboardTestState {
     var oil by mutableStateOf(false)
     var useSimSpeed by mutableStateOf(false)
     var simSpeed by mutableFloatStateOf(0f)
-    var useSimRpm by mutableStateOf(false)
+    var useSimRpm by mutableStateOf(true)
     var simRpm by mutableFloatStateOf(0f)
 }

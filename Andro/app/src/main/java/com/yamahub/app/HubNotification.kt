@@ -1,5 +1,6 @@
 package com.yamahub.app
 
+import android.app.Notification
 import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.app.PendingIntent
@@ -10,7 +11,7 @@ import androidx.core.app.NotificationCompat
 
 object HubNotification {
     private const val CHANNEL_ID = "yamahub_connection_channel"
-    private const val NOTIFICATION_ID = 1001
+    const val NOTIFICATION_ID = 1001
 
     fun ensureChannel(context: Context) {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
@@ -25,7 +26,7 @@ object HubNotification {
         }
     }
 
-    fun update(context: Context, isConnected: Boolean) {
+    fun build(context: Context, isConnected: Boolean): Notification {
         ensureChannel(context)
 
         val intent = Intent(context, MainActivity::class.java).apply {
@@ -33,6 +34,14 @@ object HubNotification {
         }
         val pendingIntent = PendingIntent.getActivity(
             context, 0, intent,
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+        )
+
+        // Intencja przywracania po usunięciu (swipe)
+        val deleteIntent = Intent("com.yamahub.app.ACTION_RESTORE_NOTIFICATION")
+        deleteIntent.setPackage(context.packageName)
+        val deletePendingIntent = PendingIntent.getBroadcast(
+            context, 1, deleteIntent,
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
 
@@ -45,23 +54,21 @@ object HubNotification {
             R.drawable.ic_ble_disconnected
         }
 
-        val notificationBuilder = NotificationCompat.Builder(context, CHANNEL_ID)
+        return NotificationCompat.Builder(context, CHANNEL_ID)
             .setSmallIcon(iconRes)
             .setContentTitle(title)
             .setContentText(text)
             .setContentIntent(pendingIntent)
-            .setOngoing(true) // Niezamykalne z poziomu szuflady
+            .setDeleteIntent(deletePendingIntent)
+            .setOngoing(true)
             .setAutoCancel(false)
             .setOnlyAlertOnce(true)
             .setPriority(NotificationCompat.PRIORITY_LOW)
+            .build()
+    }
 
-        // Używamy poprawnej nazwy zmiennej: isConnected zamiast connected
-        if (isConnected) {
-            notificationBuilder.setColor(0xFFFFFFFF.toInt())
-        }
-
-        val notification = notificationBuilder.build()
-
+    fun update(context: Context, isConnected: Boolean) {
+        val notification = build(context, isConnected)
         val notificationManager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
         notificationManager.notify(NOTIFICATION_ID, notification)
     }

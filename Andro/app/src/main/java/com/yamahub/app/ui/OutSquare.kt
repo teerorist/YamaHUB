@@ -52,16 +52,18 @@ import com.yamahub.app.displayName
 import kotlinx.coroutines.delay
 import androidx.compose.ui.Modifier
 @Composable
-fun OutSquare(label: String, level: Float, onColor: Color) {
+fun OutSquare(label: String, level: Float, onColor: Color, isAssigned: Boolean = true) {
     val t = level.coerceIn(0f, 1f)
+    val offColor = if (isAssigned) Color(0xFF000000) else Color(0xFF333333)
+
     val bg = if (t <= 0.01f) {
-        COL_OFF
+        offColor
     } else {
         // mieszanie OFF → kolor funkcji proporcjonalnie do level (fade)
         Color(
-            red = COL_OFF.red + (onColor.red - COL_OFF.red) * t,
-            green = COL_OFF.green + (onColor.green - COL_OFF.green) * t,
-            blue = COL_OFF.blue + (onColor.blue - COL_OFF.blue) * t,
+            red = offColor.red + (onColor.red - offColor.red) * t,
+            green = offColor.green + (onColor.green - offColor.green) * t,
+            blue = offColor.blue + (onColor.blue - offColor.blue) * t,
             alpha = 1f
         )
     }
@@ -69,7 +71,7 @@ fun OutSquare(label: String, level: Float, onColor: Color) {
         if (onColor == COL_WHITE || onColor == COL_CYAN) Color(0xFF111111)
         else Color.White
     } else {
-        MaterialTheme.colorScheme.onSurface.copy(alpha = 0.45f)
+        Color.White.copy(alpha = if (isAssigned) 0.85f else 0.45f)
     }
 
     Box(
