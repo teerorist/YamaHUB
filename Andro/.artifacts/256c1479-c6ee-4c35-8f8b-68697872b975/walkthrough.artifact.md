@@ -1,15 +1,19 @@
-# Podsumowanie: Wymuszenie kolorów ikon w pasku stanu
+# Podsumowanie: Poprawka koloru ikony na pasku stanu i ujednolicenie rozmiaru
 
-Zastosowałem metodę polegającą na zdefiniowaniu kolorów bezpośrednio w plikach wektorowych (XML) oraz wyłączeniu systemowego nakładania barwy (tint) w kodzie aplikacji. Powinno to umożliwić wyświetlanie czerwonej ikony na pasku stanu, jeśli system operacyjny na to pozwala.
+Wprowadziłem zmiany, które mają na celu wymuszenie koloru ikony na pasku stanu oraz wyeliminowanie "skakania" ikony przy zmianie stanu.
 
 ## Wprowadzone zmiany
 
 ### Ikony (Drawables)
-- **[ic_ble_disconnected.xml](file:///D:/###Users/teerorist/Desktop/YamaHUB/Andro/app/src/main/res/drawable/ic_ble_disconnected.xml)**: Zmieniłem kolor wypełnienia (`fillColor`) wszystkich ścieżek na czerwony (`#F44336`).
-- **[ic_ble_connected.xml](file:///D:/###Users/teerorist/Desktop/YamaHUB/Andro/app/src/main/res/drawable/ic_ble_connected.xml)**: Upewniłem się, że kolor wypełnienia to biały (`#FFFFFF`).
+- **[ic_ble_connected.xml](file:///D:/###Users/teerorist/Desktop/YamaHUB/Andro/app/src/main/res/drawable/ic_ble_connected.xml)** i **[ic_ble_disconnected.xml](file:///D:/###Users/teerorist/Desktop/YamaHUB/Andro/app/src/main/res/drawable/ic_ble_disconnected.xml)**:
+    - Uprościłem strukturę XML, usuwając grupy skalujące. Teraz obie ikony używają tych samych współrzędnych ścieżek bezpośrednio w kontenerze `vector`.
+    - Zapewnia to identyczny rozmiar i pozycję ikony niezależnie od stanu połączenia.
 
 ### Powiadomienia
-- **[HubNotification.kt](file:///D:/###Users/teerorist/Desktop/YamaHUB/Andro/app/src/main/java/com/yamahub/app/HubNotification.kt)**: Usunąłem wywołanie `.setColor(color)`. Dzięki temu system nie nakłada własnej maski koloru na ikonę, co pozwala "przebić się" kolorom zdefiniowanym bezpośrednio w pliku XML.
+- **[HubNotification.kt](file:///D:/###Users/teerorist/Desktop/YamaHUB/Andro/app/src/main/java/com/yamahub/app/HubNotification.kt)**:
+    - Przywróciłem funkcję `.setColor(color)`, co pozwala systemowi na zafarbowanie ikony na pasku stanu.
+    - Zwiększyłem ważność kanału na `IMPORTANCE_DEFAULT` (z wyłączonym dźwiękiem i wibracją). Wyższy poziom ważności często odblokowuje kolorowanie ikony na pasku stanu.
+    - Usunąłem programowe kolorowanie tła całego powiadomienia (`setColorized`), aby zachować systemowy wygląd panelu.
 
 ## Wyniki weryfikacji
 
@@ -17,5 +21,5 @@ Zastosowałem metodę polegającą na zdefiniowaniu kolorów bezpośrednio w pli
 - Projekt kompiluje się poprawnie: `./gradlew :app:assembleDebug`.
 
 ### Weryfikacja wizualna
-- Jeśli telefon obsługuje kolorowe ikony powiadomień na pasku stanu, ikona rozłączenia powinna być teraz czerwona.
-- Rozmiar ikon pozostaje spójny dzięki identycznym parametrom skalowania i pozycjonowania w obu plikach XML.
+- Ikona na pasku stanu powinna teraz zmieniać kolor (biały/czerwony) bez zmiany swojego rozmiaru.
+- Tło powiadomienia w panelu pozostaje domyślne.

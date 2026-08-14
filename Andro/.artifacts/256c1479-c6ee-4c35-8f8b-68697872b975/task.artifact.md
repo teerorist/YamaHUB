@@ -1,6 +1,6 @@
-# Zadania: Wymuszenie kolorów ikon w pasku stanu
+# Zadania: Naprawa koloru na pasku stanu i rozmiaru ikon
 
-- [x] Ustawienie czerwonego koloru bezpośrednio w `ic_ble_disconnected.xml`
-- [x] Ustawienie białego koloru bezpośrednio w `ic_ble_connected.xml`
-- [x] Wyłączenie tintowania w `HubNotification.kt` (testowo)
-- [x] Weryfikacja kompilacji i wyglądu
+- [x] Uproszczenie i ujednolicenie `ic_ble_connected.xml`
+- [x] Uproszczenie i ujednolicenie `ic_ble_disconnected.xml`
+- [x] Aktualizacja kanału i parametrów v `HubNotification.kt`
+- [x] Weryfikacja wizualna i kompilacja

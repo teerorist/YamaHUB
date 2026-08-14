@@ -1,21 +1,22 @@
-# Naprawa kolorów ikon i ujednolicenie rozmiaru powiadomień
+# Naprawa koloru ikony na pasku stanu i ujednolicenie rozmiaru
 
-Użytkownik zgłosił, że powiadomienia mają niewłaściwe kolory (tło zamiast samej ikony) oraz ikona "rozłączono" ma inny rozmiar niż "połączono". Celem jest, aby tylko ikona w pasku stanu (status bar) zmieniała kolor, a tło powiadomienia pozostało domyślne.
+Użytkownik zgłosił, że ikona na pasku stanu (status bar) pozostaje biała, a jej rozmiar zmienia się przy przełączaniu stanu. Celem jest wymuszenie czerwonego koloru na pasku stanu dla stanu "rozłączono" oraz zapewnienie identycznego rozmiaru obu ikon.
 
 ## Proponowane zmiany
 
 ### Ikony (Drawables)
 
 #### [MODYFIKACJA] [ic_ble_connected.xml](file:///D:/###Users/teerorist/Desktop/YamaHUB/Andro/app/src/main/res/drawable/ic_ble_connected.xml) i [ic_ble_disconnected.xml](file:///D:/###Users/teerorist/Desktop/YamaHUB/Andro/app/src/main/res/drawable/ic_ble_disconnected.xml)
-- Usunięcie dodatkowego skalowania z `ic_ble_connected.xml` (`scaleX="1.2266667"`), aby obie ikony miały identyczny rozmiar i pozycjonowanie.
-- Usunięcie atrybutu `android:tint` z plików XML, aby pozwolić systemowi na poprawne nakładanie koloru zdefiniowanego w kodzie lub zachowanie koloru zdefiniowanego w ścieżkach (zależnie od wersji Androida).
+- Uproszczenie struktury XML – usunięcie grup skalujących (`group`), które mogą powodować błędy w zaokrągleniach pozycji i rozmiaru.
+- Ustawienie `fillColor="#FFFFFF"` w obu plikach (standard dla ikon-szablonów).
+- Upewnienie się, że `viewportWidth/Height` oraz parametry ścieżek są identyczne.
 
 ### Powiadomienia
 
 #### [MODYFIKACJA] [HubNotification.kt](file:///D:/###Users/teerorist/Desktop/YamaHUB/Andro/app/src/main/java/com/yamahub/app/HubNotification.kt)
-- Usunięcie wywołania `.setColorized(true)`. Ta funkcja powoduje kolorowanie całego tła powiadomienia, czego użytkownik chce uniknąć.
-- Pozostawienie `.setColor(color)`. Ta funkcja odpowiada za kolorowanie małej ikony (small icon) w pasku stanu oraz w szufladzie powiadomień (zależnie od wersji systemu).
-- Upewnienie się, że `deleteIntent` (mechanizm przywracania po swipe) działa poprawnie.
+- **Przywrócenie `setColor(color)`**: To kluczowe, aby system wiedział, na jaki kolor ma zafarbować ikonę w pasku stanu.
+- **Zmiana `Importance`**: Zwiększenie ważności kanału na `IMPORTANCE_DEFAULT` przy jednoczesnym wyłączeniu dźwięku i wibracji. Wyższa ważność często odblokowuje kolorowanie ikony na pasku stanu w niektórych wersjach Androida.
+- **Usunięcie `setColorized(true)`**: Pozostawienie domyślnego tła panelu powiadomień.
 
 ## Plan weryfikacji
 
@@ -23,13 +24,6 @@ Użytkownik zgłosił, że powiadomienia mają niewłaściwe kolory (tło zamias
 - Kompilacja projektu: `./gradlew :app:assembleDebug`.
 
 ### Weryfikacja ręczna
-- **Rozmiar ikon**: Porównanie wizualne ikony połączonej i rozłączonej w pasku stanu – powinny mieć ten sam rozmiar.
-- **Kolor ikon**:
-    - Sprawdzenie, czy ikona w pasku stanu jest czerwona przy rozłączeniu i biała przy połączeniu.
-    - Sprawdzenie, czy tło powiadomienia (po rozwinięciu panelu) jest standardowe (ciemne/systemowe), a nie kolorowe.
-- **Swipe-out**: Potwierdzenie, że powiadomienie wraca po usunięciu palcem.
-
----
-
-### Uwaga techniczna
-Na nowszych wersjach Androida (8.0+), system często wymusza biały/monochromatyczny kolor ikon w samym pasku stanu (status bar), a kolor zadany przez `setColor` jest używany tylko w rozwiniętym panelu powiadomień. Jeśli usunięcie `setColorized(true)` nie sprawi, że ikona na górze będzie czerwona, może to być ograniczenie samego systemu operacyjnego. Spróbuję jednak zoptymalizować to tak, aby było to jak najbliższe oczekiwaniom.
+- Sprawdzenie, czy ikona na pasku stanu zmienia kolor na czerwony przy rozłączeniu.
+- Sprawdzenie, czy ikona nie zmienia rozmiaru ani pozycji (nie "skacze") przy zmianie stanu.
+- Potwierdzenie, że tło powiadomienia w rozwiniętym panelu jest standardowe (ciemne), a nie kolorowe.

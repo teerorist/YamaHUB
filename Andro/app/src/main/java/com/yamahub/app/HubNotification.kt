@@ -17,9 +17,12 @@ object HubNotification {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             val name = "YamaHub Status"
             val descriptionText = "Status połączenia z modułem YamaHub"
-            val importance = NotificationManager.IMPORTANCE_LOW
+            val importance = NotificationManager.IMPORTANCE_DEFAULT
             val channel = NotificationChannel(CHANNEL_ID, name, importance).apply {
                 description = descriptionText
+                setSound(null, null)
+                enableVibration(false)
+                setShowBadge(false)
             }
             val notificationManager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
             notificationManager.createNotificationChannel(channel)
@@ -54,8 +57,11 @@ object HubNotification {
             R.drawable.ic_ble_disconnected
         }
 
+        val color = if (isConnected) 0xFFFFFFFF.toInt() else 0xFFF44336.toInt()
+
         return NotificationCompat.Builder(context, CHANNEL_ID)
             .setSmallIcon(iconRes)
+            .setColor(color)
             .setContentTitle(title)
             .setContentText(text)
             .setContentIntent(pendingIntent)
@@ -63,7 +69,7 @@ object HubNotification {
             .setOngoing(true)
             .setAutoCancel(false)
             .setOnlyAlertOnce(true)
-            .setPriority(NotificationCompat.PRIORITY_LOW)
+            .setPriority(NotificationCompat.PRIORITY_DEFAULT)
             .build()
     }
 
