@@ -28,6 +28,15 @@ object ControlLights {
             else -> outs[0]
         }
         val on = outLevel(target) > 0.5f
+        
+        // Wyłączenie LOW (outs[0]) wyłącza też HI (outs[1]), jeśli istnieje
+        if (target == outs[0] && on && outs.size >= 2) {
+            val hiOn = outLevel(outs[1]) > 0.5f
+            if (hiOn) {
+                ble.setOutput(outs[1], false)
+            }
+        }
+        
         ble.setOutput(target, !on)
     }
 }

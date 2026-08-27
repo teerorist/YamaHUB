@@ -1,6 +1,8 @@
-# Zadania: Naprawa koloru na pasku stanu i rozmiaru ikon
+# Tasks: Smiths Gauge Refinement
 
-- [x] Uproszczenie i ujednolicenie `ic_ble_connected.xml`
-- [x] Uproszczenie i ujednolicenie `ic_ble_disconnected.xml`
-- [x] Aktualizacja kanału i parametrów v `HubNotification.kt`
-- [x] Weryfikacja wizualna i kompilacja
+- [ ] Update RPM numbers positioning (closer to ticks)
+- [ ] Implement inner recessed dial (3D layer)
+- [ ] Relocate turn/beam indicators to the inner dial
+- [ ] Implement sectoral geometry for the fuel gauge window
+- [ ] Unify 3D effects (shadows, gradients) across layers
+- [ ] Verify build and visuals

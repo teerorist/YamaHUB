@@ -16,7 +16,8 @@ import kotlinx.coroutines.launch
  * L+P naraz       → HAZARD
  */
 object ControlBlinkers {
-    private const val LONG_MS = 400L
+    private const val LONG_MS = 500L
+    private const val SYNC_WINDOW_MS = 150L
 
     private var leftHeld = false
     private var rightHeld = false
@@ -25,6 +26,8 @@ object ControlBlinkers {
     private var bothHeld = false
     private var leftProvisional = false
     private var rightProvisional = false
+    private var leftNsTriggered = false
+    private var rightNsTriggered = false
     private var leftJob: Job? = null
     private var rightJob: Job? = null
 
@@ -34,6 +37,7 @@ object ControlBlinkers {
         leftWasActive = false; rightWasActive = false
         bothHeld = false
         leftProvisional = false; rightProvisional = false
+        leftNsTriggered = false; rightNsTriggered = false
     }
 
     fun onLeftDown(
@@ -46,6 +50,17 @@ object ControlBlinkers {
         leftHeld = true
         leftWasActive = leftActive
         leftProvisional = false
+        leftNsTriggered = false
+        
+        // If we were waiting for a right blink to start, cancel it and start hazard
+        if (rightJob != null && rightProvisional) {
+            rightJob?.cancel()
+            rightJob = null
+            bothHeld = true
+            ble.setHazard(true)
+            return
+        }
+
         leftJob?.cancel()
 
         if (rightHeld) {
@@ -57,13 +72,19 @@ object ControlBlinkers {
         if (hazardOn) return
 
         if (!leftActive) {
-            if (rightActive) ble.sendCommand("RIGHT:0")
-            ble.sendCommand("LEFT:1")
             leftProvisional = true
             leftJob = scope.launch {
-                delay(LONG_MS)
+                // SYNC WINDOW: Wait a bit to see if RIGHT is also pressed
+                delay(SYNC_WINDOW_MS)
+                
+                if (rightActive) ble.sendCommand("RIGHT:0")
+                ble.sendCommand("LEFT:1")
+                
+                // Continue waiting for LONG press (NS mode)
+                delay(LONG_MS - SYNC_WINDOW_MS)
                 if (leftHeld && leftProvisional && !bothHeld) {
                     ble.sendCommand("LEFT:2")
+                    leftNsTriggered = true
                     leftProvisional = false
                 }
             }
@@ -72,11 +93,13 @@ object ControlBlinkers {
 
     fun onLeftUp(ble: BleManager, heldMs: Long, hazardOn: Boolean) {
         val wasBoth = bothHeld
-        val wasProv = leftProvisional
+        val wasNs = leftNsTriggered
         val isLong = heldMs >= LONG_MS
         leftHeld = false
         leftProvisional = false
+        leftNsTriggered = false
         leftJob?.cancel()
+        leftJob = null
         if (!rightHeld) bothHeld = false
 
         if (wasBoth) return
@@ -84,12 +107,15 @@ object ControlBlinkers {
             ble.setHazard(false)
             return
         }
+        
+        if (wasNs) return 
+
         when {
             leftWasActive -> {
                 if (isLong) ble.sendCommand("LEFT:0")
                 else ble.sendCommand("LEFT:1")
             }
-            wasProv && isLong -> ble.sendCommand("LEFT:2")
+            heldMs >= SYNC_WINDOW_MS && isLong -> ble.sendCommand("LEFT:2")
             else -> {}
         }
     }
@@ -104,6 +130,17 @@ object ControlBlinkers {
         rightHeld = true
         rightWasActive = rightActive
         rightProvisional = false
+        rightNsTriggered = false
+
+        // If we were waiting for a left blink to start, cancel it and start hazard
+        if (leftJob != null && leftProvisional) {
+            leftJob?.cancel()
+            leftJob = null
+            bothHeld = true
+            ble.setHazard(true)
+            return
+        }
+
         rightJob?.cancel()
 
         if (leftHeld) {
@@ -115,13 +152,19 @@ object ControlBlinkers {
         if (hazardOn) return
 
         if (!rightActive) {
-            if (leftActive) ble.sendCommand("LEFT:0")
-            ble.sendCommand("RIGHT:1")
             rightProvisional = true
             rightJob = scope.launch {
-                delay(LONG_MS)
+                // SYNC WINDOW: Wait a bit to see if LEFT is also pressed
+                delay(SYNC_WINDOW_MS)
+                
+                if (leftActive) ble.sendCommand("LEFT:0")
+                ble.sendCommand("RIGHT:1")
+                
+                // Continue waiting for LONG press (NS mode)
+                delay(LONG_MS - SYNC_WINDOW_MS)
                 if (rightHeld && rightProvisional && !bothHeld) {
                     ble.sendCommand("RIGHT:2")
+                    rightNsTriggered = true
                     rightProvisional = false
                 }
             }
@@ -130,11 +173,13 @@ object ControlBlinkers {
 
     fun onRightUp(ble: BleManager, heldMs: Long, hazardOn: Boolean) {
         val wasBoth = bothHeld
-        val wasProv = rightProvisional
+        val wasNs = rightNsTriggered
         val isLong = heldMs >= LONG_MS
         rightHeld = false
         rightProvisional = false
+        rightNsTriggered = false
         rightJob?.cancel()
+        rightJob = null
         if (!leftHeld) bothHeld = false
 
         if (wasBoth) return
@@ -142,12 +187,15 @@ object ControlBlinkers {
             ble.setHazard(false)
             return
         }
+
+        if (wasNs) return 
+
         when {
             rightWasActive -> {
                 if (isLong) ble.sendCommand("RIGHT:0")
                 else ble.sendCommand("RIGHT:1")
             }
-            wasProv && isLong -> ble.sendCommand("RIGHT:2")
+            heldMs >= SYNC_WINDOW_MS && isLong -> ble.sendCommand("RIGHT:2")
             else -> {}
         }
     }

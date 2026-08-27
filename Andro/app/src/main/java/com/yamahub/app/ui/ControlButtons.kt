@@ -8,12 +8,12 @@ import com.yamahub.app.BleManager
 object ControlButtons {
 
     fun momentDown(ble: BleManager, row: ControlInRow) {
-        if (row.title == "NEUTRAL") return
+        if (row.title == "NEUTRAL" || row.title == "OLEJ") return
         row.outNums.forEach { ble.setOutput(it, true) }
     }
 
     fun momentUp(ble: BleManager, row: ControlInRow) {
-        if (row.title == "NEUTRAL") return
+        if (row.title == "NEUTRAL" || row.title == "OLEJ") return
         row.outNums.forEach { ble.setOutput(it, false) }
     }
 

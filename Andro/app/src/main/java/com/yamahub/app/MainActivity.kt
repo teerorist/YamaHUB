@@ -5,6 +5,7 @@ import android.content.Intent
 import android.content.pm.PackageManager
 import android.os.Build
 import android.os.Bundle
+import android.view.WindowManager
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.compose.BackHandler
@@ -23,6 +24,7 @@ import kotlinx.coroutines.delay
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
 
         // Uruchomienie BleService (Foreground)
         val serviceIntent = Intent(this, BleService::class.java)
@@ -182,15 +184,17 @@ fun YamaHubRoot() {
             }
 
             Scaffold { padding ->
-                Box(Modifier.padding(padding).fillMaxSize()) {
+                Box(Modifier.fillMaxSize()) {
                     if (showSettings) {
-                        SettingsScreen(
-                            connected = connected,
-                            onChangeDevice = {
-                                ble.disconnect()
-                                screen = AppScreen.Scan
-                            }
-                        )
+                        Box(Modifier.padding(padding).fillMaxSize()) {
+                            SettingsScreen(
+                                connected = connected,
+                                onChangeDevice = {
+                                    ble.disconnect()
+                                    screen = AppScreen.Scan
+                                }
+                            )
+                        }
                     } else if (connected) {
                         DashboardScreen(
                             onSettingsClick = { showSettings = true }

@@ -10,23 +10,25 @@ import android.os.Build
 import androidx.core.app.NotificationCompat
 
 /**
- * Powiadomienie stałe w status barze / szufladzie.
+ * Stałe powiadomienie YamaHub (status bar + szuflada).
  *
- * Forma zaakceptowana wcześniej:
- *  - connected    → ta sama sylwetka logo, kolor BIAŁY
- *  - disconnected → ta sama sylwetka logo, kolor CZERWONY
- *  - rozmiar i kształt ikon identyczne (oba drawable = białe logo jako maska alfa)
- *  - barwę nadaje wyłącznie setColor(), nie inny path w XML
+ * Stan BLE:
+ *  - connected    → ic_ble_connected.png (biała)  + setColor biały
+ *  - disconnected → ic_ble_disconnected.png (czerwona) + setColor czerwony
+ *
+ * PNG muszą leżeć w res/drawable/ pod tymi nazwami.
+ * XML o tych samych nazwach usuń – inaczej zasłonią PNG.
  */
 object HubNotification {
     private const val CHANNEL_ID = "yamahub_connection_channel"
     const val NOTIFICATION_ID = 1001
+    const val ACTION_CLOSE_APP = "com.yamahub.app.ACTION_CLOSE_APP"
 
-    // Biały / czerwony – dokładnie jak w zaakceptowanej wersji
+    // connected = biały, disconnected = czerwony (zaakceptowana forma)
     private const val COLOR_CONNECTED = 0xFFFFFFFF.toInt()
     private const val COLOR_DISCONNECTED = 0xFFF44336.toInt()
 
-    /** Kanał powiadomień (Android 8+); LOW = bez dźwięku przy każdym update. */
+    /** Kanał Android 8+; LOW = bez dźwięku przy każdym update stanu. */
     fun ensureChannel(context: Context) {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             val channel = NotificationChannel(
@@ -45,13 +47,14 @@ object HubNotification {
     }
 
     /**
-     * Buduje Notification dla stanu BLE.
-     * setSmallIcon = ta sama maska logo; setColor = biały albo czerwony.
+     * Buduje Notification dla aktualnego isConnected.
+     * setSmallIcon → PNG (biały albo czerwony w pliku),
+     * setColor → ten sam kolor jako akcent w szufladzie.
      */
     fun build(context: Context, isConnected: Boolean): Notification {
         ensureChannel(context)
 
-        // Klik → MainActivity
+        // Klik w powiadomienie → MainActivity
         val contentIntent = PendingIntent.getActivity(
             context,
             0,
@@ -69,17 +72,27 @@ object HubNotification {
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
 
-        val title = if (isConnected) "YamaHub: Połączono" else "YamaHub: Rozłączono"
-        val text = if (isConnected) "Moduł aktywny i gotowy do drogi" else "Szukanie urządzenia..."
+        // Przycisk Zamknij
+        val closeIntent = PendingIntent.getBroadcast(
+            context,
+            2,
+            Intent(ACTION_CLOSE_APP).setPackage(context.packageName),
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+        )
 
-        // Ta sama sylwetka w obu stanach (białe wektory = maska alfa)
+        val title = if (isConnected) "YamaHub: Połączono" else "YamaHub: Rozłączono"
+        val text = if (isConnected) {
+            "Moduł aktywny i gotowy do drogi"
+        } else {
+            "Szukanie urządzenia..."
+        }
+
+        // PNG: connected = biała ikona, disconnected = czerwona (ten sam kształt)
         val iconRes = if (isConnected) {
             R.drawable.ic_ble_connected
         } else {
             R.drawable.ic_ble_disconnected
         }
-
-        // Jedyna różnica wizualna: kolor akcentu / tint ikony
         val color = if (isConnected) COLOR_CONNECTED else COLOR_DISCONNECTED
 
         return NotificationCompat.Builder(context, CHANNEL_ID)
@@ -89,6 +102,7 @@ object HubNotification {
             .setContentText(text)
             .setContentIntent(contentIntent)
             .setDeleteIntent(deleteIntent)
+            .addAction(0, "ZAMKNIJ", closeIntent)
             .setOngoing(true)
             .setAutoCancel(false)
             .setOnlyAlertOnce(true)
@@ -98,13 +112,13 @@ object HubNotification {
             .build()
     }
 
-    /** Podmienia istniejące powiadomienie na aktualny stan połączenia. */
+    /** Podmienia powiadomienie na aktualny stan BLE (connect / disconnect). */
     fun update(context: Context, isConnected: Boolean) {
         val nm = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
         nm.notify(NOTIFICATION_ID, build(context, isConnected))
     }
 
-    /** Usuwa powiadomienie (np. przy shutdown aplikacji). */
+    /** Usuwa powiadomienie (np. shutdown aplikacji). */
     fun cancel(context: Context) {
         try {
             val nm = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager

@@ -28,6 +28,7 @@ import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.graphicsLayer
@@ -125,6 +126,9 @@ fun ControlInItem(
             }
 
             // Tekst – sterowanie (press), bez DnD
+            val currentOnDown by rememberUpdatedState(onDown)
+            val currentOnUp by rememberUpdatedState(onUp)
+
             Column(
                 Modifier
                     .weight(1f)
@@ -136,10 +140,10 @@ fun ControlInItem(
                                     onPress = {
                                         pressed = true
                                         downAt = System.currentTimeMillis()
-                                        onDown()
+                                        currentOnDown()
                                         tryAwaitRelease()
                                         pressed = false
-                                        onUp(System.currentTimeMillis() - downAt)
+                                        currentOnUp(System.currentTimeMillis() - downAt)
                                     }
                                 )
                             }

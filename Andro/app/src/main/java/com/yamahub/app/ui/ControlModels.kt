@@ -24,7 +24,14 @@ data class ControlInRow(
 
 fun isNeutral(item: InputCfgItem): Boolean {
     if (item.mode != 1) return false
-    return item.name.lowercase().contains("neutral")
+    val n = item.name.lowercase()
+    return n.contains("neutral") || n.contains("luz")
+}
+
+fun isOil(item: InputCfgItem): Boolean {
+    if (item.mode != 1) return false
+    val n = item.name.lowercase()
+    return n.contains("oil") || n.contains("olej")
 }
 
 fun isLightsName(name: String): Boolean {
@@ -48,6 +55,7 @@ fun titleFor(item: InputCfgItem): String {
         6 -> "STARTER"
         else -> when {
             isNeutral(item) -> "NEUTRAL"
+            isOil(item) -> "OLEJ"
             isLightsName(item.name) -> "LIGHTS"
             isBrakeName(item.name) -> "BRAKE"
             n.isNotBlank() -> n
@@ -288,7 +296,8 @@ fun colorForRow(row: ControlInRow, outIndexInRow: Int): Color {
                 sub.contains("hi") -> COL_BLUE
                 sub.contains("low") || title == "lights" -> COL_WHITE
                 title.contains("brake") || sub.contains("front") || sub.contains("rear") -> COL_RED
-                title.contains("neutral") -> COL_WHITE
+                title == "neutral" -> COL_GREEN
+                title == "olej" -> COL_RED
                 else -> COL_CYAN
             }
         }

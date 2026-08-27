@@ -8,7 +8,9 @@ import android.content.IntentFilter
 import android.content.pm.ServiceInfo
 import android.os.Binder
 import android.os.Build
+import android.os.Handler
 import android.os.IBinder
+import android.os.Looper
 import android.util.Log
 import androidx.core.content.ContextCompat
 
@@ -16,12 +18,28 @@ class BleService : Service() {
 
     private val binder = LocalBinder()
 
-    private val restoreReceiver = object : BroadcastReceiver() {
+    private val notificationReceiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context?, intent: Intent?) {
-            if (intent?.action == "com.yamahub.app.ACTION_RESTORE_NOTIFICATION") {
-                Log.d("BleService", "Przywracanie powiadomienia po swipe...")
-                val ble = BleHub.manager(this@BleService)
-                HubNotification.update(this@BleService, ble.isConnected)
+            when (intent?.action) {
+                "com.yamahub.app.ACTION_RESTORE_NOTIFICATION" -> {
+                    Log.d("BleService", "Przywracanie powiadomienia po swipe...")
+                    val ble = BleHub.manager(this@BleService)
+                    HubNotification.update(this@BleService, ble.isConnected)
+                }
+                HubNotification.ACTION_CLOSE_APP -> {
+                    Log.d("BleService", "Zamykanie aplikacji z powiadomienia...")
+                    val ble = BleHub.manager(this@BleService)
+                    if (ble.isConnected) {
+                        ble.sendCommand("SHUTDOWN_NOW")
+                    }
+                    HubNotification.cancel(this@BleService)
+                    stopForeground(STOP_FOREGROUND_REMOVE)
+                    stopSelf()
+                    // Zakończ proces po krótkim opóźnieniu, aby serwis zdążył się zamknąć
+                    Handler(Looper.getMainLooper()).postDelayed({
+                        android.os.Process.killProcess(android.os.Process.myPid())
+                    }, 300)
+                }
             }
         }
     }
@@ -36,10 +54,15 @@ class BleService : Service() {
         super.onCreate()
         Log.d("BleService", "onCreate")
 
+        val filter = IntentFilter().apply {
+            addAction("com.yamahub.app.ACTION_RESTORE_NOTIFICATION")
+            addAction(HubNotification.ACTION_CLOSE_APP)
+        }
+
         ContextCompat.registerReceiver(
             this,
-            restoreReceiver,
-            IntentFilter("com.yamahub.app.ACTION_RESTORE_NOTIFICATION"),
+            notificationReceiver,
+            filter,
             ContextCompat.RECEIVER_NOT_EXPORTED
         )
         
@@ -73,6 +96,6 @@ class BleService : Service() {
     override fun onDestroy() {
         super.onDestroy()
         Log.d("BleService", "onDestroy")
-        unregisterReceiver(restoreReceiver)
+        unregisterReceiver(notificationReceiver)
     }
 }

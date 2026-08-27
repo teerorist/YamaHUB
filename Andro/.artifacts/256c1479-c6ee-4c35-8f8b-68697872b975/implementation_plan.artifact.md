@@ -1,29 +1,35 @@
-# Naprawa koloru ikony na pasku stanu i ujednolicenie rozmiaru
+# Refinement of Smiths Gauge 3D Geometry
 
-Użytkownik zgłosił, że ikona na pasku stanu (status bar) pozostaje biała, a jej rozmiar zmienia się przy przełączaniu stanu. Celem jest wymuszenie czerwonego koloru na pasku stanu dla stanu "rozłączono" oraz zapewnienie identycznego rozmiaru obu ikon.
+Udoskonalenie geometrii i głębi 3D licznika Smiths, aby wierniej oddać strukturę fizycznego urządzenia (wielopoziomowa tarcza, precyzyjne rozmieszczenie elementów).
 
-## Proponowane zmiany
+## User Review Required
 
-### Ikony (Drawables)
+> [!IMPORTANT]
+> Zmienię sposób rysowania wskaźnika paliwa z prostokątnego okienka na wycinek pierścienia kołowego (sectoral recessed window), którego krawędzie boczne będą biec wzdłuż promieni koła.
 
-#### [MODYFIKACJA] [ic_ble_connected.xml](file:///D:/###Users/teerorist/Desktop/YamaHUB/Andro/app/src/main/res/drawable/ic_ble_connected.xml) i [ic_ble_disconnected.xml](file:///D:/###Users/teerorist/Desktop/YamaHUB/Andro/app/src/main/res/drawable/ic_ble_disconnected.xml)
-- Uproszczenie struktury XML – usunięcie grup skalujących (`group`), które mogą powodować błędy w zaokrągleniach pozycji i rozmiaru.
-- Ustawienie `fillColor="#FFFFFF"` w obu plikach (standard dla ikon-szablonów).
-- Upewnienie się, że `viewportWidth/Height` oraz parametry ścieżek są identyczne.
+## Proposed Changes
 
-### Powiadomienia
+### Dashboard UI Components
 
-#### [MODYFIKACJA] [HubNotification.kt](file:///D:/###Users/teerorist/Desktop/YamaHUB/Andro/app/src/main/java/com/yamahub/app/HubNotification.kt)
-- **Przywrócenie `setColor(color)`**: To kluczowe, aby system wiedział, na jaki kolor ma zafarbować ikonę w pasku stanu.
-- **Zmiana `Importance`**: Zwiększenie ważności kanału na `IMPORTANCE_DEFAULT` przy jednoczesnym wyłączeniu dźwięku i wibracji. Wyższa ważność często odblokowuje kolorowanie ikony na pasku stanu w niektórych wersjach Androida.
-- **Usunięcie `setColorized(true)`**: Pozostawienie domyślnego tła panelu powiadomień.
+#### [MODIFY] [DashboardScreen.kt](file:///D:/###Users/teerorist/Desktop/YamaHUB/Andro/app/src/main/java/com/yamahub/app/ui/DashboardScreen.kt)
 
-## Plan weryfikacji
+1.  **RPM Scale Adjustment**:
+    *   Zwiększę promień rysowania cyfr (z `radius - 45.dp` na około `radius - 28.dp`), aby "dosunąć" je do podziałki.
+2.  **Inner Recessed Dial**:
+    *   Dodam rysowanie mniejszego, centralnego koła (promień ok. 60-70% głównej tarczy).
+    *   Zastosuję gradient radialny i wewnętrzny cień (`setShadowLayer`), aby uzyskać efekt zagłębienia.
+    *   Przeniosę ikony kierunkowskazów i świateł do wnętrza tego koła.
+3.  **New Fuel Gauge Geometry**:
+    *   Zamiast `fuelRect`, użyję `Path` budowanej z dwóch łuków (`arcTo`) i linii łączących ich końce na promieniach.
+    *   Okienko będzie miało ten sam styl cieniowania co centralny "talerz".
+    *   Krawędzie boczne będą celować dokładnie w środek osi licznika.
 
-### Testy automatyczne
-- Kompilacja projektu: `./gradlew :app:assembleDebug`.
+## Verification Plan
 
-### Weryfikacja ręczna
-- Sprawdzenie, czy ikona na pasku stanu zmienia kolor na czerwony przy rozłączeniu.
-- Sprawdzenie, czy ikona nie zmienia rozmiaru ani pozycji (nie "skacze") przy zmianie stanu.
-- Potwierdzenie, że tło powiadomienia w rozwiniętym panelu jest standardowe (ciemne), a nie kolorowe.
+### Automated Tests
+- Build projektu: `./gradlew :app:compileDebugKotlin`.
+
+### Manual Verification
+- Wizualna ocena "wypchnięcia" skali na zewnątrz (cyfry blisko kresek).
+- Sprawdzenie spójności głębi 3D między środkowym kołem a wnęką paliwa.
+- Potwierdzenie, że kontrolki są zgrupowane w centralnym zagłębieniu.

@@ -15,4 +15,9 @@ object DashboardTestState {
     var simSpeed by mutableFloatStateOf(0f)
     var useSimRpm by mutableStateOf(true)
     var simRpm by mutableFloatStateOf(0f)
+    var fuelLevel by mutableFloatStateOf(0.5f)
+    var ambientBrightness by mutableFloatStateOf(1.0f)
+
+    var actualScreenBrightness by mutableFloatStateOf(0.8f)
+    var externalLightIntensity by mutableFloatStateOf(0.5f)
 }
