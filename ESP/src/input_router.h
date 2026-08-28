@@ -7,7 +7,7 @@
  *  LEFT/RIGHT  → blinkers.cpp
  *  STARTER     → starter.cpp
  *  TOGGLE      → input_button.cpp
- *  MOMENT      → input_moment.cpp (brake/neutral)
+ *  SENSOR      → input_sensor.cpp
  *  SENSOR      → input_sensor.cpp
  *  DISABLED    → nic
  */

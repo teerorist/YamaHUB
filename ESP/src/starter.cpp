@@ -7,6 +7,8 @@
 #include "inputs.h"
 #include "display_hub.h"
 #include <esp_sleep.h>
+#include <ctype.h>
+#include <string.h>
 
 static const unsigned long LONG_MS = 400;
 static const unsigned long DEB = 30;
@@ -21,6 +23,40 @@ static bool shutdownPending = false;
 static unsigned long shutdownAt = 0;
 static bool blePressed = false;
 static Output* sdOutputs = nullptr;
+
+static bool nameHas(const char* name, const char* key) {
+    if (!name || !key) return false;
+    size_t keyLength = strlen(key);
+    for (const char* p = name; *p; ++p) {
+        size_t i = 0;
+        while (p[i] && key[i] &&
+               tolower((unsigned char)p[i]) == tolower((unsigned char)key[i])) i++;
+        if (i == keyLength) return true;
+    }
+    return false;
+}
+
+bool isStarterEnabled(Output* outputs) {
+    if (!outputs) return false;
+
+    if (isNeutralSimulation()) return true;
+
+    for (int i = 0; i < INPUT_COUNT; i++) {
+        if (!nameHas(inputCfg[i].name, "neutral") &&
+            !nameHas(inputCfg[i].name, "clutch")) continue;
+
+        if (getEffectiveInputState(i))
+            return true;
+    }
+    return false;
+}
+
+void updateStarterInterlock(Output* outputs, bool& stateChanged) {
+    if (starterActive && !isStarterEnabled(outputs)) {
+        Serial.println("STARTER OFF - neutral/clutch interlock");
+        starterSet(false, outputs, stateChanged);
+    }
+}
 
 void setBleStarterPressed(bool pressed) {
     blePressed = pressed;
@@ -74,6 +110,10 @@ void starterSet(bool on, Output* outputs, bool& stateChanged) {
     const int soi = starterOutIndex();  // 0..9 z konfiguracji IN
 
     if (on) {
+        if (!isStarterEnabled(outputs)) {
+            Serial.println("STARTER blocked - NEUTRAL or CLUTCH is OFF");
+            return;
+        }
         if (shutdownPending) {
             shutdownPending = false;
             Serial.println("STARTER ON → anulowano shutdown");
@@ -114,7 +154,6 @@ void starterSet(bool on, Output* outputs, bool& stateChanged) {
 
             if (isBeamOutput(i)) {
                 requestBeamLevel(i, savedBeam[i]);
-                if (!cfg.beamFade) setOutLevel(i, savedBeam[i]);
             } else {
                 if (savedOn[i]) {
                     outputs[i].on();
@@ -149,7 +188,7 @@ void handleStarter(Button& btn, Output* outputs, bool& stateChanged) {
         deb = raw;
     }
 
-    bool active = deb || blePressed;
+    bool active = deb || blePressed || isBleInputPressed(findStarterInIndex());
 
     static bool prev = false;
     bool pressedEdge  = (active && !prev);

@@ -19,7 +19,8 @@ data class ControlInRow(
     val outNums: List<Int>,      // zawsze 1 element = primaryOut
     val primaryOut: Int,         // OUT 1..10 tej pozycji
     val wireName: String = "",   // nazwa do SET_INCFG
-    val isLightsHi: Boolean = false // ten slot to HI z LIGHTS_H{n}
+    val isLightsHi: Boolean = false, // ten slot to HI z LIGHTS_H{n}
+    val relatedHiOut: Int? = null    // jeśli to LOW, to tu może być powiązany HI
 )
 
 fun isNeutral(item: InputCfgItem): Boolean {
@@ -46,6 +47,27 @@ fun isBrakeName(name: String): Boolean =
 fun parseLightsHi(name: String): Int? =
     Regex("""LIGHTS_H(\d+)""", RegexOption.IGNORE_CASE)
         .find(name)?.groupValues?.getOrNull(1)?.toIntOrNull()?.coerceIn(1, 10)
+
+fun parseLightsLow(name: String): Int? =
+    Regex("""LIGHTS_L(\d+)""", RegexOption.IGNORE_CASE)
+        .find(name)?.groupValues?.getOrNull(1)?.toIntOrNull()?.coerceIn(1, 10)
+
+/** LOW/HI OUT z INCFG: LIGHTS 1 = HI, LIGHTS 2 = LOW; jeden IN: primary=HI, LIGHTS_L=LOW. */
+fun lightsOutsFromCfg(cfg: List<InputCfgItem>): Pair<Int, Int> {
+    val lights = cfg.filter { isLightsName(it.name) && it.mode == 0 }.sortedBy { it.inNum }
+    if (lights.size >= 2) {
+        return lights[1].outNum.coerceIn(1, 10) to lights[0].outNum.coerceIn(1, 10)
+    }
+    val one = lights.firstOrNull() ?: return 0 to 0
+    val p = one.outNum.coerceIn(1, 10)
+    val lowEnc = parseLightsLow(one.name)
+    val hiEnc = parseLightsHi(one.name)
+    return when {
+        lowEnc != null -> lowEnc to p
+        hiEnc != null -> p to hiEnc
+        else -> p to 0
+    }
+}
 
 fun titleFor(item: InputCfgItem): String {
     val n = item.displayName()
@@ -91,12 +113,16 @@ fun buildRows(cfg: List<InputCfgItem>): List<ControlInRow> {
     usable.forEach { item ->
         val primary = item.outNum.coerceIn(1, 10)
         if (!hits.containsKey(primary)) {
-            hits[primary] = Hit(item, isHi = false)
+            val oneInHi = isLightsName(item.name) && lc < 2 && parseLightsLow(item.name) != null
+            hits[primary] = Hit(item, isHi = oneInHi)
         }
         if (isLightsName(item.name) && lc < 2) {
-            val hi = parseLightsHi(item.name)
-            if (hi != null && hi != primary && !hits.containsKey(hi)) {
-                hits[hi] = Hit(item, isHi = true)
+            val low = parseLightsLow(item.name)
+            val hiOld = parseLightsHi(item.name)
+            if (low != null && low != primary && !hits.containsKey(low)) {
+                hits[low] = Hit(item, isHi = false)
+            } else if (hiOld != null && hiOld != primary && !hits.containsKey(hiOld)) {
+                hits[hiOld] = Hit(item, isHi = true)
             }
         }
     }
@@ -114,13 +140,26 @@ fun buildRows(cfg: List<InputCfgItem>): List<ControlInRow> {
             )
         } else {
             val item = hit.item
+            val isLights = isLightsName(item.name)
+            var relHi: Int? = null
+            
             val sub = when {
-                isLightsName(item.name) && lc >= 2 -> {
+                isLights && lc >= 2 -> {
                     val idx = lights.indexOfFirst { it.inNum == item.inNum }
-                    if (idx <= 0) "LOW BEAM" else "HI BEAM"
+                    if (idx == 0 && lights.size >= 2) {
+                        relHi = item.outNum.coerceIn(1, 10)
+                    }
+                    if (idx <= 0) "HI BEAM" else "LOW BEAM"
                 }
-                isLightsName(item.name) && hit.isHi -> "HI BEAM"
-                isLightsName(item.name) && parseLightsHi(item.name) != null -> "LOW BEAM"
+                isLights && hit.isHi -> "HI BEAM"
+                isLights && parseLightsLow(item.name) != null -> {
+                    relHi = item.outNum.coerceIn(1, 10)
+                    "LOW BEAM"
+                }
+                isLights && parseLightsHi(item.name) != null -> {
+                    relHi = parseLightsHi(item.name)
+                    "LOW BEAM"
+                }
                 isBrakeName(item.name) && brakes.size >= 2 -> {
                     val idx = brakes.indexOfFirst { it.inNum == item.inNum }
                     if (idx <= 0) "front" else "rear"
@@ -135,7 +174,8 @@ fun buildRows(cfg: List<InputCfgItem>): List<ControlInRow> {
                 outNums = listOf(out),
                 primaryOut = out,
                 wireName = item.name,
-                isLightsHi = hit.isHi
+                isLightsHi = hit.isHi,
+                relatedHiOut = relHi
             )
         }
     }
@@ -311,6 +351,26 @@ fun applyCurve(t: Float, curve: Int): Float {
         1 -> x * x * (3f - 2f * x)
         else -> x
     }
+}
+
+data class BlinkPair(val left: Float, val right: Float)
+
+/** Przy HAZARD jedna faza dla L i P – inaczej dwa LaunchedEffect rozjeżdżają się. */
+@Composable
+fun rememberBlinkPair(
+    leftActive: Boolean,
+    rightActive: Boolean,
+    hazardOn: Boolean,
+    fadeSpeed: Int,
+    curve: Int
+): BlinkPair {
+    val leftSolo = rememberBlinkLevel(leftActive && !hazardOn, fadeSpeed, curve)
+    val rightSolo = rememberBlinkLevel(rightActive && !hazardOn, fadeSpeed, curve)
+    val hazardLevel = rememberBlinkLevel(hazardOn, fadeSpeed, curve)
+    return BlinkPair(
+        left = if (hazardOn) hazardLevel else leftSolo,
+        right = if (hazardOn) hazardLevel else rightSolo
+    )
 }
 
 @Composable

@@ -6,10 +6,15 @@ void handleButtonInput(int inIndex, Button& btn, Output* outputs, bool& stateCha
     if (inIndex < 0 || inIndex >= INPUT_COUNT) return;
     if (inputCfg[inIndex].mode != IN_TOGGLE) return;
 
-    uint8_t oi = inputCfg[inIndex].outIndex;
+    if (!inputCfg[inIndex].outputEnabled) return;
+    uint8_t oi = inputCfg[inIndex].outputIndex;
     if (oi > 9) return;
 
-    if (!btn.wasPressed()) return;
+    static bool bleWas[INPUT_COUNT] = {false};
+    bool ble = isBleInputPressed(inIndex);
+    bool bleEdge = ble && !bleWas[inIndex];
+    bleWas[inIndex] = ble;
+    if (!btn.wasPressed() && !bleEdge) return;
 
     if (isBeamOutput(oi)) {
         static uint8_t beamOn[10] = {0};

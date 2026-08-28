@@ -4,7 +4,9 @@ data class InputCfgItem(
     val inNum: Int,
     val mode: Int,
     val outNum: Int,
-    val name: String
+    val name: String,
+    val outputEnabled: Boolean = false,
+    val outputNum: Int = outNum
 )
 
 fun InputCfgItem.displayName(): String =

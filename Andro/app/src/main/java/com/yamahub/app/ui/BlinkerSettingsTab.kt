@@ -1,13 +1,16 @@
 package com.yamahub.app.ui
 
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import com.yamahub.app.BleHub
-import kotlinx.coroutines.delay
 
 @Composable
 fun BlinkerSettingsTab() {
@@ -16,28 +19,32 @@ fun BlinkerSettingsTab() {
 
     var fadeSpeed by remember { mutableFloatStateOf(12f) }
     var blinkCount by remember { mutableFloatStateOf(3f) }
-    var curve by remember { mutableIntStateOf(0) }
+    var curve by remember { mutableIntStateOf(-1) }
     var acSpeed by remember { mutableFloatStateOf(20f) }
-    var beamFade by remember { mutableStateOf(true) }
+    var autoCancel by remember { mutableStateOf(false) }
+    var autoLights by remember { mutableStateOf(false) }
+    var cfgReady by remember { mutableStateOf(false) }
 
     DisposableEffect(Unit) {
         val prev = ble.onConfigReceived
-        ble.onConfigReceived = { f, b, c, a ->
+        ble.onConfigReceived = { f, b, c, a, acOn, lightsOn ->
             fadeSpeed = f.toFloat()
             blinkCount = b.toFloat()
-            curve = c
-            acSpeed = a.toFloat()
-            prev?.invoke(f, b, c, a)
+            curve = c.coerceIn(0, 2)
+            acSpeed = a.coerceIn(5, 30).toFloat()
+            if (acOn != null) autoCancel = acOn
+            if (lightsOn != null) autoLights = lightsOn
+            cfgReady = true
+            prev?.invoke(f, b, c, a, acOn, lightsOn)
         }
         onDispose { ble.onConfigReceived = prev }
     }
 
-    // Wejście w zakładkę → LIVE hazard + odczyt CFG
+    // Wejście w zakładkę → odczyt CFG, potem LIVE hazard
     LaunchedEffect(Unit) {
         if (!ble.isConnected) return@LaunchedEffect
-        ble.setHazard(true)
-        delay(300)
         ble.requestConfig()
+        ble.setHazard(true)
     }
 
     DisposableEffect(Unit) {
@@ -46,42 +53,58 @@ fun BlinkerSettingsTab() {
         }
     }
 
-    fun pushCfg() {
-        ble.setConfig(fadeSpeed.toInt(), blinkCount.toInt(), curve, acSpeed.toInt())
+    fun pushCfg(
+        cancel: Boolean = autoCancel,
+        lights: Boolean = autoLights,
+        curveVal: Int = curve
+    ) {
+        if (!cfgReady || curveVal !in 0..2) return
+        ble.setConfig(
+            fadeSpeed.toInt(),
+            blinkCount.toInt(),
+            curveVal,
+            acSpeed.toInt().coerceIn(5, 30),
+            cancel,
+            lights
+        )
     }
 
     Column(
         Modifier
             .fillMaxSize()
+            .verticalScroll(rememberScrollState())
             .padding(16.dp)
     ) {
         Spacer(Modifier.height(16.dp))
 
-        Text("Szybkość fade: ${fadeSpeed.toInt()}")
+        Text("Szybkość fade: ${if (cfgReady) fadeSpeed.toInt().toString() else "—"}")
         Slider(
             value = fadeSpeed,
             onValueChange = { fadeSpeed = it },
             onValueChangeFinished = { pushCfg() },
-            valueRange = 4f..40f
+            valueRange = 4f..40f,
+            enabled = cfgReady
         )
 
-        Text("Liczba mrugnięć (N): ${blinkCount.toInt()}")
+        Text("Liczba mrugnięć (N): ${if (cfgReady) blinkCount.toInt().toString() else "—"}")
         Slider(
             value = blinkCount,
             onValueChange = { blinkCount = it },
             onValueChangeFinished = { pushCfg() },
-            valueRange = 1f..10f,
-            steps = 8
+            valueRange = 2f..6f,
+            steps = 3,
+            enabled = cfgReady
         )
 
         Text("Krzywa fade")
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             listOf("Liniowa", "Płynna", "Ostra").forEachIndexed { idx, label ->
                 FilterChip(
-                    selected = curve == idx,
+                    selected = cfgReady && curve == idx,
+                    enabled = cfgReady,
                     onClick = {
                         curve = idx
-                        pushCfg()
+                        pushCfg(curveVal = idx)
                     },
                     label = { Text(label) }
                 )
@@ -89,12 +112,48 @@ fun BlinkerSettingsTab() {
         }
 
         Spacer(Modifier.height(16.dp))
-        Text("Wyłącz kierunkowskaz po przekroczeniu: ${acSpeed.toInt()} km/h")
+        Row(
+            Modifier
+                .fillMaxWidth()
+                .clickable(enabled = cfgReady) {
+                    val v = !autoCancel
+                    autoCancel = v
+                    pushCfg(cancel = v)
+                },
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Checkbox(
+                checked = cfgReady && autoCancel,
+                onCheckedChange = null,
+                enabled = cfgReady
+            )
+            Text("Autowyłączenie kierunkowskazu")
+        }
+        Row(
+            Modifier
+                .fillMaxWidth()
+                .clickable(enabled = cfgReady) {
+                    val v = !autoLights
+                    autoLights = v
+                    pushCfg(lights = v)
+                },
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Checkbox(
+                checked = cfgReady && autoLights,
+                onCheckedChange = null,
+                enabled = cfgReady
+            )
+            Text("Autowłączenie świateł")
+        }
+        Text("Próg prędkości: ${if (cfgReady) "${acSpeed.toInt()} km/h" else "—"}")
         Slider(
             value = acSpeed,
             onValueChange = { acSpeed = it },
             onValueChangeFinished = { pushCfg() },
-            valueRange = 0f..120f
+            valueRange = 5f..30f,
+            steps = 24,
+            enabled = cfgReady
         )
 
     }

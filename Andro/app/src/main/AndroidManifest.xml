@@ -12,10 +12,12 @@
     <!-- Lokalizacja (wymagana przy skanowaniu BLE na starszych Androidach) -->
     <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
     <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
+    <uses-permission android:name="android.permission.ACCESS_BACKGROUND_LOCATION" />
 
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_CONNECTED_DEVICE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_LOCATION" />
     <!-- Informacja, że aplikacja używa BLE -->
     <uses-feature android:name="android.hardware.bluetooth_le" android:required="true" />
     <application
@@ -32,6 +34,7 @@
             android:exported="true"
             android:label="@string/app_name"
             android:theme="@style/Theme.YamaHUB"
+            android:screenOrientation="portrait"
             android:windowSoftInputMode="adjustResize">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
@@ -42,7 +45,7 @@
 
         <service
             android:name=".BleService"
-            android:foregroundServiceType="connectedDevice"
+            android:foregroundServiceType="connectedDevice|location"
             android:exported="false" />
     </application>
 

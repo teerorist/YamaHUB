@@ -1,0 +1,9 @@
+- [x] Align `ControlBlinkers.kt` with ESP32 transition table
+    - [x] `onDown`: Send `:1` immediately
+    - [x] 400ms Timer: Send `:2` or `HAZARD`
+    - [x] `onUp`: Cancel timers, send nothing
+    - [x] Remove manual opposite-side cancellation
+- [x] Update `DashboardScreen.kt` for ESP-side Auto-cancel
+    - [x] Remove manual `LEFT:0` / `RIGHT:0` commands
+    - [x] Ensure `SPEED` is sent regularly to ESP
+- [x] Verify UI status squares still animate correctly based on `STATE` bits

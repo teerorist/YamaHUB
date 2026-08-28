@@ -6,6 +6,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectDragGestures
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Box
@@ -74,6 +75,9 @@ fun InputSettingsTab() {
     var draft by remember { mutableStateOf(defaultSlots()) }
     var error by remember { mutableStateOf<String?>(null) }
     var saving by remember { mutableStateOf(false) }
+    var isConnected by remember { mutableStateOf(ble.isConnected) }
+    var starterEnabled by remember { mutableStateOf(ble.starterEnabled) }
+    var inputStates by remember { mutableStateOf(List(10) { false }) }
     var expandedIdx by remember { mutableIntStateOf(-1) }
 
     var dragId by remember { mutableStateOf(-1L) }
@@ -90,23 +94,28 @@ fun InputSettingsTab() {
         var brakeDone = false
         slots.forEach { s ->
             if (!s.hasOutPicker()) return@forEach
+            if (s.kind == FnKind.BRAKE && s.variant > 1) return@forEach
+            if (s.hasOptionalOutputControl() && !s.outputEnabled) return@forEach
             when (s.kind) {
                 FnKind.BRAKE -> {
                     if (!brakeDone) {
-                        claims += s.outNum.coerceIn(1, 10) to "BRAKE"
+                        claims += s.outputNum.coerceIn(1, 10) to "BRAKE"
                         brakeDone = true
                     }
                 }
                 FnKind.LIGHTS -> {
                     if (lc < 2) {
-                        claims += s.outNum.coerceIn(1, 10) to "LIGHTS LOW"
-                        if (s.outNum2 in 1..10) claims += s.outNum2 to "LIGHTS HI"
+                        claims += s.outNum.coerceIn(1, 10) to "LIGHTS HI"
+                        if (s.outNum2 in 1..10) claims += s.outNum2 to "LIGHTS LOW"
                     } else {
-                        val tag = if (s.variant <= 1) "LIGHTS LOW" else "LIGHTS HI"
+                        val tag = if (s.variant <= 1) "LIGHTS HI" else "LIGHTS LOW"
                         claims += s.outNum.coerceIn(1, 10) to tag
                     }
                 }
-                else -> claims += s.outNum.coerceIn(1, 10) to s.title()
+                else -> {
+                    val output = if (s.hasOptionalOutputControl()) s.outputNum else s.outNum
+                    claims += output.coerceIn(1, 10) to s.title()
+                }
             }
         }
         return claims
@@ -117,13 +126,17 @@ fun InputSettingsTab() {
 
     fun outsOf(slot: FnSlot, lc: Int): Set<Int> {
         if (!slot.hasOutPicker()) return emptySet()
+        if (slot.hasOptionalOutputControl() && !slot.outputEnabled)
+            return emptySet() // Return empty set if output is not enabled
+        val selectedOut = if (slot.hasOptionalOutputControl())
+            slot.outputNum else slot.outNum
         return if (slot.kind == FnKind.LIGHTS && lc < 2) {
             buildSet {
                 add(slot.outNum.coerceIn(1, 10))
                 if (slot.outNum2 in 1..10) add(slot.outNum2)
             }
         } else {
-            setOf(slot.outNum.coerceIn(1, 10))
+            setOf(selectedOut.coerceIn(1, 10))
         }
     }
 
@@ -166,7 +179,7 @@ fun InputSettingsTab() {
         if (lightsCount < 2) {
             val lights = draft.firstOrNull { it.kind == FnKind.LIGHTS }
             if (lights != null && lights.outNum2 !in 1..10) {
-                return "LIGHTS: wybierz OUT dla HI BEAM"
+                return "LIGHTS: wybierz OUT dla LOW BEAM"
             }
             if (lights != null && lights.outNum == lights.outNum2) {
                 return "LIGHTS: LOW i HI muszą mieć różne OUT"
@@ -200,6 +213,7 @@ fun InputSettingsTab() {
                 val s2 = draft[i]
                 s1.kind == s2.kind && s1.variant == s2.variant &&
                     s1.outNum == s2.outNum && s1.outNum2 == s2.outNum2 &&
+                    s1.outputEnabled == s2.outputEnabled && s1.outputNum == s2.outputNum &&
                     s1.customName == s2.customName
             }
             if (match) {
@@ -212,12 +226,27 @@ fun InputSettingsTab() {
     }
 
     DisposableEffect(Unit) {
-        val prev = ble.onInputCfg
+        val prevCfg = ble.onInputCfg
+        val prevConn = ble.onConnectionChanged
+        val prevInputStates = ble.onInputStates
         ble.onInputCfg = { list ->
             applyFromEsp(list)
-            prev?.invoke(list)
+            prevCfg?.invoke(list)
         }
-        onDispose { ble.onInputCfg = prev }
+        ble.onConnectionChanged = { c ->
+            isConnected = c
+            if (!c) starterEnabled = false
+            prevConn?.invoke(c)
+        }
+        ble.onInputStates = { states -> inputStates = states; prevInputStates?.invoke(states) }
+        val prevStarter = ble.onStarterEnabled
+        ble.onStarterEnabled = { enabled -> starterEnabled = enabled; prevStarter?.invoke(enabled) }
+        onDispose {
+            ble.onInputCfg = prevCfg
+            ble.onConnectionChanged = prevConn
+            ble.onInputStates = prevInputStates
+            ble.onStarterEnabled = prevStarter
+        }
     }
 
     LaunchedEffect(Unit) {
@@ -249,7 +278,9 @@ fun InputSettingsTab() {
                         inNum = index + 1,
                         mode = slot.toMode(),
                         outNum = slot.outNum.coerceIn(1, 10),
-                        name = slot.toWireName(lc)
+                        name = slot.toWireName(lc),
+                        outputEnabled = slot.outputEnabled,
+                        outputNum = slot.outputNum.coerceIn(1, 10)
                     )
                     delay(80)
                 }
@@ -274,7 +305,7 @@ fun InputSettingsTab() {
         if (slot.kind == FnKind.BRAKE) {
             for (i in list.indices) {
                 if (list[i].kind == FnKind.BRAKE) {
-                    list[i] = list[i].copy(outNum = slot.outNum)
+                    list[i] = list[i].copy(outNum = slot.outNum, outputNum = slot.outputNum)
                 }
             }
         }
@@ -287,22 +318,23 @@ fun InputSettingsTab() {
         if (cur.isFixed()) return
 
         val wasLights2 = cur.kind == FnKind.LIGHTS && cur.variant > 1
-        val hiFromRemoved = if (wasLights2) cur.outNum else 0
+        val lowFromRemoved = if (wasLights2) cur.outNum else 0
 
         val slot = when (newKind) {
             FnKind.LIGHTS -> {
                 val primary = draft.firstOrNull { it.kind == FnKind.LIGHTS && it.variant <= 1 }
-                val low = primary?.outNum?.coerceIn(1, 10) ?: 3
-                val hi = when {
-                    primary != null && primary.outNum2 in 1..10 && primary.outNum2 != low ->
+                val hi = primary?.outNum?.coerceIn(1, 10) ?: 7
+                val low = when {
+                    primary != null && primary.outNum2 in 1..10 && primary.outNum2 != hi ->
                         primary.outNum2
-                    else -> freeOut(excluding = setOf(low), preferred = cur.outNum)
+                    else -> freeOut(excluding = setOf(hi), preferred = cur.outNum)
                 }
-                FnSlot(FnKind.LIGHTS, variant = 2, outNum = hi)
+                FnSlot(FnKind.LIGHTS, variant = 2, outNum = low)
             }
             FnKind.BRAKE -> {
-                val shared = draft.firstOrNull { it.kind == FnKind.BRAKE }?.outNum ?: cur.outNum
-                FnSlot(FnKind.BRAKE, variant = 2, outNum = shared)
+                val shared = draft.firstOrNull { it.kind == FnKind.BRAKE }?.outputNum ?: cur.outputNum
+                FnSlot(FnKind.BRAKE, variant = 2, outNum = cur.outNum,
+                    outputEnabled = cur.outputEnabled, outputNum = shared)
             }
             FnKind.BUTTON -> FnSlot(FnKind.BUTTON, outNum = cur.outNum, customName = "BUTTON")
             FnKind.SENSOR -> FnSlot(FnKind.SENSOR, outNum = cur.outNum, customName = "SENSOR")
@@ -323,8 +355,8 @@ fun InputSettingsTab() {
         if (wasLights2 && newKind != FnKind.LIGHTS) {
             for (i in list.indices) {
                 if (list[i].kind == FnKind.LIGHTS && list[i].variant <= 1) {
-                    val hi = hiFromRemoved.takeIf { it in 1..10 } ?: list[i].outNum2
-                    list[i] = list[i].copy(outNum2 = hi)
+                    val low = lowFromRemoved.takeIf { it in 1..10 } ?: list[i].outNum2
+                    list[i] = list[i].copy(outNum2 = low)
                 }
             }
         }
@@ -332,7 +364,7 @@ fun InputSettingsTab() {
             val shared = slot.outNum
             for (i in list.indices) {
                 if (list[i].kind == FnKind.BRAKE) {
-                    list[i] = list[i].copy(outNum = shared)
+                    list[i] = list[i].copy(outNum = shared, outputNum = slot.outputNum)
                 }
             }
         }
@@ -410,6 +442,8 @@ fun InputSettingsTab() {
                 val isExpanded = expandedIdx == index
                 val conflict = isOutConflictAt(index)
                 val sub = slot.subtitle(lightsCount, brakesCount)
+                val slotEnabled = isConnected &&
+                    (slot.kind != FnKind.STARTER || starterEnabled)
 
                 val dragFromIndex = if (dragId >= 0L) draft.indexOfFirst { it.id == dragId } else -1
                 val dragToIndex = if (dragFromIndex >= 0 && rowHeightPx > 0f) {
@@ -440,25 +474,48 @@ fun InputSettingsTab() {
                     verticalAlignment = Alignment.Top
 
                 ) {
+                    var inDown by remember(slot.id) { mutableStateOf(false) }
                     Box(
                         Modifier
                             .size(width = 46.dp, height = 46.dp)
                             .background(
-                                if (slot.kind != FnKind.DISABLED) Color(0xFF000000) else Color(0xFF333333),
+                                when {
+                                    inDown -> Color(0xFF555555)
+                                    inputStates.getOrElse(index) { false } -> Color(0xFF555555)
+                                    slotEnabled && slot.kind != FnKind.DISABLED -> Color(0xFF000000)
+                                    else -> Color(0xFF333333)
+                                },
                                 RoundedCornerShape(8.dp)
                             )
                             .border(
                                 1.dp,
                                 MaterialTheme.colorScheme.outline.copy(alpha = 0.45f),
                                 RoundedCornerShape(8.dp)
-                            ),
+                            )
+                            .pointerInput(index, slot.kind, isConnected) {
+                                if (slot.kind == FnKind.DISABLED || !slotEnabled)
+                                    return@pointerInput
+                                detectTapGestures(
+                                    onPress = {
+                                        inDown = true
+                                        ControlBlinkers.onDown(ble, index + 1)
+                                        try {
+                                            awaitRelease()
+                                        } finally {
+                                            inDown = false
+                                            ControlBlinkers.onUp(ble, index + 1)
+                                        }
+                                    }
+                                )
+                            },
                         contentAlignment = Alignment.Center
                     ) {
                         Text(
                             inLabel,
                             style = MaterialTheme.typography.labelMedium,
                             fontWeight = FontWeight.Bold,
-                            color = Color.White,
+                            color = if (inputStates.getOrElse(index) { false })
+                                Color.White else Color(0xFF9E9E9E),
                             textAlign = TextAlign.Center
                         )
                     }

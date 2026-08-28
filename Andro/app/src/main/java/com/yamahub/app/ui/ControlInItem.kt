@@ -5,7 +5,6 @@ import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.gestures.detectDragGestures
-import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -24,11 +23,6 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableLongStateOf
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
-import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.graphicsLayer
@@ -46,22 +40,18 @@ fun ControlInItem(
     isDragging: Boolean,
     gapShiftY: Float,
     dragOffsetY: Float = 0f,
-    onDown: () -> Unit,
-    onUp: (heldMs: Long) -> Unit,
+    onOutTap: (() -> Unit)? = null,
     onDragStart: () -> Unit,
     onDrag: (dy: Float) -> Unit,
     onDragEnd: () -> Unit,
     onDragCancel: () -> Unit
 ) {
     val unused = row.mode < 0
-    var pressed by remember { mutableStateOf(false) }
-    var downAt by remember { mutableLongStateOf(0L) }
 
     val cardBg by animateColorAsState(
         when {
             isDragging -> MaterialTheme.colorScheme.primaryContainer
             unused -> MaterialTheme.colorScheme.surface.copy(alpha = 0.35f)
-            pressed -> MaterialTheme.colorScheme.primary.copy(alpha = 0.35f)
             else -> MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.55f)
         },
         label = "card${row.primaryOut}"
@@ -125,30 +115,10 @@ fun ControlInItem(
                 )
             }
 
-            // Tekst – sterowanie (press), bez DnD
-            val currentOnDown by rememberUpdatedState(onDown)
-            val currentOnUp by rememberUpdatedState(onUp)
-
             Column(
                 Modifier
                     .weight(1f)
                     .fillMaxWidth()
-                    .then(
-                        if (!unused && enabled && row.title != "NEUTRAL") {
-                            Modifier.pointerInput(row.primaryOut, enabled) {
-                                detectTapGestures(
-                                    onPress = {
-                                        pressed = true
-                                        downAt = System.currentTimeMillis()
-                                        currentOnDown()
-                                        tryAwaitRelease()
-                                        pressed = false
-                                        currentOnUp(System.currentTimeMillis() - downAt)
-                                    }
-                                )
-                            }
-                        } else Modifier
-                    )
                     .padding(end = 10.dp, top = 8.dp, bottom = 8.dp),
                 verticalArrangement = Arrangement.Center
             ) {
@@ -182,7 +152,8 @@ fun ControlInItem(
                 label = "OUT %02d".format(out),
                 level = if (unused) 0f else levelForOut(out),
                 onColor = colorForRow(row, i),
-                isAssigned = row.inNum > 0
+                isAssigned = row.inNum > 0,
+                onTap = if (!unused && enabled) onOutTap else null
             )
         }
     }

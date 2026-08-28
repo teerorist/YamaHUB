@@ -32,6 +32,7 @@ void updateBlinkers(bool& stateChanged);
 void setLeft(int v);
 void setRight(int v);
 void setCurrentSpeed(float kmh);
+float currentSpeedKmh();
 void suspendBlinkers();
 void resumeBlinkers();
 void requestBlinkersGracefulOff();

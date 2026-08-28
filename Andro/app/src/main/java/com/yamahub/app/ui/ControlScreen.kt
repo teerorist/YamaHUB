@@ -33,8 +33,7 @@ import kotlin.math.round
  *   [☰ DnD + etykieta] | [OUT xx]
  *
  * - DnD zmienia tylko przypisanie OUT (autozapis INCFG)
- * - Etykieta: short / long → ControlActions (osobne moduły funkcji)
- * Tu NIE ma logiki kierunków / świateł / startera.
+ * - Kwadrat OUT xx: toggle bezpośrednio OUT_XX
  */
 @Composable
 fun ControlScreen() {
@@ -45,6 +44,7 @@ fun ControlScreen() {
     val listState = rememberLazyListState()
 
     var isConnected by remember { mutableStateOf(ble.isConnected) }
+    var starterEnabled by remember { mutableStateOf(ble.starterEnabled) }
     var states by remember { mutableStateOf(List(10) { false }) }
     var hazardOn by remember { mutableStateOf(false) }
     var cfg by remember { mutableStateOf<List<InputCfgItem>>(emptyList()) }
@@ -59,10 +59,13 @@ fun ControlScreen() {
     var fadeCurve by remember { mutableIntStateOf(1) }
     var saving by remember { mutableStateOf(false) }
 
-    val leftActive = states.getOrElse(leftOutNum - 1) { false } || hazardOn
-    val rightActive = states.getOrElse(rightOutNum - 1) { false } || hazardOn
-    val leftLevel = rememberBlinkLevel(leftActive, fadeSpeed, fadeCurve)
-    val rightLevel = rememberBlinkLevel(rightActive, fadeSpeed, fadeCurve)
+    val leftOn = states.getOrElse(leftOutNum - 1) { false }
+    val rightOn = states.getOrElse(rightOutNum - 1) { false }
+    val leftActive = leftOn || hazardOn
+    val rightActive = rightOn || hazardOn
+    val blink = rememberBlinkPair(leftOn, rightOn, hazardOn, fadeSpeed, fadeCurve)
+    val leftLevel = blink.left
+    val rightLevel = blink.right
 
     fun outLevel(out: Int): Float =
         if (states.getOrElse(out - 1) { false }) 1f else 0f
@@ -86,7 +89,10 @@ fun ControlScreen() {
             try {
                 // 1. Zapisz nową konfigurację na urządzeniu
                 newCfg.forEach { item ->
-                    ble.setInputCfg(item.inNum, item.mode, item.outNum, item.name)
+                    ble.setInputCfg(
+                        item.inNum, item.mode, item.outNum, item.name,
+                        item.outputEnabled, item.outputNum
+                    )
                     delay(70)
                 }
                 delay(150)
@@ -163,6 +169,7 @@ fun ControlScreen() {
         val prevState = ble.onStateReceived
         val prevCfg = ble.onInputCfg
         val prevBlinkCfg = ble.onConfigReceived
+        val prevStarter = ble.onStarterEnabled
 
         ble.onConnectionChanged = { c ->
             isConnected = c
@@ -191,11 +198,12 @@ fun ControlScreen() {
             }
             prevCfg?.invoke(list)
         }
-        ble.onConfigReceived = { fade, blinks, curve, ac ->
+        ble.onConfigReceived = { fade, blinks, curve, ac, acOn, lightsOn ->
             fadeSpeed = fade.coerceIn(4, 60)
             fadeCurve = curve.coerceIn(0, 2)
-            prevBlinkCfg?.invoke(fade, blinks, curve, ac)
+            prevBlinkCfg?.invoke(fade, blinks, curve, ac, acOn, lightsOn)
         }
+        ble.onStarterEnabled = { enabled -> starterEnabled = enabled; prevStarter?.invoke(enabled) }
 
         if (ble.isConnected) {
             // jeden start – bez dublowania z LaunchedEffect
@@ -209,6 +217,7 @@ fun ControlScreen() {
             ble.onStateReceived = prevState
             ble.onInputCfg = prevCfg
             ble.onConfigReceived = prevBlinkCfg
+            ble.onStarterEnabled = prevStarter
         }
     }
 
@@ -221,15 +230,6 @@ fun ControlScreen() {
             ble.sendCommand("GET_CFG")
         }
     }
-
-    // STATE – rzadki poll; po lokalnej komendzie i tak leci odpowiedź/GET
-    LaunchedEffect(isConnected) {
-        while (isConnected) {
-            ble.requestState()
-            delay(1000)
-        }
-    }
-
 
     val dragToOut = if (dragFromOut in 1..10 && rowHeightPx > 0f) {
         (dragFromOut + round(dragOffsetY / rowHeightPx).toInt()).coerceIn(1, 10)
@@ -268,19 +268,14 @@ fun ControlScreen() {
                             else -> outLevel(o)
                         }
                     },
-                    enabled = isConnected && row.mode >= 0 && !saving && dragFromOut == -1,
+                      enabled = isConnected && row.mode >= 0 && !saving && dragFromOut == -1 &&
+                          (row.mode != Mode.STARTER || starterEnabled),
                     isDragging = isDragging,
                     gapShiftY = gapShiftY,
                     dragOffsetY = if (isDragging) dragOffsetY else 0f,
-                    onDown = {
-                        ControlActions.onDown(
-                            ble, row, leftActive, rightActive, hazardOn, scope
-                        )
-                    },
-                    onUp = { held ->
-                        ControlActions.onUp(
-                            ble, row, held, leftActive, rightActive, hazardOn, ::outLevel
-                        )
+                    onOutTap = {
+                        val on = states.getOrElse(out - 1) { false }
+                        ble.setOutput(out, !on)
                     },
                     onDragStart = {
                         dragFromOut = out

@@ -33,8 +33,9 @@ void setup() {
     loadInputModes();
 
     Serial.println("=== YamaHub v1.5 modular ===");
-    Serial.printf("Config: fade=%d N=%d curve=%d acSpeed=%d\n",
-                  cfg.fadeSpeed, cfg.blinkCount, cfg.curve, cfg.autoCancelSpeed);
+    Serial.printf("Config: fade=%d N=%d curve=%d ac=%d cancel=%d lights=%d\n",
+                  cfg.fadeSpeed, cfg.blinkCount, cfg.curve, cfg.autoCancelSpeed,
+                  cfg.autoCancel, cfg.autoLights);
 
     for (int i = 0; i < 10; i++) {
         buttons[i].begin();
@@ -104,6 +105,8 @@ void loop() {
 
     handleBlinkerButtons(buttons, stateChanged);
     handleConfigurableInputs(buttons, outputs, stateChanged);
+    updateStarterInterlock(outputs, stateChanged);
+    sendInputStatesIfChanged(buttons);
 
     // STARTER: przycisk z konfiguracji (domyślnie IN_10, indeks 9)
     int si = findStarterInIndex();

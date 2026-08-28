@@ -1,11 +1,9 @@
-# Zadania: Rozszerzona symulacja i nowe warstwy (v16.0)
+# Zadania: Graficzna wskazówka paliwa (v20.0)
 
-- [x] Aktualizacja `DashboardTestState.kt`:
-    - [x] Dodanie pól `actualScreenBrightness` i `externalLightIntensity`.
-- [x] Aktualizacja `DashboardScreen.kt`:
-    - [x] Dodanie `background(Color.Black)` do głównego kontenera.
-    - [x] Ładowanie zasobów `needle_bkg_0` i `needle_bkg_1`.
-    - [x] Implementacja zanikania cienia wskazówki (`alpha = ambientBrightness * 0.3f`).
-    - [x] Zastosowanie alfy dla `needle_bkg_0` (ambient) i `needle_bkg_1` (podświetlenie).
-    - [x] Przebudowa panelu testowego (nowy wiersz dla jasności i statusy %).
-- [x] Weryfikacja wizualna.
+- [ ] Aktualizacja `DashboardScreen.kt`:
+    - [ ] Ładowanie zasobów `fuel_needle` i `fuel_needle_bkg`.
+    - [ ] Dodanie warstw wskazówki paliwa do kontenera `Box` w `SmithsGauge`.
+    - [ ] Implementacja rotacji `(fuelLevel - 0.5f) * 52f` z punktem obrotu na **73.5%** wysokości.
+    - [ ] Powiązanie alfy `fuel_needle` z `ambientBrightness`.
+    - [ ] Usunięcie starej funkcji `drawFuelSubGauge`.
+- [ ] Weryfikacja ruchu wskazówki suwakiem "PALIWO".

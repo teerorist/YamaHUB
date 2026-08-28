@@ -1,0 +1,8 @@
+- [x] Load `fuel_needle` and `fuel_needle_bkg` resources in `SmithsGauge`
+- [x] Implement fuel needle drawing logic in `Canvas`
+- [x] Remove legacy `drawFuelSubGauge` call and function
+- [x] Add `tachometer_bkg` layer
+- [x] Scale Gauge to 110% Screen Width
+    - [x] Add `LocalConfiguration` to `DashboardScreen`
+    - [x] Update `SmithsGauge` container with `requiredWidth` and `aspectRatio`
+- [x] Verify changes

@@ -26,8 +26,10 @@ data class FnSlot(
     val kind: FnKind,
     val variant: Int = 1,
     val outNum: Int = 1,
-    /** Drugi OUT tylko przy 1× LIGHTS (LOW = outNum, HI = outNum2). 0 = brak. */
+    /** Drugi OUT tylko przy 1× LIGHTS (HI = outNum, LOW = outNum2). 0 = brak. */
     val outNum2: Int = 0,
+    val outputEnabled: Boolean = false,
+    val outputNum: Int = outNum,
     val customName: String = "",
     val id: Long = nextSlotId++
 )
@@ -47,8 +49,8 @@ fun FnSlot.title(): String = when (kind) {
 fun FnSlot.subtitle(lightsCount: Int, brakesCount: Int): String? = when (kind) {
     FnKind.LIGHTS -> when {
         lightsCount < 2 -> null
-        variant <= 1 -> "LOW BEAM"
-        else -> "HI BEAM"
+        variant <= 1 -> "HI BEAM"
+        else -> "LOW BEAM"
     }
     FnKind.BRAKE -> when {
         brakesCount < 2 -> null
@@ -66,15 +68,21 @@ fun FnSlot.isFixed(): Boolean = when (kind) {
 }
 
 fun FnSlot.hasOutPicker(): Boolean = when (kind) {
-    FnKind.DISABLED, FnKind.SENSOR -> false
+    FnKind.DISABLED -> false
     else -> true
+}
+
+fun FnSlot.hasOptionalOutputControl(): Boolean = when (kind) {
+    FnKind.BUTTON, FnKind.SENSOR, FnKind.NEUTRAL -> true
+    FnKind.BRAKE -> variant <= 1
+    else -> false
 }
 
 fun FnSlot.toMode(): Int = when (kind) {
     FnKind.LEFT -> Mode.LEFT
     FnKind.RIGHT -> Mode.RIGHT
     FnKind.LIGHTS, FnKind.BUTTON -> Mode.TOGGLE
-    FnKind.BRAKE, FnKind.NEUTRAL -> Mode.MOMENT
+    FnKind.BRAKE, FnKind.NEUTRAL -> Mode.SENSOR
     FnKind.SENSOR -> Mode.SENSOR
     FnKind.DISABLED -> Mode.DISABLED
     FnKind.STARTER -> Mode.STARTER
@@ -84,7 +92,7 @@ fun FnSlot.toWireName(lightsCount: Int): String = when (kind) {
     FnKind.LEFT -> "Kierunek_L"
     FnKind.RIGHT -> "Kierunek_P"
     FnKind.LIGHTS -> when {
-        lightsCount < 2 && outNum2 in 1..10 -> "LIGHTS_H$outNum2"
+        lightsCount < 2 && outNum2 in 1..10 -> "LIGHTS_L$outNum2"
         variant <= 1 -> "LIGHTS"
         else -> "LIGHTS_2"
     }
@@ -105,50 +113,73 @@ fun InputCfgItem.toFnSlot(): FnSlot {
     val nd = prettyName(n).lowercase()
     val pretty = this.displayName()
     val o = outNum.coerceIn(1, 10)
-    return when (mode) {
-        Mode.LEFT -> FnSlot(kind = FnKind.LEFT, outNum = o)
-        Mode.RIGHT -> FnSlot(kind = FnKind.RIGHT, outNum = o)
-        Mode.SENSOR -> FnSlot(
-            kind = FnKind.SENSOR,
-            outNum = 0,
-            customName = pretty.ifBlank { "SENSOR" }
-        )
-        Mode.DISABLED -> FnSlot(kind = FnKind.DISABLED, outNum = o)
-        Mode.STARTER -> FnSlot(kind = FnKind.STARTER, outNum = o)
-        Mode.MOMENT -> when {
-            nd.contains("neutral") -> FnSlot(kind = FnKind.NEUTRAL, outNum = o)
-            nd.contains("brake") && (nd.contains("rear") || nd.contains("2")) ->
-                FnSlot(kind = FnKind.BRAKE, variant = 2, outNum = o)
-            nd.contains("starter") -> FnSlot(kind = FnKind.STARTER, outNum = o)
-            else -> FnSlot(kind = FnKind.BRAKE, variant = 1, outNum = o)
-        }
-        else -> when {
-            nd.contains("starter") -> FnSlot(kind = FnKind.STARTER, outNum = o)
-            nd.startsWith("lights") || nd.contains("light") ||
-                nd.contains("hi_beam") || nd.contains("low_beam") ||
-                nd.contains("hibeam") || nd.contains("lowbeam") -> {
-                val hiMatch = Regex("""LIGHTS_H(\d+)""", RegexOption.IGNORE_CASE).find(n)
-                val hi = hiMatch?.groupValues?.getOrNull(1)?.toIntOrNull()?.coerceIn(1, 10) ?: 0
-                val v = when {
-                    hi > 0 -> 1
-                    nd.contains("2") || n.contains("_2") -> 2
-                    else -> 1
-                }
-                FnSlot(kind = FnKind.LIGHTS, variant = v, outNum = o, outNum2 = hi)
+        return when (mode) {
+            Mode.LEFT -> FnSlot(kind = FnKind.LEFT, outNum = o)
+            Mode.RIGHT -> FnSlot(kind = FnKind.RIGHT, outNum = o)
+            Mode.SENSOR -> when {
+                nd.contains("neutral") || nd.contains("luz") ->
+                    FnSlot(FnKind.NEUTRAL, outNum = o,
+                        outputEnabled = outputEnabled, outputNum = outputNum.coerceIn(1, 10))
+                nd.contains("brake") ->
+                    FnSlot(FnKind.BRAKE, outNum = o,
+                        outputEnabled = outputEnabled, outputNum = outputNum.coerceIn(1, 10))
+                else -> FnSlot(
+                    kind = FnKind.SENSOR,
+                    outNum = o,
+                    outputEnabled = outputEnabled,
+                    outputNum = outputNum.coerceIn(1, 10),
+                    customName = pretty.ifBlank { "SENSOR" }
+                )
             }
-            else -> FnSlot(
-                kind = FnKind.BUTTON,
-                outNum = o,
-                customName = pretty.ifBlank { "BUTTON" }
-            )
-        }
+            Mode.DISABLED -> FnSlot(kind = FnKind.DISABLED, outNum = o)
+            Mode.STARTER -> FnSlot(kind = FnKind.STARTER, outNum = o)
+            Mode.MOMENT -> when {
+                nd.contains("neutral") -> FnSlot(kind = FnKind.NEUTRAL, outNum = o,
+                    outputEnabled = outputEnabled, outputNum = outputNum.coerceIn(1, 10))
+                nd.contains("brake") && (nd.contains("rear") || nd.contains("2")) ->
+                    FnSlot(kind = FnKind.BRAKE, variant = 2, outNum = o,
+                        outputEnabled = outputEnabled, outputNum = outputNum.coerceIn(1, 10))
+                nd.contains("starter") -> FnSlot(kind = FnKind.STARTER, outNum = o)
+                else -> FnSlot(kind = FnKind.BRAKE, variant = 1, outNum = o,
+                    outputEnabled = outputEnabled, outputNum = outputNum.coerceIn(1, 10))
+            }
+            else -> when {
+                nd.contains("starter") -> FnSlot(kind = FnKind.STARTER, outNum = o)
+                nd.startsWith("lights") || nd.contains("light") ||
+                    nd.contains("hi_beam") || nd.contains("low_beam") ||
+                    nd.contains("hibeam") || nd.contains("lowbeam") -> {
+                    val lowMatch = Regex("""LIGHTS_L(\d+)""", RegexOption.IGNORE_CASE).find(n)
+                    val hiMatch = Regex("""LIGHTS_H(\d+)""", RegexOption.IGNORE_CASE).find(n)
+                    val lowEnc = lowMatch?.groupValues?.getOrNull(1)?.toIntOrNull()?.coerceIn(1, 10) ?: 0
+                    val hiEnc = hiMatch?.groupValues?.getOrNull(1)?.toIntOrNull()?.coerceIn(1, 10) ?: 0
+                    val v = when {
+                        lowEnc > 0 || hiEnc > 0 -> 1
+                        nd.contains("2") || n.contains("_2") -> 2
+                        else -> 1
+                    }
+                    // nowy: primary=HI, LIGHTS_L=LOW; stary LIGHTS_H: primary=LOW, H=HI → zamiana
+                    val (hiOut, lowOut) = when {
+                        lowEnc > 0 -> o to lowEnc
+                        hiEnc > 0 -> hiEnc to o
+                        else -> o to 0
+                    }
+                    FnSlot(kind = FnKind.LIGHTS, variant = v, outNum = hiOut, outNum2 = lowOut)
+                }
+                else -> FnSlot(
+                    kind = FnKind.BUTTON,
+                    outNum = o,
+                    outputEnabled = outputEnabled,
+                    outputNum = outputNum.coerceIn(1, 10),
+                    customName = pretty.ifBlank { "BUTTON" }
+                )
+            }
     }
 }
 
 fun defaultSlots(): List<FnSlot> = listOf(
     FnSlot(kind = FnKind.LEFT, outNum = 1),
     FnSlot(kind = FnKind.RIGHT, outNum = 5),
-    FnSlot(kind = FnKind.LIGHTS, variant = 1, outNum = 3, outNum2 = 7),
+    FnSlot(kind = FnKind.LIGHTS, variant = 1, outNum = 7, outNum2 = 3),
     FnSlot(kind = FnKind.BRAKE, variant = 1, outNum = 4),
     FnSlot(kind = FnKind.NEUTRAL, outNum = 6),
     FnSlot(kind = FnKind.STARTER, outNum = 10),

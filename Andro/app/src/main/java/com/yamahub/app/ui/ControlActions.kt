@@ -4,8 +4,8 @@ import com.yamahub.app.BleManager
 import kotlinx.coroutines.CoroutineScope
 
 /**
- * Router gestów z ControlScreen → właściwy moduł funkcji.
- * ControlScreen NIE zna LEFT:1 / toggle / starter – tylko woła onDown/onUp.
+ * ControlScreen: stany i sterowanie po OUT_XX (bez logiki IN).
+ * IN press/release (Dashboard test / fizyczny) → ControlBlinkers.
  */
 object ControlActions {
 
@@ -20,15 +20,8 @@ object ControlActions {
         scope: CoroutineScope
     ) {
         when (row.mode) {
-            2 -> ControlBlinkers.onLeftDown(ble, leftActive, rightActive, hazardOn, scope)
-            3 -> ControlBlinkers.onRightDown(ble, leftActive, rightActive, hazardOn, scope)
-            6 -> ControlStarter.onDown(ble)
+            6 -> ControlStarter.onDown(ble, row.inNum)
             1 -> ControlButtons.momentDown(ble, row)
-            0 -> if (row.title == "LIGHTS") {
-                ControlLights.onDown(ble, row)
-            } else {
-                /* toggle – akcja na up */
-            }
             else -> {}
         }
     }
@@ -43,16 +36,9 @@ object ControlActions {
         outLevel: (Int) -> Float
     ) {
         when (row.mode) {
-            2 -> ControlBlinkers.onLeftUp(ble, heldMs, hazardOn)
-            3 -> ControlBlinkers.onRightUp(ble, heldMs, hazardOn)
-            6 -> ControlStarter.onUp(ble)
+            6 -> ControlStarter.onUp(ble, row.inNum)
             1 -> ControlButtons.momentUp(ble, row)
-            0 -> if (row.title == "LIGHTS") {
-                ControlLights.onUp(ble, row, heldMs, outLevel)
-            } else {
-                ControlButtons.toggleUp(ble, row, outLevel)
-            }
-            else -> {}
+            else -> ControlButtons.toggleUp(ble, row, outLevel)
         }
     }
 }

@@ -64,6 +64,7 @@ static LGFX tft;
 uint8_t outLevel[10] = {0};
 static uint8_t prevLevel[10] = {255};
 static bool prevUsed[10] = {false};
+static int prevSpeedShown = -1;
 
 static const uint16_t COL_OFF = 0x18C3;
 static const uint16_t COL_ORANGE = 0xFD20;
@@ -92,7 +93,6 @@ static bool outIsUsed(int oi) {
     for (int j = 0; j < INPUT_COUNT; j++) {
         uint8_t m = inputCfg[j].mode;
         if (m == IN_DISABLED || m == IN_SENSOR) continue;
-        if (m == IN_MOMENT && nameHas(inputCfg[j].name, "neutral")) continue;
         if ((int)inputCfg[j].outIndex == oi) return true;
     }
     return false;
@@ -110,7 +110,7 @@ static uint16_t colorForOut(int oi) {
         if (nameHas(n, "brake")) return COL_RED;
         if (nameHas(n, "hi") || nameHas(n, "hibeam")) return COL_BLUE;
         if (nameHas(n, "low") || nameHas(n, "light")) return COL_WHITE;
-        if (m == IN_TOGGLE || m == IN_MOMENT) return COL_CYAN;
+        if (m == IN_TOGGLE || m == IN_SENSOR) return COL_CYAN;
     }
     return COL_CYAN;
 }
@@ -145,8 +145,14 @@ void drawOutputs(bool force) {
 
     for (int i = 0; i < 10; i++) {
         bool used = outIsUsed(i);
-        if (!force && outLevel[i] == prevLevel[i] && used == prevUsed[i]) continue;
-        prevLevel[i] = outLevel[i];
+        uint8_t level = outLevel[i];
+        int neutralIndex = findNeutralInIndex();
+        if (neutralIndex >= 0 && (int)inputCfg[neutralIndex].outIndex == i) {
+            bool neutralOn = isNeutralSimulation() || outLevel[i] > 20;
+            level = neutralOn ? 255 : 0;
+        }
+        if (!force && level == prevLevel[i] && used == prevUsed[i]) continue;
+        prevLevel[i] = level;
         prevUsed[i] = used;
 
         int x = marginX + (i % cols) * stepX;
@@ -164,12 +170,31 @@ void drawOutputs(bool force) {
             continue;
         }
 
-        uint16_t c = dimColor(colorForOut(i), outLevel[i]);
+        uint16_t c = dimColor(colorForOut(i), level);
         tft.fillCircle(x, y, r, c);
         tft.drawCircle(x, y, r, COL_DARK);
         tft.setTextDatum(MC_DATUM);
-        tft.setTextColor(outLevel[i] > 180 ? (uint16_t)0x0000 : COL_NUM);
+        tft.setTextColor(level > 180 ? (uint16_t)0x0000 : COL_NUM);
         tft.setFont(&fonts::Font2);
         tft.drawNumber(i + 1, x, y);
+    }
+
+    // prędkość między OUT 9 i 10 (ostatni rząd)
+    int sp = (int)(currentSpeedKmh() + 0.5f);
+    if (sp < 0) sp = 0;
+    if (force || sp != prevSpeedShown) {
+        prevSpeedShown = sp;
+        const int x9 = marginX;
+        const int x10 = marginX + stepX;
+        const int y = marginY + 4 * stepY;
+        const int cx = (x9 + x10) / 2;
+        tft.fillRect(cx - 34, y - 16, 68, 36, 0x0000);
+        tft.setTextDatum(MC_DATUM);
+        tft.setTextColor(COL_WHITE);
+        tft.setFont(&fonts::Font4);
+        tft.drawNumber(sp, cx, y - 4);
+        tft.setTextColor(COL_NUM);
+        tft.setFont(&fonts::Font2);
+        tft.drawString("km/h", cx, y + 14);
     }
 }

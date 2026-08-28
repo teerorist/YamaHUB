@@ -22,6 +22,8 @@ static int fadeDirection = 1;
 static int blinkTarget = 0;
 static int blinkDone = 0;
 static float currentSpeed = 0.0f;
+static float speedAtBlink = 0.0f;
+static bool speedAtBlinkValid = false;
 
 enum class Pending { NONE, OFF, LEFT_N, RIGHT_N, LEFT_NS, RIGHT_NS, HAZARD };
 static Pending pending = Pending::NONE;
@@ -139,7 +141,8 @@ void setupBlinkers() {
 
 static int shortN() {
     int n = (int)cfg.blinkCount;
-    return (n <= 0) ? 3 : n;
+    if (n < 2 || n > 6) return 3;
+    return n;
 }
 
 static void syncCurrentMode() {
@@ -171,6 +174,12 @@ static void enter(RunMode m) {
         blinksRemaining = 0;
         setLeft(0);
         setRight(0);
+    }
+    if (m == RunMode::LEFT_NS || m == RunMode::RIGHT_NS) {
+        speedAtBlink = currentSpeed;
+        speedAtBlinkValid = true;
+    } else {
+        speedAtBlinkValid = false;
     }
     syncCurrentMode();
     Serial.printf("ENTER %d target=%d\n", (int)m, blinkTarget);
@@ -226,6 +235,8 @@ static void promoteLeftToNS() {
         runMode = RunMode::LEFT_NS;
         blinkTarget = -1;
         blinksRemaining = -1;
+        speedAtBlink = currentSpeed;
+        speedAtBlinkValid = true;
         syncCurrentMode();
         Serial.println("PROMOTE LEFT N → NS");
     } else if (runMode == RunMode::OFF) {
@@ -238,6 +249,8 @@ static void promoteRightToNS() {
         runMode = RunMode::RIGHT_NS;
         blinkTarget = -1;
         blinksRemaining = -1;
+        speedAtBlink = currentSpeed;
+        speedAtBlinkValid = true;
         syncCurrentMode();
         Serial.println("PROMOTE RIGHT N → NS");
     } else if (runMode == RunMode::OFF) {
@@ -342,10 +355,19 @@ bool blinkersAreOff() {
 }
 
 void setCurrentSpeed(float kmh) { currentSpeed = kmh; }
+float currentSpeedKmh() { return currentSpeed; }
 
 static void checkAutoCancel() {
-    if (cfg.autoCancelSpeed == 0) return;
+    if (!cfg.autoCancel) return;
     if (runMode != RunMode::LEFT_NS && runMode != RunMode::RIGHT_NS) return;
+    if (!speedAtBlinkValid) {
+        speedAtBlink = currentSpeed;
+        speedAtBlinkValid = true;
+        return;
+    }
+    bool falling = currentSpeed < speedAtBlink - 0.5f;
+    speedAtBlink = currentSpeed;
+    if (falling) return;
     if (currentSpeed >= (float)cfg.autoCancelSpeed) {
         // NS → N (dokończ serię short)
         if (runMode == RunMode::LEFT_NS) {
@@ -372,7 +394,6 @@ static float curveFactor(float t) {
 
 void updateBlinkers(bool& stateChanged) {
     if (suspended) return;
-    checkAutoCancel();
 
     if (pending != Pending::NONE && fadeValue == 0 && fadeDirection == 1) {
         Pending p = pending;
@@ -412,6 +433,8 @@ void updateBlinkers(bool& stateChanged) {
                 fadeDirection = 1;
                 blinkDone++;
                 Serial.printf("BLINK %d/%d\n", blinkDone, blinkTarget);
+                if (runMode == RunMode::LEFT_NS || runMode == RunMode::RIGHT_NS)
+                    checkAutoCancel();
                 if (blinkTarget > 0 && blinkDone >= blinkTarget) {
                     enter(RunMode::OFF);
                     stateChanged = true;
@@ -465,32 +488,28 @@ void handleBlinkerButtons(Button* buttons, bool& stateChanged) {
     // gest z OFF: press = od razu N; po LONG_MS = promocja NS; release < LONG_MS = zostaje N
     static bool leftProvisional = false, rightProvisional = false;
 
-    bool leftNow  = (li >= 0) && buttons[li].isPressed();
-    bool rightNow = (ri >= 0) && buttons[ri].isPressed();
+    bool leftNow  = (li >= 0) && (buttons[li].isPressed() || isBleInputPressed(li));
+    bool rightNow = (ri >= 0) && (buttons[ri].isPressed() || isBleInputPressed(ri));
 
-    // oba naraz long → HAZARD
-    if (leftNow && rightNow) {
-        unsigned long ld = leftDown ? (millis() - leftDown) : 0;
-        unsigned long rd = rightDown ? (millis() - rightDown) : 0;
-        if (!leftLong && !rightLong && leftDown && rightDown && ld > LONG_MS && rd > LONG_MS) {
-            leftLong = rightLong = true;
-            leftProvisional = rightProvisional = false;
-            if (runMode == RunMode::HAZARD) queuePend(Pending::OFF);
-            else enter(RunMode::HAZARD);
-            stateChanged = true;
-        }
-        leftWas = leftNow;
-        rightWas = rightNow;
-        return;
-    }
+    auto goHazard = [&]() {
+        leftLong = rightLong = true;
+        leftProvisional = rightProvisional = false;
+        ignoreInputUntil = millis() + IGNORE_MS;
+        if (runMode == RunMode::HAZARD) queuePend(Pending::OFF);
+        else enter(RunMode::HAZARD);
+        stateChanged = true;
+        Serial.println("HAZARD (long + drugi)");
+    };
 
     // ----- LEWY -----
     if (leftNow && !leftWas) {
         leftDown = millis();
         leftLong = false;
         leftProvisional = false;
-        if (runMode == RunMode::OFF) {
-            enter(RunMode::LEFT_N);          // od razu włącz
+        if (rightNow && rightLong) {
+            goHazard();
+        } else if (runMode == RunMode::OFF) {
+            enter(RunMode::LEFT_N);
             leftProvisional = true;
             stateChanged = true;
             Serial.println("LEFT press → N");
@@ -498,11 +517,13 @@ void handleBlinkerButtons(Button* buttons, bool& stateChanged) {
     }
     if (leftNow && !leftLong && leftDown > 0 && (millis() - leftDown) > LONG_MS) {
         leftLong = true;
-        if (leftProvisional) {
-            promoteLeftToNS();               // N → NS w tym samym geście
+        if (rightNow) {
+            goHazard();
+        } else if (leftProvisional) {
+            promoteLeftToNS();
             stateChanged = true;
         } else {
-            applyLeftLong();                 // tabela: aktywny + long → off / switch
+            applyLeftLong();
             stateChanged = true;
         }
     }
@@ -527,7 +548,9 @@ void handleBlinkerButtons(Button* buttons, bool& stateChanged) {
         rightDown = millis();
         rightLong = false;
         rightProvisional = false;
-        if (runMode == RunMode::OFF) {
+        if (leftNow && leftLong) {
+            goHazard();
+        } else if (runMode == RunMode::OFF) {
             enter(RunMode::RIGHT_N);
             rightProvisional = true;
             stateChanged = true;
@@ -536,7 +559,9 @@ void handleBlinkerButtons(Button* buttons, bool& stateChanged) {
     }
     if (rightNow && !rightLong && rightDown > 0 && (millis() - rightDown) > LONG_MS) {
         rightLong = true;
-        if (rightProvisional) {
+        if (leftNow) {
+            goHazard();
+        } else if (rightProvisional) {
             promoteRightToNS();
             stateChanged = true;
         } else {

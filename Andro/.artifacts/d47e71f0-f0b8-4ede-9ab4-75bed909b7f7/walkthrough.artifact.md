@@ -1,32 +1,21 @@
-# Walkthrough: Rozszerzona symulacja i nowe warstwy (v16.0)
+# Walkthrough: Ciągłe drżenie kapsla (v19.1)
 
-Udoskonaliłem system symulacji jasności otoczenia oraz zaktualizowałem strukturę warstw wskazówki RPM, aby zapewnić maksymalny realizm w każdych warunkach oświetleniowych.
+Zaktualizowałem efekt wizualny kapsla obrotomierza, aby bardziej realistycznie oddawał drgania mechaniczne podczas pracy zegara.
 
-## Kluczowe Zmiany
+## Zmiany
 
-### 1. Prawdziwa Czerń i Tło
-- Główne tło dashboardu ma teraz pod spodem warstwę stałej czerni (`Color.Black`). Przy ustawieniu JASNOŚĆ = 0%, tło `bkg` całkowicie znika, pozostawiając idealnie czarny ekran.
+### 1. Detekcja aktywnego ruchu (`DashboardScreen.kt`)
+- Wprowadziłem stan `isMoving`, który jest aktywowany przy każdej zmianie kąta wskazówki.
+- Zastosowałem mechanizm "timeout" (100ms) – jeśli przez ten czas nie spłynie nowa wartość RPM, uznajemy, że wskazówka się zatrzymała i wyłączamy drżenie.
 
-### 2. Nowe Warstwy Wskazówki RPM
-- Zastąpiłem pojedyncze tło wskazówki dwoma dedykowanymi plikami:
-    - **`needle_bkg_0.png`**: Reaguje na jasność otoczenia (ambient).
-    - **`needle_bkg_1.png`**: Reaguje na włączenie świateł mijania (backlight) – zapala się płynnie wraz z tarczami.
-- Sama igła (`needle.png`) oraz jej cień również zanikają wraz ze spadkiem jasności otoczenia.
-
-### 3. Profesjonalna Symulacja w Panelu Testowym
-- Przebudowałem panel testowy, aby był bardziej czytelny:
-    - Suwak **JASNOŚĆ** (Ambient) otrzymał własny, dedykowany wiersz na dole panelu.
-    - Dodałem dwa nowe wskaźniki informacyjne wyświetlane obok suwaka:
-        - **Ekran: XX%**: Symulacja aktualnej jasności wyświetlacza.
-        - **Zewn: XX%**: Symulacja natężenia światła zewnętrznego.
+### 2. Pętla Jittera (Drgań)
+- Zaimplementowałem pętlę o wysokiej częstotliwości (30ms), która generuje losowe wychylenia kapsla w zakresie **-1.5 do 1.5 stopnia**.
+- Drżenie jest aktywne **wyłącznie podczas ruchu** wskazówki.
+- Po zatrzymaniu wskazówki, kapsel płynnie wraca do pozycji centralnej (zero) w ciągu 100ms.
 
 ## Weryfikacja
-- [x] JASNOŚĆ = 0% + Światła OFF -> Ekran jest całkowicie czarny.
-- [x] JASNOŚĆ = 0% + Światła LOW -> Widoczne są tylko podświetlone cyfry oraz igła (jeśli ma podświetlenie w `_1`).
-- [x] Cień wskazówki znika płynnie podczas przesuwania suwaka jasności.
-
-> [!CAUTION]
-> Upewnij się, że w folderze `res/drawable/` znajdują się pliki: `needle_bkg_0.png` oraz `needle_bkg_1.png`. Poprzedni plik `needle_bkg.png` nie jest już używany.
+- [x] Płynne przesuwanie suwaka RPM powoduje ciągłą, drobną wibrację srebrnego kapsla.
+- [x] Puszczenie suwaka lub jego zatrzymanie natychmiast wycisza wibracje.
+- [x] Efekt jest znacznie bardziej dynamiczny i lepiej oddaje charakterystykę analogowego wskaźnika.
 
 render_diffs(file:///D:/###Users/teerorist/Desktop/YamaHUB/Andro/app/src/main/java/com/yamahub/app/ui/DashboardScreen.kt)
-render_diffs(file:///D:/###Users/teerorist/Desktop/YamaHUB/Andro/app/src/main/java/com/yamahub/app/ui/DashboardTestState.kt)

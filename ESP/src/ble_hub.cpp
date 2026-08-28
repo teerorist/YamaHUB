@@ -60,6 +60,7 @@ class CharacteristicCallbacks : public NimBLECharacteristicCallbacks {
 
 void setupBLE(Output* outputs) {
     gOutputs = outputs;
+    resetInputStatePush();
     Serial.println("Uruchamiam BLE...");
     NimBLEDevice::init("YamaHub");
     NimBLEDevice::setMTU(256);

@@ -52,7 +52,13 @@ import com.yamahub.app.displayName
 import kotlinx.coroutines.delay
 import androidx.compose.ui.Modifier
 @Composable
-fun OutSquare(label: String, level: Float, onColor: Color, isAssigned: Boolean = true) {
+fun OutSquare(
+    label: String,
+    level: Float,
+    onColor: Color,
+    isAssigned: Boolean = true,
+    onTap: (() -> Unit)? = null
+) {
     val t = level.coerceIn(0f, 1f)
     val offColor = if (isAssigned) Color(0xFF000000) else Color(0xFF333333)
 
@@ -82,6 +88,11 @@ fun OutSquare(label: String, level: Float, onColor: Color, isAssigned: Boolean =
                 1.dp,
                 MaterialTheme.colorScheme.outline.copy(alpha = 0.45f),
                 RoundedCornerShape(8.dp)
+            )
+            .then(
+                if (onTap != null) Modifier.pointerInput(label) {
+                    detectTapGestures(onTap = { onTap() })
+                } else Modifier
             ),
         contentAlignment = Alignment.Center
     ) {

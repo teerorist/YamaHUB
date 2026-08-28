@@ -5,6 +5,7 @@ import com.yamahub.app.InputCfgItem
 import android.annotation.SuppressLint
 import android.bluetooth.*
 import android.content.Context
+import android.os.Build
 import android.os.Handler
 import android.os.Looper
 import android.util.Log
@@ -24,8 +25,13 @@ class BleManager(private val context: Context) {
     private var bluetoothGatt: BluetoothGatt? = null
     private var characteristic: BluetoothGattCharacteristic? = null
 
-    private val writeQueue: ArrayDeque<String> = ArrayDeque()
+    private val urgentQueue: ArrayDeque<String> = ArrayDeque()
+    private val idleQueue: ArrayDeque<String> = ArrayDeque()
     @Volatile private var writeInFlight = false
+    private val writeWatchdog = Runnable { finishWrite() }
+
+    private fun isIdleCmd(cmd: String): Boolean =
+        cmd == "GET" || cmd == "GET_CFG" || cmd == "GET_INCFG" || cmd.startsWith("SPEED:")
 
     @Volatile
     var isConnected: Boolean = false
@@ -33,8 +39,12 @@ class BleManager(private val context: Context) {
 
     var onConnectionChanged: ((Boolean) -> Unit)? = null
     var onStateReceived: ((List<Boolean>) -> Unit)? = null
-    var onConfigReceived: ((fade: Int, blinks: Int, curve: Int, acSpeed: Int) -> Unit)? = null
+    var onInputStates: ((List<Boolean>) -> Unit)? = null
+    var onConfigReceived: ((fade: Int, blinks: Int, curve: Int, acSpeed: Int, autoCancel: Boolean?, autoLights: Boolean?) -> Unit)? = null
     var onInputCfg: ((List<InputCfgItem>) -> Unit)? = null
+    var starterEnabled: Boolean = false
+        private set
+    var onStarterEnabled: ((Boolean) -> Unit)? = null
     var onRawMessage: ((String) -> Unit)? = null
 
     @SuppressLint("MissingPermission")
@@ -46,7 +56,8 @@ class BleManager(private val context: Context) {
             bluetoothGatt?.close()
             bluetoothGatt = null
             characteristic = null
-            writeQueue.clear()
+            urgentQueue.clear()
+            idleQueue.clear()
             writeInFlight = false
             bluetoothGatt = device.connectGatt(
                 context, false, gattCallback, BluetoothDevice.TRANSPORT_LE
@@ -66,17 +77,49 @@ class BleManager(private val context: Context) {
         } catch (_: Exception) { }
         bluetoothGatt = null
         characteristic = null
-        writeQueue.clear()
+        urgentQueue.clear()
+        idleQueue.clear()
         writeInFlight = false
+        mainHandler.removeCallbacks(writeWatchdog)
         isConnected = false
+        starterEnabled = false
         mainHandler.post { onConnectionChanged?.invoke(false) }
     }
 
     fun sendCommand(cmd: String) {
         mainHandler.post {
-            writeQueue.addLast(cmd)
+            enqueue(cmd)
             pumpWrite()
         }
+    }
+
+    private fun enqueue(cmd: String) {
+        when {
+            cmd == "GET" -> {
+                idleQueue.removeAll { it == "GET" }
+                idleQueue.addLast(cmd)
+            }
+            cmd.startsWith("SPEED:") -> {
+                idleQueue.removeAll { it.startsWith("SPEED:") }
+                idleQueue.addLast(cmd)
+            }
+            cmd == "GET_CFG" || cmd == "GET_INCFG" -> {
+                idleQueue.removeAll { it == cmd }
+                idleQueue.addLast(cmd)
+            }
+            cmd.startsWith("OUT:") -> {
+                val n = cmd.removePrefix("OUT:").substringBefore(':')
+                urgentQueue.removeAll { it.startsWith("OUT:$n:") }
+                urgentQueue.addLast(cmd)
+            }
+            else -> urgentQueue.addLast(cmd)
+        }
+    }
+
+    private fun finishWrite() {
+        mainHandler.removeCallbacks(writeWatchdog)
+        writeInFlight = false
+        pumpWrite()
     }
 
     @SuppressLint("MissingPermission")
@@ -84,28 +127,35 @@ class BleManager(private val context: Context) {
         if (writeInFlight) return
         val ch = characteristic
         val gatt = bluetoothGatt
-        if (ch == null || gatt == null) {
-            if (writeQueue.isNotEmpty()) {
-                Log.d(TAG, "Brak charakterystyki, kolejka=${writeQueue.size}")
-            }
-            return
-        }
-        val cmd = writeQueue.pollFirst() ?: return
+        if (ch == null || gatt == null) return
+        val cmd = urgentQueue.pollFirst() ?: idleQueue.pollFirst() ?: return
         writeInFlight = true
+        val bytes = cmd.toByteArray(Charsets.UTF_8)
         try {
-            ch.value = cmd.toByteArray(Charsets.UTF_8)
-            ch.writeType = BluetoothGattCharacteristic.WRITE_TYPE_DEFAULT
-            val ok = gatt.writeCharacteristic(ch)
+            val ok = if (Build.VERSION.SDK_INT >= 33) {
+                gatt.writeCharacteristic(
+                    ch, bytes, BluetoothGattCharacteristic.WRITE_TYPE_NO_RESPONSE
+                ) == android.bluetooth.BluetoothStatusCodes.SUCCESS
+            } else {
+                @Suppress("DEPRECATION")
+                run {
+                    ch.value = bytes
+                    ch.writeType = BluetoothGattCharacteristic.WRITE_TYPE_NO_RESPONSE
+                    gatt.writeCharacteristic(ch)
+                }
+            }
             Log.d(TAG, "Wysłano: $cmd → $ok")
             if (!ok) {
                 writeInFlight = false
-                writeQueue.addFirst(cmd)
-                mainHandler.postDelayed({ pumpWrite() }, 40)
+                if (isIdleCmd(cmd)) idleQueue.addFirst(cmd) else urgentQueue.addFirst(cmd)
+                mainHandler.postDelayed({ pumpWrite() }, 30)
+            } else {
+                mainHandler.postDelayed(writeWatchdog, 40)
             }
         } catch (e: Exception) {
             writeInFlight = false
             Log.e(TAG, "sendCommand error", e)
-            mainHandler.postDelayed({ pumpWrite() }, 40)
+            mainHandler.postDelayed({ pumpWrite() }, 30)
         }
     }
 
@@ -113,18 +163,36 @@ class BleManager(private val context: Context) {
     fun requestConfig() = sendCommand("GET_CFG")
     fun requestInputCfg() = sendCommand("GET_INCFG")
 
-    fun setConfig(fade: Int, blinks: Int, curve: Int, acSpeed: Int) {
-        sendCommand("SET_CFG:$fade,$blinks,$curve,$acSpeed")
+    fun setConfig(
+        fade: Int,
+        blinks: Int,
+        curve: Int,
+        acSpeed: Int,
+        autoCancel: Boolean,
+        autoLights: Boolean
+    ) {
+        sendCommand(
+            "SET_CFG:$fade,$blinks,$curve,$acSpeed," +
+                "${if (autoCancel) 1 else 0},${if (autoLights) 1 else 0}"
+        )
     }
 
-    fun setInputCfg(inNum: Int, mode: Int, outNum: Int, name: String) {
+    fun setInputCfg(
+        inNum: Int,
+        mode: Int,
+        outNum: Int,
+        name: String,
+        outputEnabled: Boolean = false,
+        outputNum: Int = outNum
+    ) {
         val safe = name
             .replace(" ", "_")
             .replace(";", "_")
             .replace(",", "_")
             .take(15)
             .ifBlank { "IN_$inNum" }
-        sendCommand("SET_INCFG:$inNum,$mode,$outNum,$safe")
+        sendCommand("SET_INCFG:$inNum,$mode,$outNum," +
+            "${if (outputEnabled) 1 else 0},$outputNum,$safe")
     }
 
     fun setOutput(num: Int, on: Boolean) {
@@ -149,14 +217,31 @@ class BleManager(private val context: Context) {
                     val list = bits.map { it == '1' }
                     if (list.size >= 10) onStateReceived?.invoke(list.take(10))
                 }
+                msg.startsWith("INSTATE:") -> {
+                    val bits = msg.removePrefix("INSTATE:")
+                    val list = bits.map { it == '1' }
+                    if (list.size >= 10) onInputStates?.invoke(list.take(10))
+                }
                 msg.startsWith("CFG:") -> {
                     val p = msg.removePrefix("CFG:").split(",")
                     if (p.size >= 3) {
+                        val rawAc = p.getOrNull(3)?.toIntOrNull() ?: 20
+                        val autoCancel = if (p.size >= 5)
+                            (p[4].toIntOrNull() ?: 0) != 0
+                        else
+                            null
+                        val autoLights = if (p.size >= 6)
+                            (p[5].toIntOrNull() ?: 0) != 0
+                        else
+                            null
+                        val ac = if (rawAc in 5..30) rawAc else 20
                         onConfigReceived?.invoke(
                             p[0].toIntOrNull() ?: 12,
                             p[1].toIntOrNull() ?: 3,
-                            p[2].toIntOrNull() ?: 0,
-                            p.getOrNull(3)?.toIntOrNull() ?: 20
+                            p[2].toIntOrNull() ?: 1,
+                            ac,
+                            autoCancel,
+                            autoLights
                         )
                     }
                 }
@@ -171,7 +256,10 @@ class BleManager(private val context: Context) {
                         .forEachIndexed { idx, part ->
                             val p = part.split(",")
                             if (p.size >= 2) {
-                                val name = p.drop(2).joinToString(",")
+                                val extended = p.size >= 5 &&
+                                    (p[2] == "0" || p[2] == "1") &&
+                                    (p[3].toIntOrNull() ?: 0) in 1..10
+                                val name = p.drop(if (extended) 4 else 2).joinToString(",")
                                     .trim { ch -> ch <= ' ' || ch == '\u0000' }
                                     .ifBlank { "IN_${idx + 1}" }
                                 list.add(
@@ -179,13 +267,24 @@ class BleManager(private val context: Context) {
                                         inNum = idx + 1,
                                         mode = p[0].toIntOrNull() ?: 0,
                                         outNum = p[1].toIntOrNull() ?: (idx + 1),
-                                        name = name
+                                        name = name,
+                                        outputEnabled = if (extended)
+                                            p[2].toIntOrNull() == 1 else false,
+                                        outputNum = if (extended)
+                                            p[3].toIntOrNull() ?: (p[1].toIntOrNull() ?: (idx + 1))
+                                        else
+                                            p[1].toIntOrNull() ?: (idx + 1)
                                     )
                                 )
                             }
                         }
                     Log.d(TAG, "INCFG sparsowano: ${list.size}")
                     if (list.size in 9..10) onInputCfg?.invoke(list)
+                }
+                msg.startsWith("STARTER_ENABLED:") -> {
+                    val enabled = msg.removePrefix("STARTER_ENABLED:").trim() == "1"
+                    starterEnabled = enabled
+                    onStarterEnabled?.invoke(enabled)
                 }
             }
         }
@@ -198,15 +297,19 @@ class BleManager(private val context: Context) {
             when (newState) {
                 BluetoothProfile.STATE_CONNECTED -> {
                     isConnected = true
+                    gatt.requestConnectionPriority(BluetoothGatt.CONNECTION_PRIORITY_HIGH)
                     mainHandler.post { onConnectionChanged?.invoke(true) }
                     val ok = gatt.requestMtu(517)
                     Log.d(TAG, "requestMtu(517) → $ok")
                 }
                 BluetoothProfile.STATE_DISCONNECTED -> {
                     isConnected = false
+                    starterEnabled = false
                     characteristic = null
-                    writeQueue.clear()
+                    urgentQueue.clear()
+                    idleQueue.clear()
                     writeInFlight = false
+                    mainHandler.removeCallbacks(writeWatchdog)
                     mainHandler.post { onConnectionChanged?.invoke(false) }
                 }
             }
@@ -262,8 +365,7 @@ class BleManager(private val context: Context) {
             status: Int
         ) {
             Log.d(TAG, "onCharacteristicWrite status=$status")
-            writeInFlight = false
-            mainHandler.post { pumpWrite() }
+            mainHandler.post { finishWrite() }
         }
 
         @Deprecated("Deprecated in Java")

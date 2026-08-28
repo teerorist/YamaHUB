@@ -15,6 +15,19 @@
 extern Output* gOutputs;
 extern NimBLECharacteristic* pCharacteristic;
 extern bool deviceConnected;
+static char lastInputBits[INPUT_COUNT + 1] = {0};
+
+void resetInputStatePush() {
+    lastInputBits[0] = '\0';
+}
+
+static void sendStarterStatus(Output* outputs) {
+    if (!deviceConnected || !pCharacteristic || !outputs) return;
+    char msg[24];
+    snprintf(msg, sizeof(msg), "STARTER_ENABLED:%d", isStarterEnabled(outputs) ? 1 : 0);
+    pCharacteristic->setValue(msg);
+    pCharacteristic->notify();
+}
 
 void sendState(Output* outputs) {
     if (!deviceConnected || !pCharacteristic || !outputs) return;
@@ -36,6 +49,9 @@ void sendState(Output* outputs) {
         } else {
             on = outputs[i].isOn();
         }
+        int neutralIndex = findNeutralInIndex();
+        if (neutralIndex >= 0 && inputCfg[neutralIndex].outIndex == i)
+            on = isNeutralSimulation() || on;
         bits[i] = on ? '1' : '0';
     }
     bits[10] = 0;
@@ -44,14 +60,36 @@ void sendState(Output* outputs) {
     snprintf(stateMsg, sizeof(stateMsg), "STATE:%s", bits);
     pCharacteristic->setValue(stateMsg);
     pCharacteristic->notify();
+    sendStarterStatus(outputs);
+}
+
+void sendInputStatesIfChanged(Button* buttons) {
+    if (!deviceConnected || !pCharacteristic || !buttons) return;
+
+    char bits[INPUT_COUNT + 1];
+    const int neutralIndex = findNeutralInIndex();
+    for (int i = 0; i < INPUT_COUNT; i++) {
+        bool on = isInputActive(i, buttons[i].isPressed());
+        if (i == neutralIndex && isNeutralSimulation()) on = true;
+        bits[i] = on ? '1' : '0';
+    }
+    bits[INPUT_COUNT] = '\0';
+    if (strcmp(bits, lastInputBits) == 0) return;
+
+    strcpy(lastInputBits, bits);
+    char msg[32];
+    snprintf(msg, sizeof(msg), "INSTATE:%s", bits);
+    pCharacteristic->setValue(msg);
+    pCharacteristic->notify();
+    sendStarterStatus(gOutputs);
 }
 
 void sendConfig() {
     if (!deviceConnected || !pCharacteristic) return;
     char msg[40];
-    snprintf(msg, sizeof(msg), "CFG:%d,%d,%d,%d,%d",
+    snprintf(msg, sizeof(msg), "CFG:%d,%d,%d,%d,%d,%d",
              cfg.fadeSpeed, cfg.blinkCount, cfg.curve,
-             cfg.autoCancelSpeed, cfg.beamFade);
+             cfg.autoCancelSpeed, cfg.autoCancel, cfg.autoLights);
     pCharacteristic->setValue(msg);
     pCharacteristic->notify();
     Serial.printf("CFG: %s\n", msg);
@@ -62,16 +100,19 @@ void sendInputCfg() {
     char msg[400];
     int pos = snprintf(msg, sizeof(msg), "INCFG:");
     for (int i = 0; i < INPUT_COUNT; i++) {
-        pos += snprintf(msg + pos, sizeof(msg) - pos, "%s%d,%d,%s",
+        pos += snprintf(msg + pos, sizeof(msg) - pos, "%s%d,%d,%d,%d,%s",
                         (i ? ";" : ""),
                         (int)inputCfg[i].mode,
                         (int)inputCfg[i].outIndex + 1,
+                inputCfg[i].outputEnabled ? 1 : 0,
+                (int)inputCfg[i].outputIndex + 1,
                         inputCfg[i].name);
         if (pos >= (int)sizeof(msg) - 8) break;
     }
     pCharacteristic->setValue(msg);
     pCharacteristic->notify();
     Serial.printf("INCFG sent (%d bytes)\n", pos);
+    sendStarterStatus(gOutputs);
 }
 
 static void applyDigitalOrBeam(Output* outputs, int oi, bool on) {
@@ -107,15 +148,22 @@ void handleBleCommand(const char* value) {
     }
 
     if (strncmp(value, "SET_CFG:", 8) == 0) {
-        int fade = 12, blinks = 3, curve = 1, ac = 20, beamFade = (int)cfg.beamFade;
-        int n = sscanf(value + 8, "%d,%d,%d,%d,%d",
-                       &fade, &blinks, &curve, &ac, &beamFade);
+        int fade = 12, blinks = 3, curve = 1, ac = 20, acOn = 1, lightsOn = 0;
+        int n = sscanf(value + 8, "%d,%d,%d,%d,%d,%d",
+                       &fade, &blinks, &curve, &ac, &acOn, &lightsOn);
         if (n >= 4) {
             cfg.fadeSpeed = (uint8_t)constrain(fade, 4, 40);
-            cfg.blinkCount = (uint8_t)constrain(blinks, 1, 20);
+            cfg.blinkCount = (uint8_t)constrain(blinks, 2, 6);
             cfg.curve = (uint8_t)constrain(curve, 0, 2);
-            cfg.autoCancelSpeed = (uint8_t)constrain(ac, 0, 200);
-            if (n >= 5) cfg.beamFade = beamFade ? 1 : 0;
+            if (n == 4) {
+                cfg.autoCancel = (ac != 0) ? 1 : 0;
+                if (ac < 5 || ac > 30) cfg.autoCancelSpeed = 20;
+                else cfg.autoCancelSpeed = (uint8_t)ac;
+            } else {
+                cfg.autoCancelSpeed = (uint8_t)constrain(ac, 5, 30);
+                cfg.autoCancel = acOn ? 1 : 0;
+                if (n >= 6) cfg.autoLights = lightsOn ? 1 : 0;
+            }
             saveConfig();
             sendConfig();
         }
@@ -124,19 +172,51 @@ void handleBleCommand(const char* value) {
 
     if (strncmp(value, "SET_INCFG:", 10) == 0) {
         int inNum = 0, mode = 0, outNum = 0;
+        int outputEnabled = 0, outputNum = 0;
         char name[16] = {0};
-        int n = sscanf(value + 10, "%d,%d,%d,%15s",
-                       &inNum, &mode, &outNum, name);
+        int n = sscanf(value + 10, "%d,%d,%d,%d,%d,%15s",
+                       &inNum, &mode, &outNum, &outputEnabled, &outputNum, name);
         if (n >= 3 && inNum >= 1 && inNum <= 10 && outNum >= 1 && outNum <= 10) {
             bool ok = setInputCfg(inNum - 1, (uint8_t)mode,
                                   (uint8_t)(outNum - 1),
-                                  n >= 4 ? name : nullptr);
+                                  n >= 5 && outputEnabled != 0,
+                                  n >= 5 && outputNum >= 1 && outputNum <= 10
+                                      ? (uint8_t)(outputNum - 1)
+                                      : (uint8_t)(outNum - 1),
+                                  n >= 6 ? name : nullptr);
             Serial.println(ok ? "SET_INCFG OK" : "SET_INCFG FAIL");
             refreshBlinkerPins();
             setupBeams();
             sendInputCfg();
+            if (gOutputs) sendState(gOutputs);
         } else {
             Serial.println("SET_INCFG FAIL (range)");
+        }
+        return;
+    }
+
+    // Wirtualny przycisk IN_01..IN_10 (apka: press/release; ESP liczy short/long)
+    if (strncmp(value, "IN:", 3) == 0) {
+        int num = 0, state = 0;
+        if (sscanf(value + 3, "%d:%d", &num, &state) == 2 &&
+            num >= 1 && num <= 10) {
+            setBleInputPressed(num - 1, state != 0);
+            if (inputCfg[num - 1].mode == IN_SENSOR)
+                setSensorSimulation(num - 1, state != 0);
+            if (inputCfg[num - 1].mode == IN_STARTER)
+                setBleStarterPressed(state != 0);
+            if (gOutputs) sendState(gOutputs);
+        }
+        return;
+    }
+
+    if (strncmp(value, "NEUTRAL_TEST:", 13) == 0) {
+        int state = 0;
+        if (sscanf(value + 13, "%d", &state) == 1) {
+            int neutralIndex = findNeutralInIndex();
+            if (neutralIndex >= 0) setSensorSimulation(neutralIndex, state != 0);
+            else setNeutralSimulation(state != 0);
+            if (gOutputs) sendState(gOutputs);
         }
         return;
     }
@@ -240,8 +320,10 @@ void handleBleCommand(const char* value) {
     }
     if (strncmp(value, "SPEED:", 6) == 0) {
         float kmh = 0;
-        if (sscanf(value + 6, "%f", &kmh) == 1)
+        if (sscanf(value + 6, "%f", &kmh) == 1) {
             setCurrentSpeed(kmh);
+            if (applyAutoLights(kmh) && gOutputs) sendState(gOutputs);
+        }
         return;
     }
 

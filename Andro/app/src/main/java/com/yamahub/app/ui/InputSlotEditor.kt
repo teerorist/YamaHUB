@@ -7,12 +7,17 @@ import androidx.compose.foundation.relocation.bringIntoViewRequester
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.offset
 import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.Checkbox
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExposedDropdownMenuBox
 import androidx.compose.material3.ExposedDropdownMenuDefaults
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.getValue
@@ -37,7 +42,7 @@ fun SlotEditor(
     onChangeKind: (FnKind) -> Unit
 ) {
     Column(
-        Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+        Modifier.padding(horizontal = 8.dp, vertical = 2.dp),
         verticalArrangement = Arrangement.spacedBy(8.dp)
     ) {
         if (!slot.isFixed()) {
@@ -53,7 +58,7 @@ fun SlotEditor(
                 expanded = kindExpanded,
                 onExpandedChange = { kindExpanded = it }
             ) {
-                OutlinedTextField(
+                CompactOutlinedTextField(
                     value = when (slot.kind) {
                         FnKind.BUTTON -> "BUTTON"
                         FnKind.SENSOR -> "SENSOR"
@@ -64,8 +69,9 @@ fun SlotEditor(
                     },
                     onValueChange = {},
                     readOnly = true,
-                    label = { Text("Funkcja") },
-                    modifier = Modifier.menuAnchor().fillMaxWidth(),
+                    label = "Funkcja",
+                    textStyle = MaterialTheme.typography.titleSmall,
+                    modifier = Modifier.menuAnchor().fillMaxWidth().height(52.dp),
                     trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(kindExpanded) }
                 )
                 ExposedDropdownMenu(
@@ -88,13 +94,14 @@ fun SlotEditor(
         if (slot.kind == FnKind.BUTTON || slot.kind == FnKind.SENSOR) {
             val bringIntoViewRequester = remember { BringIntoViewRequester() }
             val scope = rememberCoroutineScope()
-            OutlinedTextField(
+            CompactOutlinedTextField(
                 value = slot.customName,
                 onValueChange = { onChange(slot.copy(customName = it.take(15))) },
-                label = { Text("Nazwa") },
+                label = "Nazwa",
                 singleLine = true,
+                textStyle = MaterialTheme.typography.titleSmall,
                 modifier = Modifier
-                    .fillMaxWidth()
+                    .fillMaxWidth().height(52.dp)
                     .bringIntoViewRequester(bringIntoViewRequester)
                     .onFocusEvent { state ->
                         if (state.isFocused) {
@@ -105,20 +112,47 @@ fun SlotEditor(
                         }
                     }
             )
+
         }
 
-        if (slot.hasOutPicker()) {
+        if (slot.hasOptionalOutputControl()) {
+            Row(
+                modifier = Modifier.fillMaxWidth().height(52.dp),
+                verticalAlignment = androidx.compose.ui.Alignment.CenterVertically
+            ) {
+                Checkbox(
+                    modifier = Modifier.offset(x = (-12).dp),
+                    checked = slot.outputEnabled,
+                    onCheckedChange = { onChange(slot.copy(outputEnabled = it)) }
+                )
+                if (slot.outputEnabled) {
+                    OutPicker(
+                        label = "Wyjście",
+                        selected = slot.outputNum,
+                        outOccupants = outOccupants,
+                        excludeSelf = setOf(slot.outputNum),
+                        modifier = Modifier.weight(1f),
+                        onSelect = { onChange(slot.copy(outputNum = it)) }
+                    )
+                } else {
+                    Text("Steruj wyjściem")
+                }
+            }
+        }
+
+        if (slot.hasOutPicker() && !slot.hasOptionalOutputControl() &&
+            !(slot.kind == FnKind.BRAKE && slot.variant > 1)) {
             val dualLights = slot.kind == FnKind.LIGHTS && lightsCount < 2
             if (dualLights) {
                 OutPicker(
-                    label = "OUT · LOW BEAM",
+                    label = "OUT · HI BEAM",
                     selected = slot.outNum,
                     outOccupants = outOccupants,
                     excludeSelf = setOf(slot.outNum),
                     onSelect = { onChange(slot.copy(outNum = it)) }
                 )
                 OutPicker(
-                    label = "OUT · HI BEAM",
+                    label = "OUT · LOW BEAM",
                     selected = slot.outNum2.takeIf { it in 1..10 } ?: 0,
                     outOccupants = outOccupants,
                     excludeSelf = setOf(slot.outNum2),
@@ -126,8 +160,8 @@ fun SlotEditor(
                 )
             } else {
                 val label = when {
-                    slot.kind == FnKind.LIGHTS && slot.variant <= 1 -> "OUT · LOW BEAM"
-                    slot.kind == FnKind.LIGHTS -> "OUT · HI BEAM"
+                    slot.kind == FnKind.LIGHTS && slot.variant <= 1 -> "OUT · HI BEAM"
+                    slot.kind == FnKind.LIGHTS -> "OUT · LOW BEAM"
                     slot.kind == FnKind.BRAKE -> "OUT · BRAKE"
                     slot.kind == FnKind.NEUTRAL -> "OUT · NEUTRAL"
                     else -> "Wyjście"

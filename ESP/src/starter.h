@@ -8,3 +8,5 @@ void updateShutdown();
 void requestShutdown(Output* outputs);
 void requestShutdownNow(Output* outputs);
 void setBleStarterPressed(bool pressed);
+bool isStarterEnabled(Output* outputs);
+void updateStarterInterlock(Output* outputs, bool& stateChanged);

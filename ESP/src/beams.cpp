@@ -6,7 +6,10 @@
 #include "pins.h"
 #include "driver/gpio.h"
 #include <string.h>
+#include <stdlib.h>
 #include <math.h>
+
+static const unsigned long LIGHTS_LONG_MS = 400;
 
 static const int PWM_CH_BASE = 4; // 4.. – 2/3 kierunki, 7 BL LCD
 static const int MAX_BEAMS = 4;
@@ -39,6 +42,215 @@ bool isBeamOutput(int outIndex) {
     return false;
 }
 
+static int parseTaggedOut(const char* n, const char* tag) {
+    if (!n || !tag) return -1;
+    const char* p = strstr(n, tag);
+    if (!p) return -1;
+    int num = atoi(p + (int)strlen(tag));
+    if (num < 1 || num > 10) return -1;
+    return num - 1;
+}
+
+static int parseLightsHiOut(const char* n) { return parseTaggedOut(n, "_H"); }
+static int parseLightsLowOut(const char* n) { return parseTaggedOut(n, "_L"); }
+
+bool isLightsInput(int inIndex) {
+    if (inIndex < 0 || inIndex >= INPUT_COUNT) return false;
+    if (inputCfg[inIndex].mode != IN_TOGGLE) return false;
+    if (!nameIsBeam(inputCfg[inIndex].name)) return false;
+    int oi = (int)inputCfg[inIndex].outIndex;
+    if (oi < 0 || oi > 9) return false;
+    if (isBlinkerOut(oi)) return false;
+    return true;
+}
+
+static bool isFirstLightsIn(int inIndex) {
+    for (int i = 0; i < INPUT_COUNT; i++) {
+        if (!isLightsInput(i)) continue;
+        return i == inIndex;
+    }
+    return false;
+}
+
+static int lowOutFromCfg() {
+    int first = -1, second = -1;
+    const char* firstName = nullptr;
+    for (int i = 0; i < INPUT_COUNT; i++) {
+        if (!isLightsInput(i)) continue;
+        int oi = (int)inputCfg[i].outIndex;
+        if (first < 0) {
+            first = oi;
+            firstName = inputCfg[i].name;
+        } else {
+            second = oi;
+            break;
+        }
+    }
+    if (second >= 0) return second;
+    int L = parseLightsLowOut(firstName);
+    if (L >= 0) return L;
+    int H = parseLightsHiOut(firstName);
+    if (H >= 0) return first;
+    return first;
+}
+
+static int hiOutFromCfg() {
+    int first = -1, second = -1;
+    const char* firstName = nullptr;
+    for (int i = 0; i < INPUT_COUNT; i++) {
+        if (!isLightsInput(i)) continue;
+        int oi = (int)inputCfg[i].outIndex;
+        if (first < 0) {
+            first = oi;
+            firstName = inputCfg[i].name;
+        } else {
+            second = oi;
+            break;
+        }
+    }
+    if (second >= 0) return first;
+    int L = parseLightsLowOut(firstName);
+    if (L >= 0) return first;
+    int H = parseLightsHiOut(firstName);
+    if (H >= 0) return H;
+    return first;
+}
+
+static int hiOutForLow(int lowOut) {
+    int hi = hiOutFromCfg();
+    if (hi >= 0 && hi != lowOut) return hi;
+    return -1;
+}
+
+static bool beamWantOn(int outIndex) {
+    for (int i = 0; i < beamCount; i++) {
+        if (beamOut[i] == outIndex) return beamTarget[i] > 20;
+    }
+    return outLevel[outIndex] > 20;
+}
+
+static void setBeamOn(int outIndex, bool on, Output* outputs) {
+    if (outIndex < 0 || outIndex > 9) return;
+    uint8_t t = on ? 255 : 0;
+    if (isBeamOutput(outIndex)) {
+        requestBeamLevel(outIndex, t);
+        return;
+    }
+    if (!outputs) return;
+    if (on) outputs[outIndex].on();
+    else    outputs[outIndex].off();
+    setOutLevel(outIndex, t);
+}
+
+static int countLightsInputs() {
+    int n = 0;
+    for (int i = 0; i < INPUT_COUNT; i++)
+        if (isLightsInput(i)) n++;
+    return n;
+}
+
+static bool hiLatched = false;
+
+void handleLightsInput(int inIndex, Button& btn, Output* outputs, bool& stateChanged) {
+    if (!isLightsInput(inIndex)) return;
+
+    static bool held[INPUT_COUNT] = {false};
+    static bool longDone[INPUT_COUNT] = {false};
+    static bool pressHiOn[INPUT_COUNT] = {false};
+    static bool pressUnlatched[INPUT_COUNT] = {false};
+    static unsigned long downAt[INPUT_COUNT] = {0};
+
+    bool now = btn.isPressed() || isBleInputPressed(inIndex);
+    int nL = countLightsInputs();
+    bool isFirst = isFirstLightsIn(inIndex);
+    int lowNamed = parseLightsLowOut(inputCfg[inIndex].name);
+    int hiNamed = parseLightsHiOut(inputCfg[inIndex].name);
+    bool versionII = (nL == 1 && (lowNamed >= 0 || hiNamed >= 0));
+    bool isLowBtn = (nL >= 2 && !isFirst);
+    bool isHiBtn = isFirst || versionII || nL == 1;
+
+    int lowOut = lowOutFromCfg();
+    int hiOut = hiOutFromCfg();
+
+    if (isLowBtn) {
+        if (now && !held[inIndex]) {
+            bool wasOn = beamWantOn(lowOut);
+            setBeamOn(lowOut, !wasOn, outputs);
+            if (wasOn) {
+                int hi = hiOutForLow(lowOut);
+                if (hi >= 0) setBeamOn(hi, false, outputs);
+                hiLatched = false;
+            }
+            stateChanged = true;
+            Serial.printf("LIGHTS IN_%d LOW → %s\n", inIndex + 1, wasOn ? "off" : "on");
+        }
+        held[inIndex] = now;
+        return;
+    }
+
+    if (!isHiBtn || hiOut < 0) {
+        held[inIndex] = now;
+        return;
+    }
+
+    bool lowOn = (lowOut >= 0) && beamWantOn(lowOut);
+    bool allowLatch = versionII || lowOn;
+
+    if (now && !held[inIndex]) {
+        downAt[inIndex] = millis();
+        longDone[inIndex] = false;
+        pressHiOn[inIndex] = false;
+        pressUnlatched[inIndex] = false;
+        if (beamWantOn(hiOut)) {
+            setBeamOn(hiOut, false, outputs);
+            hiLatched = false;
+            pressUnlatched[inIndex] = true;
+            stateChanged = true;
+            Serial.printf("LIGHTS IN_%d HI off\n", inIndex + 1);
+        } else {
+            setBeamOn(hiOut, true, outputs);
+            pressHiOn[inIndex] = true;
+            stateChanged = true;
+            Serial.printf("LIGHTS IN_%d HI pass\n", inIndex + 1);
+        }
+    }
+    if (now && !longDone[inIndex] && !pressUnlatched[inIndex] &&
+        downAt[inIndex] && (millis() - downAt[inIndex]) > LIGHTS_LONG_MS) {
+        longDone[inIndex] = true;
+        if (allowLatch && pressHiOn[inIndex]) {
+            hiLatched = true;
+            Serial.printf("LIGHTS IN_%d HI latch\n", inIndex + 1);
+        }
+    }
+    if (!now && held[inIndex]) {
+        if (!hiLatched && pressHiOn[inIndex]) {
+            setBeamOn(hiOut, false, outputs);
+            stateChanged = true;
+            Serial.printf("LIGHTS IN_%d HI pass end\n", inIndex + 1);
+        }
+        downAt[inIndex] = 0;
+        longDone[inIndex] = false;
+        pressHiOn[inIndex] = false;
+        pressUnlatched[inIndex] = false;
+    }
+    held[inIndex] = now;
+}
+
+int lowBeamOutIndex() {
+    return lowOutFromCfg();
+}
+
+bool applyAutoLights(float kmh) {
+    if (!cfg.autoLights) return false;
+    if (kmh < (float)cfg.autoCancelSpeed) return false;
+    int oi = lowBeamOutIndex();
+    if (oi < 0 || !isBeamOutput(oi)) return false;
+    if (outLevel[oi] > 20) return false;
+    requestBeamLevel(oi, 255);
+    Serial.printf("AutoLights ON (OUT_%d @ %.0f km/h)\n", oi + 1, (double)kmh);
+    return true;
+}
+
 static float curveFactor(float t) {
     if (cfg.curve == 1) return t * t * (3.0f - 2.0f * t);
     if (cfg.curve == 2) return (t < 0.5f) ? 0.0f : 1.0f;
@@ -66,41 +278,44 @@ void setupBeams() {
         if (oi < 0 || oi > 9) continue;
         if (isBlinkerOut(oi)) continue; // NIGDY pin kierunku
 
-        bool exists = false;
-        for (int j = 0; j < beamCount; j++)
-            if (beamOut[j] == oi) exists = true;
-        if (exists) continue;
+        auto attach = [&](int out, const char* tag) {
+            if (out < 0 || out > 9 || beamCount >= MAX_BEAMS) return;
+            if (isBlinkerOut(out) || isBeamOutput(out)) return;
+            int ch = PWM_CH_BASE + beamCount;
+            ledcSetup(ch, 5000, 8);
+            ledcAttachPin(OUT_PINS[out], ch);
+            ledcWrite(ch, 0);
+            beamOut[beamCount] = out;
+            beamCh[beamCount] = ch;
+            beamLevel[beamCount] = 0;
+            beamTarget[beamCount] = 0;
+            beamLast[beamCount] = millis();
+            beamCount++;
+            Serial.printf("Beam: OUT_%d ch=%d %s\n", out + 1, ch, tag);
+        };
 
-        // drugi OUT z LIGHTS_H{n}
-        // (obsługa przy request – tu primary)
-
-        int ch = PWM_CH_BASE + beamCount;
-        ledcSetup(ch, 5000, 8);
-        ledcAttachPin(OUT_PINS[oi], ch);
-        ledcWrite(ch, 0);
-
-        beamOut[beamCount] = oi;
-        beamCh[beamCount] = ch;
-        beamLevel[beamCount] = 0;
-        beamTarget[beamCount] = 0;
-        beamLast[beamCount] = millis();
-        beamCount++;
-        Serial.printf("Beam: OUT_%d ch=%d name=%s\n", oi + 1, ch, inputCfg[i].name);
+        attach(oi, inputCfg[i].name);
+        int extraL = parseLightsLowOut(inputCfg[i].name);
+        int extraH = parseLightsHiOut(inputCfg[i].name);
+        if (extraL >= 0 && extraL != oi) attach(extraL, "LOW");
+        if (extraH >= 0 && extraH != oi) attach(extraH, "HI");
     }
     Serial.printf("Beams: %d\n", beamCount);
+
+    // jeden IN świateł (drugi wyłączony / wersja II) → LOW on
+    if (countLightsInputs() == 1) {
+        int low = lowBeamOutIndex();
+        if (low >= 0 && isBeamOutput(low)) {
+            requestBeamLevel(low, 255);
+            Serial.printf("LIGHTS: jeden IN → LOW ON (OUT_%d)\n", low + 1);
+        }
+    }
 }
 
 void requestBeamLevel(int outIndex, uint8_t target) {
     for (int i = 0; i < beamCount; i++) {
         if (beamOut[i] != outIndex) continue;
-        if (!cfg.beamFade) {
-            beamLevel[i] = target;
-            beamTarget[i] = target;
-            ledcWrite(beamCh[i], target);
-            setOutLevel(outIndex, target);
-            return;
-        }
-        beamTarget[i] = target;
+        beamTarget[i] = target;   // ten sam fade/curve co kierunki
         return;
     }
     // nie jest beamem – caller zrobi digital
@@ -127,7 +342,8 @@ void updateBeams(bool& stateChanged) {
         }
         int out = (int)(curveFactor(beamLevel[i] / 255.0f) * 255.0f);
         ledcWrite(beamCh[i], out);
+        uint8_t prevVis = outLevel[beamOut[i]];
         setOutLevel(beamOut[i], (uint8_t)out);
-        stateChanged = true;
+        if ((prevVis > 20) != (out > 20)) stateChanged = true;
     }
 }

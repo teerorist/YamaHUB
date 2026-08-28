@@ -4,18 +4,18 @@ import com.yamahub.app.BleManager
 
 /**
  * STARTER – jak fizyczny IN_10 (hold).
- * Działa tylko gdy NEUTRAL = 1 (na razie: DashboardTestState.neutral).
+ * Stan gotowosci pochodzi z interlocku na ESP.
  */
 object ControlStarter {
-    fun canStart(): Boolean = DashboardTestState.neutral
+    fun canStart(ble: BleManager): Boolean = ble.starterEnabled
 
-    fun onDown(ble: BleManager) {
-        if (!canStart()) return
-        ble.sendCommand("IN10:1")
+    fun onDown(ble: BleManager, inNum: Int) {
+        if (!canStart(ble)) return
+        if (inNum in 1..10) ble.sendCommand("IN:$inNum:1")
     }
 
-    fun onUp(ble: BleManager) {
+    fun onUp(ble: BleManager, inNum: Int) {
         // release zawsze – nawet gdy neutral zgasł w trakcie hold
-        ble.sendCommand("IN10:0")
+        if (inNum in 1..10) ble.sendCommand("IN:$inNum:0")
     }
 }
