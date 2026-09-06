@@ -8,182 +8,70 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.graphics.Color
 import com.yamahub.app.InputCfgItem
-import com.yamahub.app.displayName
 import kotlinx.coroutines.delay
 
+/** Reprezentacja wiersza na ekranie sterowania - całkowicie pasywna */
 data class ControlInRow(
-    val inNum: Int,              // 0 = pusty slot
-    val mode: Int,               // -1 = unused
+    val inNum: Int,
+    val functionId: Int,
     val title: String,
     val subtitle: String?,
-    val outNums: List<Int>,      // zawsze 1 element = primaryOut
-    val primaryOut: Int,         // OUT 1..10 tej pozycji
-    val wireName: String = "",   // nazwa do SET_INCFG
-    val isLightsHi: Boolean = false, // ten slot to HI z LIGHTS_H{n}
-    val relatedHiOut: Int? = null    // jeśli to LOW, to tu może być powiązany HI
+    val primaryOut: Int
 )
 
-fun isNeutral(item: InputCfgItem): Boolean {
-    if (item.mode != 1) return false
-    val n = item.name.lowercase()
-    return n.contains("neutral") || n.contains("luz")
-}
-
-fun isOil(item: InputCfgItem): Boolean {
-    if (item.mode != 1) return false
-    val n = item.name.lowercase()
-    return n.contains("oil") || n.contains("olej")
-}
-
-fun isLightsName(name: String): Boolean {
-    val n = name.lowercase()
-    return n.contains("lights") || n.contains("light") ||
-        n.contains("beam") || n.contains("hi_beam") || n.contains("low_beam")
-}
-
-fun isBrakeName(name: String): Boolean =
-    name.lowercase().contains("brake")
-
-fun parseLightsHi(name: String): Int? =
-    Regex("""LIGHTS_H(\d+)""", RegexOption.IGNORE_CASE)
-        .find(name)?.groupValues?.getOrNull(1)?.toIntOrNull()?.coerceIn(1, 10)
-
-fun parseLightsLow(name: String): Int? =
-    Regex("""LIGHTS_L(\d+)""", RegexOption.IGNORE_CASE)
-        .find(name)?.groupValues?.getOrNull(1)?.toIntOrNull()?.coerceIn(1, 10)
-
-/** LOW/HI OUT z INCFG: LIGHTS 1 = HI, LIGHTS 2 = LOW; jeden IN: primary=HI, LIGHTS_L=LOW. */
+/** Helper do wyciągania portów świateł (tylko na potrzeby Dashboardu) */
 fun lightsOutsFromCfg(cfg: List<InputCfgItem>): Pair<Int, Int> {
-    val lights = cfg.filter { isLightsName(it.name) && it.mode == 0 }.sortedBy { it.inNum }
-    if (lights.size >= 2) {
-        return lights[1].outNum.coerceIn(1, 10) to lights[0].outNum.coerceIn(1, 10)
-    }
-    val one = lights.firstOrNull() ?: return 0 to 0
-    val p = one.outNum.coerceIn(1, 10)
-    val lowEnc = parseLightsLow(one.name)
-    val hiEnc = parseLightsHi(one.name)
+    val l1 = cfg.firstOrNull { it.functionId == FnKind.LIGHTS_1.id }
+    val l2 = cfg.firstOrNull { it.functionId == FnKind.LIGHTS_2.id }
+    
     return when {
-        lowEnc != null -> lowEnc to p
-        hiEnc != null -> p to hiEnc
-        else -> p to 0
+        l1 != null && l2 != null -> l2.outNum to l1.outNum
+        l1 != null -> l1.outSecondary to l1.outNum
+        else -> 0 to 0
     }
 }
 
-fun titleFor(item: InputCfgItem): String {
-    val n = item.displayName()
-    return when (item.mode) {
-        2 -> "KIERUNEK L"
-        3 -> "KIERUNEK P"
-        6 -> "STARTER"
-        else -> when {
-            isNeutral(item) -> "NEUTRAL"
-            isOil(item) -> "OLEJ"
-            isLightsName(item.name) -> "LIGHTS"
-            isBrakeName(item.name) -> "BRAKE"
-            n.isNotBlank() -> n
-            else -> "IN %02d".format(item.inNum)
-        }
-    }
-}
-
-/**
- * Zawsze 10 pozycji OUT_01…OUT_10.
- * LIGHTS z LIGHTS_H{n} zajmuje dwa sloty (LOW + HI).
+/** 
+ * Buduje listę wierszy sterowania. 
+ * Jeden slot może wygenerować dwa wiersze (np. LIGHTS 1x generuje HI i LOW).
  */
 fun buildRows(cfg: List<InputCfgItem>): List<ControlInRow> {
-    // SENSOR (4) i DISABLED (5) poza listą sterowania; NEUTRAL zostaje (indicator OUT)
-    val usable = cfg.filter { item ->
-        when {
-            item.mode == 4 || item.mode == 5 -> false
-            else -> true
-        }
-    }
-    val lights = usable.filter { isLightsName(it.name) && it.mode == 0 }
-        .sortedBy { it.inNum }
-    val brakes = usable.filter { isBrakeName(it.name) && it.mode == 1 }
-        .sortedBy { it.inNum }
-    val lc = lights.size
+    val rows = mutableListOf<ControlInRow>()
+    val slots = cfg.map { it.toFnSlot() }
+    
+    val lc = slots.count { it.kind == FnKind.LIGHTS_1 || it.kind == FnKind.LIGHTS_2 }
+    val bc = slots.count { it.kind == FnKind.BRAKE_1 || it.kind == FnKind.BRAKE_2 }
 
-    data class Hit(
-        val item: InputCfgItem,
-        val isHi: Boolean
-    )
-    val hits = mutableMapOf<Int, Hit>()
+    slots.forEach { s ->
+        if (s.kind == FnKind.DISABLED) return@forEach
 
-    usable.forEach { item ->
-        val primary = item.outNum.coerceIn(1, 10)
-        if (!hits.containsKey(primary)) {
-            val oneInHi = isLightsName(item.name) && lc < 2 && parseLightsLow(item.name) != null
-            hits[primary] = Hit(item, isHi = oneInHi)
-        }
-        if (isLightsName(item.name) && lc < 2) {
-            val low = parseLightsLow(item.name)
-            val hiOld = parseLightsHi(item.name)
-            if (low != null && low != primary && !hits.containsKey(low)) {
-                hits[low] = Hit(item, isHi = false)
-            } else if (hiOld != null && hiOld != primary && !hits.containsKey(hiOld)) {
-                hits[hiOld] = Hit(item, isHi = true)
-            }
-        }
-    }
-
-    return (1..10).map { out ->
-        val hit = hits[out]
-        if (hit == null) {
-            ControlInRow(
-                inNum = 0,
-                mode = -1,
-                title = "—",
+        // Główne wyjście slotu - używamy tytułu prosto z HUBa
+        rows.add(ControlInRow(
+            inNum = s.inNum,
+            functionId = s.kind.id,
+            title = s.title(emptyList(), lc, bc), 
+            subtitle = null, // Subtitle niepotrzebny, nazwa z HUBa wystarczy
+            primaryOut = s.outPrimary
+        ))
+        
+        // Wirtualne wyjście dodatkowe (tylko dla 1x LIGHTS)
+        if (s.kind == FnKind.LIGHTS_1 && lc < 2 && s.outSecondary > 0) {
+            rows.add(ControlInRow(
+                inNum = s.inNum,
+                functionId = FnKind.LIGHTS_2.id,
+                title = "LOW BEAM", // To jedyny wyjątek "myślenia", ale tylko gdy HUB wysyła 1x LIGHTS
                 subtitle = null,
-                outNums = listOf(out),
-                primaryOut = out
-            )
-        } else {
-            val item = hit.item
-            val isLights = isLightsName(item.name)
-            var relHi: Int? = null
-            
-            val sub = when {
-                isLights && lc >= 2 -> {
-                    val idx = lights.indexOfFirst { it.inNum == item.inNum }
-                    if (idx == 0 && lights.size >= 2) {
-                        relHi = item.outNum.coerceIn(1, 10)
-                    }
-                    if (idx <= 0) "HI BEAM" else "LOW BEAM"
-                }
-                isLights && hit.isHi -> "HI BEAM"
-                isLights && parseLightsLow(item.name) != null -> {
-                    relHi = item.outNum.coerceIn(1, 10)
-                    "LOW BEAM"
-                }
-                isLights && parseLightsHi(item.name) != null -> {
-                    relHi = parseLightsHi(item.name)
-                    "LOW BEAM"
-                }
-                isBrakeName(item.name) && brakes.size >= 2 -> {
-                    val idx = brakes.indexOfFirst { it.inNum == item.inNum }
-                    if (idx <= 0) "front" else "rear"
-                }
-                else -> null
-            }
-            ControlInRow(
-                inNum = item.inNum,
-                mode = item.mode,
-                title = titleFor(item),
-                subtitle = sub,
-                outNums = listOf(out),
-                primaryOut = out,
-                wireName = item.name,
-                isLightsHi = hit.isHi,
-                relatedHiOut = relHi
-            )
+                primaryOut = s.outSecondary
+            ))
         }
     }
+    
+    return rows.sortedBy { it.primaryOut }
 }
 
-/**
- * Po DnD: zamiana funkcji między outFrom i outTo (1..10).
- * Zwraca nową listę InputCfgItem do autozapisu.
+/** 
+ * Funkcja zamiany portów - teraz znacznie prostsza, 
+ * bo operuje tylko na primaryOut. 
  */
 fun swapOutAssignment(
     cfg: List<InputCfgItem>,
@@ -192,126 +80,16 @@ fun swapOutAssignment(
 ): List<InputCfgItem> {
     if (outFrom !in 1..10 || outTo !in 1..10 || outFrom == outTo) return cfg
 
-    val rows = buildRows(cfg)
-    val a = rows[outFrom - 1]
-    val b = rows[outTo - 1]
-    if (a.mode < 0 && b.mode < 0) return cfg
-
-    // Pracujemy na kopii
     val list = cfg.map { it.copy() }.toMutableList()
-
-    fun findIdx(inNum: Int) = list.indexOfFirst { it.inNum == inNum }
-
-    fun setPrimaryOut(inNum: Int, newOut: Int) {
-        val i = findIdx(inNum)
-        if (i < 0) return
-        list[i] = list[i].copy(outNum = newOut)
-    }
-
-    fun setLightsHi(inNum: Int, hiOut: Int) {
-        val i = findIdx(inNum)
-        if (i < 0) return
-        val cur = list[i]
-        val base = cur.name.substringBefore("_H").ifBlank { "LIGHTS" }
-        val newName = if (hiOut in 1..10) "${base}_H$hiOut" else base
-        list[i] = cur.copy(name = newName.take(15))
-    }
-
-    fun clearLightsHi(inNum: Int) {
-        val i = findIdx(inNum)
-        if (i < 0) return
-        val cur = list[i]
-        val base = cur.name.substringBefore("_H").ifBlank { "LIGHTS" }
-        list[i] = cur.copy(name = base.take(15))
-    }
-
-    // Zbierz role na outFrom / outTo
-    data class Role(val inNum: Int, val isHi: Boolean)
-    fun roleOf(row: ControlInRow): Role? =
-        if (row.mode < 0 || row.inNum <= 0) null else Role(row.inNum, row.isLightsHi)
-
-    val ra = roleOf(a)
-    val rb = roleOf(b)
-
-    // Pomocniczo: aktualny HI danego inNum
-    fun currentHi(inNum: Int): Int? {
-        val i = findIdx(inNum)
-        if (i < 0) return null
-        return parseLightsHi(list[i].name)
-    }
-
-    fun currentPrimary(inNum: Int): Int {
-        val i = findIdx(inNum)
-        return if (i < 0) 0 else list[i].outNum.coerceIn(1, 10)
-    }
-
-    // Wykonaj zamianę ról
-    when {
-        ra == null && rb == null -> return cfg
-
-        // A → puste B
-        ra != null && rb == null -> {
-            if (ra.isHi) {
-                setLightsHi(ra.inNum, outTo)
-            } else {
-                setPrimaryOut(ra.inNum, outTo)
-            }
-        }
-
-        // B → puste A (odwrotnie)
-        ra == null && rb != null -> {
-            if (rb.isHi) {
-                setLightsHi(rb.inNum, outFrom)
-            } else {
-                setPrimaryOut(rb.inNum, outFrom)
-            }
-        }
-
-        // Oba zajęte – zamiana
-        ra != null && rb != null -> {
-            if (!ra.isHi && !rb.isHi) {
-                // dwa primary
-                val pa = currentPrimary(ra.inNum)
-                val pb = currentPrimary(rb.inNum)
-                setPrimaryOut(ra.inNum, pb)
-                setPrimaryOut(rb.inNum, pa)
-            } else if (ra.isHi && rb.isHi) {
-                // dwa HI (różne LIGHTS) – zamień numery H
-                setLightsHi(ra.inNum, outTo)
-                setLightsHi(rb.inNum, outFrom)
-            } else if (ra.isHi && !rb.isHi) {
-                // A=HI, B=primary
-                val hiA = outFrom
-                val primB = currentPrimary(rb.inNum)
-                setLightsHi(ra.inNum, primB)
-                setPrimaryOut(rb.inNum, hiA)
-            } else if (!ra.isHi && rb.isHi) {
-                val primA = currentPrimary(ra.inNum)
-                val hiB = outTo
-                setPrimaryOut(ra.inNum, hiB)
-                setLightsHi(rb.inNum, primA)
-            }
+    
+    for (i in list.indices) {
+        if (list[i].outNum == outFrom) {
+            list[i] = list[i].copy(outNum = outTo)
+        } else if (list[i].outNum == outTo) {
+            list[i] = list[i].copy(outNum = outFrom)
         }
     }
-
-    // LOW i HI tego samego LIGHTS nie mogą mieć tego samego OUT
-    list.forEachIndexed { i, item ->
-        if (!isLightsName(item.name)) return@forEachIndexed
-        val hi = parseLightsHi(item.name) ?: return@forEachIndexed
-        if (hi == item.outNum) {
-            // konflikt – przesuń HI na wolny
-            val used = list.flatMap { it2 ->
-                buildList {
-                    add(it2.outNum)
-                    parseLightsHi(it2.name)?.let { add(it) }
-                }
-            }.toSet()
-            val free = (1..10).firstOrNull { it !in used && it != item.outNum } ?: hi
-            val base = item.name.substringBefore("_H").ifBlank { "LIGHTS" }
-            list[i] = item.copy(name = "${base}_H$free".take(15))
-        }
-    }
-
+    
     return list
 }
 
@@ -321,27 +99,17 @@ val COL_WHITE = Color(0xFFF5F5F5)
 val COL_BLUE = Color(0xFF2196F3)
 val COL_RED = Color(0xFFF44336)
 val COL_CYAN = Color(0xFF00BCD4)
-val COL_OFF = Color(0xFF2A2A2A)
-val COL_UNUSED = Color(0xFF1A1A1A)
 
-fun colorForRow(row: ControlInRow, outIndexInRow: Int): Color {
-    if (row.mode < 0) return COL_UNUSED
-    return when (row.mode) {
-        2, 3 -> COL_ORANGE
-        6 -> COL_GREEN
-        else -> {
-            val sub = row.subtitle?.lowercase().orEmpty()
-            val title = row.title.lowercase()
-            when {
-                sub.contains("hi") -> COL_BLUE
-                sub.contains("low") || title == "lights" -> COL_WHITE
-                title.contains("brake") || sub.contains("front") || sub.contains("rear") -> COL_RED
-                title == "neutral" -> COL_GREEN
-                title == "olej" -> COL_RED
-                else -> COL_CYAN
-            }
-        }
-    }
+/** Wybiera kolor dla wyjścia na podstawie jego functionId przesłanego z ESP */
+fun colorForRow(row: ControlInRow): Color = when (row.functionId) {
+    1, 2 -> COL_ORANGE // Kierunki
+    3 -> COL_BLUE      // HI Beam
+    4 -> COL_WHITE     // LOW Beam
+    5, 6 -> COL_RED    // Hamulce
+    7, 9 -> COL_GREEN  // Neutral, Starter
+    10, 11 -> COL_RED  // Oil, Fuel
+    12 -> COL_CYAN     // User defined
+    else -> COL_CYAN
 }
 
 fun applyCurve(t: Float, curve: Int): Float {
@@ -355,7 +123,6 @@ fun applyCurve(t: Float, curve: Int): Float {
 
 data class BlinkPair(val left: Float, val right: Float)
 
-/** Przy HAZARD jedna faza dla L i P – inaczej dwa LaunchedEffect rozjeżdżają się. */
 @Composable
 fun rememberBlinkPair(
     leftActive: Boolean,
@@ -385,8 +152,6 @@ fun rememberBlinkLevel(active: Boolean, fadeSpeed: Int, curve: Int): Float {
             level = 0f
             return@LaunchedEffect
         }
-        // fadeSpeed z ESP (ms na krok hardware) – w UI nie schodzimy poniżej ~40 ms,
-        // inaczej cała lista ControlScreen rekomponuje się 80×/s i "muli".
         var phase = 0f
         val stepMs = maxOf(40L, fadeSpeed.coerceIn(4, 60).toLong())
         val phaseStep = 0.04f * (stepMs / 12f).coerceIn(1f, 4f)

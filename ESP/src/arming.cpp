@@ -1,7 +1,7 @@
 #include "arming.h"
 #include "ble_hub.h"
 
-bool hubArmed = false;
+volatile bool hubArmed = false;
 
 bool tryArm() {
     if (hubArmed) return true;

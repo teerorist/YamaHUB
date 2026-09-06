@@ -9,11 +9,9 @@ import androidx.compose.runtime.setValue
  * Stany panelu TEST na Dashboard – przeżywają wyjście do Ustawień i powrót.
  */
 object DashboardTestState {
-    var neutral by mutableStateOf(false)
-    var oil by mutableStateOf(false)
     var useSimSpeed by mutableStateOf(false)
     var simSpeed by mutableFloatStateOf(0f)
-    var useSimRpm by mutableStateOf(true)
+    var useSimRpm by mutableStateOf(false)
     var simRpm by mutableFloatStateOf(0f)
     var fuelLevel by mutableFloatStateOf(0.5f)
     var ambientBrightness by mutableFloatStateOf(1.0f)

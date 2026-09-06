@@ -1,11 +1,14 @@
 #pragma once
 #include <Arduino.h>
+#include "pins.h"
 
 class Button {
 public:
     Button(uint8_t pin) : _pin(pin) {}
+    uint8_t getPin() const { return _pin; }
 
     void begin() {
+        if (!pinValid(_pin)) return;
         pinMode(_pin, INPUT_PULLUP);
         _lastState = digitalRead(_pin);
         _lastDebounceTime = 0;
@@ -14,6 +17,7 @@ public:
 
     // Zwraca true tylko w momencie naciśnięcia
     bool wasPressed() {
+        if (!pinValid(_pin)) return false;
         bool reading = digitalRead(_pin);
 
         if (reading != _lastState) {
@@ -35,6 +39,7 @@ public:
     }
 
     bool isPressed() {
+        if (!pinValid(_pin)) return false;
         return digitalRead(_pin) == LOW;
     }
 

@@ -2,14 +2,19 @@
 #include "ble_protocol.h"
 #include "arming.h"
 #include "starter.h"
+#include "input_cfg.h"
+#include "blinkers.h"
+#include "beams.h"
 #include <NimBLEDevice.h>
 #include <cstring>
 
 bool deviceConnected = false;
 Output* gOutputs = nullptr;
+Button* gButtons = nullptr;
 NimBLECharacteristic* pCharacteristic = nullptr;
 
 static NimBLEServer* pServer = nullptr;
+static volatile bool connectionSyncPending = false;
 
 #define SERVICE_UUID        "FFE0"
 #define CHARACTERISTIC_UUID "FFE1"
@@ -27,7 +32,32 @@ static void enqueueCmd(const char* v) {
     cmdHead = next;
 }
 
+static void finishInCfgApply(InCfgApply r) {
+    if (r == INCFG_IDLE || r == INCFG_STAGED) return;
+    if (r == INCFG_COMMITTED) {
+        refreshBlinkerPins();
+        setupBeams();
+        if (gOutputs) sendState(gOutputs);
+        return;
+    }
+    bleLog(inputCfgRejectReason());
+    sendInputCfgV4();
+    if (gOutputs) sendState(gOutputs);
+}
+
 void processBle() {
+    if (connectionSyncPending && deviceConnected) {
+        connectionSyncPending = false;
+        resetInputStatePush();
+        sendInputStatesIfChanged(gButtons);
+        if (gOutputs) sendState(gOutputs);
+        sendConfig();
+        // Aplikacja sama zapyta o MODES i INCFG przy starcie
+        Serial.println("BLE: fast sync sent");
+    }
+
+    finishInCfgApply(pollInputCfgTxn());
+
     while (cmdTail != cmdHead) {
         char local[96];
         strncpy(local, cmdQueue[cmdTail], 95);
@@ -40,12 +70,14 @@ void processBle() {
 class ServerCallbacks : public NimBLEServerCallbacks {
     void onConnect(NimBLEServer* s) {
         deviceConnected = true;
+        connectionSyncPending = true;
         tryArm();
         Serial.println("BLE: Połączono");
         Serial.println("HUB ARMED (apka)");
     }
     void onDisconnect(NimBLEServer* s) {
         deviceConnected = false;
+        disarmHub();
         Serial.println("BLE: Rozłączono");
         NimBLEDevice::startAdvertising();
     }
@@ -58,8 +90,9 @@ class CharacteristicCallbacks : public NimBLECharacteristicCallbacks {
     }
 };
 
-void setupBLE(Output* outputs) {
+void setupBLE(Output* outputs, Button* buttons) {
     gOutputs = outputs;
+    gButtons = buttons;
     resetInputStatePush();
     Serial.println("Uruchamiam BLE...");
     NimBLEDevice::init("YamaHub");

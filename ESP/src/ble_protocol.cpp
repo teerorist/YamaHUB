@@ -50,8 +50,11 @@ void sendState(Output* outputs) {
             on = outputs[i].isOn();
         }
         int neutralIndex = findNeutralInIndex();
-        if (neutralIndex >= 0 && inputCfg[neutralIndex].outIndex == i)
-            on = isNeutralSimulation() || on;
+        if (neutralIndex >= 0) {
+            uint8_t neutralOut = inputCfg[neutralIndex].outPrimary;
+            if (outAssigned(neutralOut) && (int)neutralOut == i)
+                on = isNeutralSimulation() || on;
+        }
         bits[i] = on ? '1' : '0';
     }
     bits[10] = 0;
@@ -95,6 +98,10 @@ void sendConfig() {
     Serial.printf("CFG: %s\n", msg);
 }
 
+static int wireOut(uint8_t o) {
+    return outAssigned(o) ? (int)o + 1 : 0;
+}
+
 void sendInputCfg() {
     if (!deviceConnected || !pCharacteristic) return;
     char msg[400];
@@ -102,10 +109,10 @@ void sendInputCfg() {
     for (int i = 0; i < INPUT_COUNT; i++) {
         pos += snprintf(msg + pos, sizeof(msg) - pos, "%s%d,%d,%d,%d,%s",
                         (i ? ";" : ""),
-                        (int)inputCfg[i].mode,
-                        (int)inputCfg[i].outIndex + 1,
+                        (int)inputCfg[i].category,
+                        wireOut(inputCfg[i].outPrimary),
                 inputCfg[i].outputEnabled ? 1 : 0,
-                (int)inputCfg[i].outputIndex + 1,
+                wireOut(inputCfg[i].outPrimary),
                         inputCfg[i].name);
         if (pos >= (int)sizeof(msg) - 8) break;
     }
@@ -113,6 +120,107 @@ void sendInputCfg() {
     pCharacteristic->notify();
     Serial.printf("INCFG sent (%d bytes)\n", pos);
     sendStarterStatus(gOutputs);
+}
+
+void sendModesV4() {
+    if (!deviceConnected || !pCharacteristic) return;
+
+    int lightsCount = 0;
+    int brakeCount = 0;
+    for (int i = 0; i < INPUT_COUNT; i++) {
+        if (inputCfg[i].functionId == FN_LIGHTS_1 || inputCfg[i].functionId == FN_LIGHTS_2) lightsCount++;
+        if (inputCfg[i].functionId == FN_BRAKE_1 || inputCfg[i].functionId == FN_BRAKE_2) brakeCount++;
+    }
+
+    // Flagi: 1=wybieralne, 0=ukryte w menu (bo osiagnieto limit)
+    int canAddLight2 = (lightsCount < 2) ? 1 : 0;
+    int canAddBrake2 = (brakeCount < 2) ? 1 : 0;
+
+    // Definicje unikalnych funkcji (id, category, label, flags)
+    struct ModeDef { int id; int cat; const char* label; int flag; };
+    ModeDef defs[] = {
+        {9, 0, "STARTER", 0},        // Fixed
+        {1, 0, "LEFT BLINKER", 0},   // Fixed
+        {2, 0, "RIGHT BLINKER", 0},  // Fixed
+        {3, 0, "LIGHTS", 0},
+        {4, 0, "LOW BEAM", canAddLight2},
+        {12, 0, "USER DEFINED", 1},
+
+        {7, 1, "NEUTRAL", 0},
+        {5, 1, "BRAKES", 0},
+        {6, 1, "BRAKE", canAddBrake2},
+        {8, 1, "CLUTCH", 1},
+        {10, 1, "OIL", 1},
+        {11, 1, "FUEL", 1},
+        {12, 1, "USER DEFINED", 1},
+
+        {0, 2, "DISABLED", 1}
+    };
+
+    pCharacteristic->setValue("MODES_START");
+    pCharacteristic->notify();
+    delay(50);
+
+    for (const auto& d : defs) {
+        char msg[64];
+        snprintf(msg, sizeof(msg), "MODEPART:%d,%d,%s,%d", d.id, d.cat, d.label, d.flag);
+        pCharacteristic->setValue(msg);
+        pCharacteristic->notify();
+        delay(50);
+    }
+
+    pCharacteristic->setValue("MODES_DONE");
+    pCharacteristic->notify();
+}
+
+void sendInputCfgV4() {
+    if (!deviceConnected || !pCharacteristic) return;
+
+    pCharacteristic->setValue("INCFG_START");
+    pCharacteristic->notify();
+    delay(20);
+
+    for (int i = 0; i < INPUT_COUNT; i++) {
+        const InputCfgItem& item = inputCfg[i];
+        char msg[128];
+        snprintf(msg, sizeof(msg), "INPART:%d,%d,%d,%d,%d,%d,%d,%d,%d,%s",
+                        i, (int)item.category, (int)item.functionId,
+                        wireOut(item.outPrimary),
+                        wireOut(item.outSecondary),
+                        item.outputEnabled ? 1 : 0, wireOut(item.outPrimary),
+                        item.fixed ? 1 : 0,
+                        item.outLocked ? 1 : 0,
+                        item.name);
+        pCharacteristic->setValue(msg);
+        pCharacteristic->notify();
+        delay(20);
+    }
+    pCharacteristic->setValue("INCFG_DONE");
+    pCharacteristic->notify();
+}
+
+void sendRpm(int rpm) {
+    if (!deviceConnected || !pCharacteristic) return;
+    char msg[16];
+    snprintf(msg, sizeof(msg), "RPM:%d", rpm);
+    pCharacteristic->setValue(msg);
+    pCharacteristic->notify();
+}
+
+void sendFuel(int pct) {
+    if (!deviceConnected || !pCharacteristic) return;
+    char msg[16];
+    snprintf(msg, sizeof(msg), "FUEL:%d", pct);
+    pCharacteristic->setValue(msg);
+    pCharacteristic->notify();
+}
+
+void sendOil(int on) {
+    if (!deviceConnected || !pCharacteristic) return;
+    char msg[16];
+    snprintf(msg, sizeof(msg), "OIL:%d", on ? 1 : 0);
+    pCharacteristic->setValue(msg);
+    pCharacteristic->notify();
 }
 
 static void applyDigitalOrBeam(Output* outputs, int oi, bool on) {
@@ -143,7 +251,56 @@ void handleBleCommand(const char* value) {
         return;
     }
     if (strcmp(value, "GET_INCFG") == 0) {
-        sendInputCfg();
+        sendInputCfgV4();
+        return;
+    }
+    if (strcmp(value, "GET_MODES") == 0 || strcmp(value, "GET_MODES_DEF") == 0) {
+        sendModesV4();
+        return;
+    }
+
+    if (strcmp(value, "SET_INCFG_COMMIT") == 0) {
+        InCfgApply r = commitInputCfg();
+        if (r == INCFG_COMMITTED) {
+            refreshBlinkerPins();
+            setupBeams();
+            if (gOutputs) sendState(gOutputs);
+        } else if (r == INCFG_REJECTED) {
+            bleLog(inputCfgRejectReason());
+            sendInputCfgV4();
+            if (gOutputs) sendState(gOutputs);
+        }
+        return;
+    }
+
+    if (strncmp(value, "SET_INCFG_V4:", 13) == 0) {
+        int inNum = 0, category = 0, functionId = 0;
+        int primary = 0, secondary = 0, outputEnabled = 0, outputIndex = 0;
+        char name[16] = {0};
+        int n = sscanf(value + 13, "%d,%d,%d,%d,%d,%d,%d,%15s",
+                       &inNum, &category, &functionId, &primary, &secondary,
+                       &outputEnabled, &outputIndex, name);
+        if (n >= 7 && inNum >= 1 && inNum <= 10 &&
+            primary >= 0 && primary <= 10 && secondary >= 0 && secondary <= 10) {
+            uint8_t pri = primary ? (uint8_t)(primary - 1) : OUT_NONE;
+            uint8_t sec = secondary ? (uint8_t)(secondary - 1) : OUT_NONE;
+            uint8_t oix = (outputIndex >= 1 && outputIndex <= 10)
+                ? (uint8_t)(outputIndex - 1) : OUT_NONE;
+            InCfgApply r = stageInputCfgV4(inNum - 1, (uint8_t)category,
+                                           (uint8_t)functionId, pri, sec,
+                                           outputEnabled != 0, oix,
+                                           n >= 8 ? name : nullptr);
+            Serial.printf("SET_INCFG_V4 IN_%d → %d\n", inNum, (int)r);
+            if (r == INCFG_COMMITTED) {
+                refreshBlinkerPins();
+                setupBeams();
+                if (gOutputs) sendState(gOutputs);
+            } else if (r == INCFG_REJECTED) {
+                bleLog(inputCfgRejectReason());
+            }
+        } else {
+            Serial.println("SET_INCFG_V4 FAIL (range)");
+        }
         return;
     }
 
@@ -185,9 +342,11 @@ void handleBleCommand(const char* value) {
                                       : (uint8_t)(outNum - 1),
                                   n >= 6 ? name : nullptr);
             Serial.println(ok ? "SET_INCFG OK" : "SET_INCFG FAIL");
-            refreshBlinkerPins();
-            setupBeams();
-            sendInputCfg();
+            if (ok) {
+                refreshBlinkerPins();
+                setupBeams();
+            }
+            sendInputCfgV4();
             if (gOutputs) sendState(gOutputs);
         } else {
             Serial.println("SET_INCFG FAIL (range)");
@@ -201,9 +360,9 @@ void handleBleCommand(const char* value) {
         if (sscanf(value + 3, "%d:%d", &num, &state) == 2 &&
             num >= 1 && num <= 10) {
             setBleInputPressed(num - 1, state != 0);
-            if (inputCfg[num - 1].mode == IN_SENSOR)
+            if (inputCfg[num - 1].category == CAT_SENSOR)
                 setSensorSimulation(num - 1, state != 0);
-            if (inputCfg[num - 1].mode == IN_STARTER)
+            if (inputCfg[num - 1].functionId == FN_STARTER)
                 setBleStarterPressed(state != 0);
             if (gOutputs) sendState(gOutputs);
         }
@@ -282,10 +441,11 @@ void handleBleCommand(const char* value) {
             bool isLeft = false, isRight = false;
             bool isStarterOut = false;
             for (int i = 0; i < INPUT_COUNT; i++) {
-                if ((int)inputCfg[i].outIndex != oi) continue;
-                if (inputCfg[i].mode == IN_LEFT)    isLeft = true;
-                if (inputCfg[i].mode == IN_RIGHT)   isRight = true;
-                if (inputCfg[i].mode == IN_STARTER) isStarterOut = true;
+                if (!outAssigned(inputCfg[i].outPrimary) ||
+                    (int)inputCfg[i].outPrimary != oi) continue;
+                if (inputCfg[i].functionId == FN_LEFT)    isLeft = true;
+                if (inputCfg[i].functionId == FN_RIGHT)   isRight = true;
+                if (inputCfg[i].functionId == FN_STARTER) isStarterOut = true;
             }
 
             if (isLeft && !isRight) {

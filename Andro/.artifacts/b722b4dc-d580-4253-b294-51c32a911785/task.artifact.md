@@ -1,0 +1,3 @@
+- [x] Remove redundant `autoLights` logic from `DashboardScreen.kt`
+- [x] Verify Dashboard stability
+- [x] Create walkthrough

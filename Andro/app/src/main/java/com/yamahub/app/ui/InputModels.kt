@@ -1,265 +1,196 @@
 package com.yamahub.app.ui
 
 import com.yamahub.app.InputCfgItem
-import com.yamahub.app.displayName
 
+/** Kategorie wejść zsynchronizowane z ESP */
 object Mode {
-    const val TOGGLE = 0
-    const val MOMENT = 1
-    const val LEFT = 2
-    const val RIGHT = 3
-    const val SENSOR = 4
-    const val DISABLED = 5
-    const val STARTER = 6
+    const val BUTTON = 0
+    const val SENSOR = 1
+    const val DISABLED = 2
 }
 
-// ---------------------------------------------------------------------------
-// Model
-// ---------------------------------------------------------------------------
-enum class FnKind {
-    LEFT, RIGHT, LIGHTS, BRAKE, NEUTRAL, STARTER, BUTTON, SENSOR, DISABLED
+/** Funkcje logiczne zdefiniowane w ESP (FunctionID) */
+enum class FnKind(val id: Int) {
+    LEFT(1),
+    RIGHT(2),
+    LIGHTS_1(3),
+    LIGHTS_2(4),
+    BRAKE_1(5),
+    BRAKE_2(6),
+    NEUTRAL(7),
+    CLUTCH(8),
+    STARTER(9),
+    OIL(10),
+    FUEL(11),
+    USER(12),
+    DISABLED(0)
+}
+
+enum class FnCategory { BUTTON, SENSOR, DISABLED }
+
+fun modeToCategory(mode: Int): FnCategory = when (mode) {
+    Mode.SENSOR -> FnCategory.SENSOR
+    Mode.DISABLED -> FnCategory.DISABLED
+    else -> FnCategory.BUTTON
 }
 
 var nextSlotId = 1L
 
 data class FnSlot(
+    val inNum: Int,
+    val category: FnCategory,
     val kind: FnKind,
-    val variant: Int = 1,
-    val outNum: Int = 1,
-    /** Drugi OUT tylko przy 1× LIGHTS (HI = outNum, LOW = outNum2). 0 = brak. */
-    val outNum2: Int = 0,
+    /** Główne wyjście (HI Beam / Blinker / Brake / Starter / User Out) */
+    val outPrimary: Int = 0,
+    /** Pomocnicze wyjście (LOW Beam w 1x LIGHTS) */
+    val outSecondary: Int = 0,
+    /** Czy funkcja steruje wyjściem (dla USER) */
     val outputEnabled: Boolean = false,
-    val outputNum: Int = outNum,
+    /** Port wyjściowy sterowany przez funkcję (dla USER) */
+    val outputIndex: Int = 0,
     val customName: String = "",
+    val isFixed: Boolean = false,
+    val isOutLocked: Boolean = false,
     val id: Long = nextSlotId++
 )
 
-fun FnSlot.title(): String = when (kind) {
-    FnKind.LEFT -> "KIERUNEK L"
-    FnKind.RIGHT -> "KIERUNEK P"
-    FnKind.LIGHTS -> "LIGHTS"
-    FnKind.BRAKE -> "BRAKE"
-    FnKind.NEUTRAL -> "NEUTRAL"
-    FnKind.STARTER -> "STARTER"
-    FnKind.BUTTON -> customName.ifBlank { "BUTTON" }
-    FnKind.SENSOR -> customName.ifBlank { "SENSOR" }
-    FnKind.DISABLED -> "DISABLED"
+/** Czy funkcja jest systemowa (nie można zmienić jej rodzaju, tylko port OUT) */
+fun FnSlot.isSystem(): Boolean = kind != FnKind.USER && kind != FnKind.DISABLED
+
+/** Pola, które lecą na ESP — bez id UI. */
+fun FnSlot.samePersist(other: FnSlot?): Boolean {
+    if (other == null) return false
+    return category == other.category &&
+        kind == other.kind &&
+        outPrimary == other.outPrimary &&
+        outSecondary == other.outSecondary &&
+        outputEnabled == other.outputEnabled &&
+        outputIndex == other.outputIndex &&
+        customName == other.customName
 }
 
-fun FnSlot.subtitle(lightsCount: Int, brakesCount: Int): String? = when (kind) {
-    FnKind.LIGHTS -> when {
-        lightsCount < 2 -> null
-        variant <= 1 -> "HI BEAM"
-        else -> "LOW BEAM"
+fun kindPickerLabel(kind: FnKind, hubLabel: String? = null): String = when (kind) {
+    FnKind.LIGHTS_2 -> "LOW BEAM"
+    FnKind.BRAKE_2 -> "BRAKE"
+    else -> hubLabel ?: kind.name
+}
+
+/** Tytuł na liście slotów — 1x/2x LIGHTS i BRAKE. */
+fun FnSlot.title(
+    modeDefinitions: List<com.yamahub.app.ModeDefinition> = emptyList(),
+    lightsCount: Int = 1,
+    brakesCount: Int = 1
+): String {
+    if (category == FnCategory.DISABLED || kind == FnKind.DISABLED) return "DISABLED"
+    return when (kind) {
+        FnKind.USER -> customName.ifBlank { category.name }
+        FnKind.LIGHTS_1 -> if (lightsCount < 2) "LIGHTS" else "HI BEAM"
+        FnKind.LIGHTS_2 -> "LOW BEAM"
+        FnKind.BRAKE_1 -> if (brakesCount < 2) "BRAKES" else "FRONT BRAKE"
+        FnKind.BRAKE_2 -> "REAR BRAKE"
+        else -> modeDefinitions.find { it.id == kind.id && it.category == category.ordinal }?.label
+            ?: kind.name
     }
-    FnKind.BRAKE -> when {
-        brakesCount < 2 -> null
-        variant <= 1 -> "front"
-        else -> "rear"
+}
+
+/** Tekst pod tytułem: pokazuje tylko porty OUT */
+fun FnSlot.subtitle(lightsCount: Int): String? {
+    if (kind == FnKind.DISABLED) return null
+    
+    // Dla świateł w trybie 1x pokazujemy oba porty
+    if (kind == FnKind.LIGHTS_1 && lightsCount < 2) {
+        val lowStr = if (outSecondary > 0) " · OUT %02d".format(outSecondary) else ""
+        return "OUT %02d%s".format(outPrimary, lowStr)
     }
-    else -> null
-}
-
-/** Stałe funkcje – bez zmiany rodzaju. LIGHTS 2 / BRAKE 2 są zdejmowalne. */
-fun FnSlot.isFixed(): Boolean = when (kind) {
-    FnKind.LEFT, FnKind.RIGHT, FnKind.NEUTRAL, FnKind.STARTER -> true
-    FnKind.LIGHTS, FnKind.BRAKE -> variant <= 1
-    else -> false
-}
-
-fun FnSlot.hasOutPicker(): Boolean = when (kind) {
-    FnKind.DISABLED -> false
-    else -> true
-}
-
-fun FnSlot.hasOptionalOutputControl(): Boolean = when (kind) {
-    FnKind.BUTTON, FnKind.SENSOR, FnKind.NEUTRAL -> true
-    FnKind.BRAKE -> variant <= 1
-    else -> false
-}
-
-fun FnSlot.toMode(): Int = when (kind) {
-    FnKind.LEFT -> Mode.LEFT
-    FnKind.RIGHT -> Mode.RIGHT
-    FnKind.LIGHTS, FnKind.BUTTON -> Mode.TOGGLE
-    FnKind.BRAKE, FnKind.NEUTRAL -> Mode.SENSOR
-    FnKind.SENSOR -> Mode.SENSOR
-    FnKind.DISABLED -> Mode.DISABLED
-    FnKind.STARTER -> Mode.STARTER
-}
-
-fun FnSlot.toWireName(lightsCount: Int): String = when (kind) {
-    FnKind.LEFT -> "Kierunek_L"
-    FnKind.RIGHT -> "Kierunek_P"
-    FnKind.LIGHTS -> when {
-        lightsCount < 2 && outNum2 in 1..10 -> "LIGHTS_L$outNum2"
-        variant <= 1 -> "LIGHTS"
-        else -> "LIGHTS_2"
+    
+    if (kind == FnKind.USER) {
+        val on = category == FnCategory.BUTTON || outputEnabled
+        return if (on && outputIndex > 0) "OUT %02d".format(outputIndex) else null
     }
-    FnKind.BRAKE -> if (variant <= 1) "BRAKE_front" else "BRAKE_rear"
-    FnKind.NEUTRAL -> "NEUTRAL"
-    FnKind.STARTER -> "STARTER"
-    FnKind.BUTTON -> customName.ifBlank { "BUTTON" }.replace(" ", "_").take(15)
-    FnKind.SENSOR -> customName.ifBlank { "SENSOR" }.replace(" ", "_").take(15)
-    FnKind.DISABLED -> "DISABLED"
+    if (category == FnCategory.SENSOR && kind != FnKind.BRAKE_1 && kind != FnKind.BRAKE_2) {
+        return if (outputEnabled && outPrimary > 0) "OUT %02d".format(outPrimary) else null
+    }
+
+    // Dla reszty pokazujemy primary jeśli > 0
+    return if (outPrimary > 0) "OUT %02d".format(outPrimary) else null
 }
 
-/** Nazwa bez podkreśleń – lokalny helper na String. */
-private fun prettyName(raw: String): String =
-    raw.replace('_', ' ').trim()
-
+/** Mapowanie surowej ramki z ESP na obiekt domeny Androida */
 fun InputCfgItem.toFnSlot(): FnSlot {
-    val n = name.trim()
-    val nd = prettyName(n).lowercase()
-    val pretty = this.displayName()
-    val o = outNum.coerceIn(1, 10)
-        return when (mode) {
-            Mode.LEFT -> FnSlot(kind = FnKind.LEFT, outNum = o)
-            Mode.RIGHT -> FnSlot(kind = FnKind.RIGHT, outNum = o)
-            Mode.SENSOR -> when {
-                nd.contains("neutral") || nd.contains("luz") ->
-                    FnSlot(FnKind.NEUTRAL, outNum = o,
-                        outputEnabled = outputEnabled, outputNum = outputNum.coerceIn(1, 10))
-                nd.contains("brake") ->
-                    FnSlot(FnKind.BRAKE, outNum = o,
-                        outputEnabled = outputEnabled, outputNum = outputNum.coerceIn(1, 10))
-                else -> FnSlot(
-                    kind = FnKind.SENSOR,
-                    outNum = o,
-                    outputEnabled = outputEnabled,
-                    outputNum = outputNum.coerceIn(1, 10),
-                    customName = pretty.ifBlank { "SENSOR" }
-                )
-            }
-            Mode.DISABLED -> FnSlot(kind = FnKind.DISABLED, outNum = o)
-            Mode.STARTER -> FnSlot(kind = FnKind.STARTER, outNum = o)
-            Mode.MOMENT -> when {
-                nd.contains("neutral") -> FnSlot(kind = FnKind.NEUTRAL, outNum = o,
-                    outputEnabled = outputEnabled, outputNum = outputNum.coerceIn(1, 10))
-                nd.contains("brake") && (nd.contains("rear") || nd.contains("2")) ->
-                    FnSlot(kind = FnKind.BRAKE, variant = 2, outNum = o,
-                        outputEnabled = outputEnabled, outputNum = outputNum.coerceIn(1, 10))
-                nd.contains("starter") -> FnSlot(kind = FnKind.STARTER, outNum = o)
-                else -> FnSlot(kind = FnKind.BRAKE, variant = 1, outNum = o,
-                    outputEnabled = outputEnabled, outputNum = outputNum.coerceIn(1, 10))
-            }
-            else -> when {
-                nd.contains("starter") -> FnSlot(kind = FnKind.STARTER, outNum = o)
-                nd.startsWith("lights") || nd.contains("light") ||
-                    nd.contains("hi_beam") || nd.contains("low_beam") ||
-                    nd.contains("hibeam") || nd.contains("lowbeam") -> {
-                    val lowMatch = Regex("""LIGHTS_L(\d+)""", RegexOption.IGNORE_CASE).find(n)
-                    val hiMatch = Regex("""LIGHTS_H(\d+)""", RegexOption.IGNORE_CASE).find(n)
-                    val lowEnc = lowMatch?.groupValues?.getOrNull(1)?.toIntOrNull()?.coerceIn(1, 10) ?: 0
-                    val hiEnc = hiMatch?.groupValues?.getOrNull(1)?.toIntOrNull()?.coerceIn(1, 10) ?: 0
-                    val v = when {
-                        lowEnc > 0 || hiEnc > 0 -> 1
-                        nd.contains("2") || n.contains("_2") -> 2
-                        else -> 1
-                    }
-                    // nowy: primary=HI, LIGHTS_L=LOW; stary LIGHTS_H: primary=LOW, H=HI → zamiana
-                    val (hiOut, lowOut) = when {
-                        lowEnc > 0 -> o to lowEnc
-                        hiEnc > 0 -> hiEnc to o
-                        else -> o to 0
-                    }
-                    FnSlot(kind = FnKind.LIGHTS, variant = v, outNum = hiOut, outNum2 = lowOut)
-                }
-                else -> FnSlot(
-                    kind = FnKind.BUTTON,
-                    outNum = o,
-                    outputEnabled = outputEnabled,
-                    outputNum = outputNum.coerceIn(1, 10),
-                    customName = pretty.ifBlank { "BUTTON" }
-                )
-            }
-    }
+    val category = modeToCategory(this.mode)
+    val kind = FnKind.entries.find { it.id == this.functionId } ?: FnKind.DISABLED
+    
+    return FnSlot(
+        inNum = this.inNum,
+        category = category,
+        kind = kind,
+        outPrimary = this.outNum,
+        outSecondary = this.outSecondary,
+        outputEnabled = this.outputEnabled,
+        outputIndex = this.outputNum,
+        customName = this.name.replace("_", " ").trim(),
+        isFixed = this.isFixed,
+        isOutLocked = this.isOutLocked
+    )
 }
 
-fun defaultSlots(): List<FnSlot> = listOf(
-    FnSlot(kind = FnKind.LEFT, outNum = 1),
-    FnSlot(kind = FnKind.RIGHT, outNum = 5),
-    FnSlot(kind = FnKind.LIGHTS, variant = 1, outNum = 7, outNum2 = 3),
-    FnSlot(kind = FnKind.BRAKE, variant = 1, outNum = 4),
-    FnSlot(kind = FnKind.NEUTRAL, outNum = 6),
-    FnSlot(kind = FnKind.STARTER, outNum = 10),
-    FnSlot(kind = FnKind.BUTTON, outNum = 2, customName = "BUTTON"),
-    FnSlot(kind = FnKind.BUTTON, outNum = 8, customName = "BUTTON"),
-    FnSlot(kind = FnKind.DISABLED, outNum = 9),
-    FnSlot(kind = FnKind.DISABLED, outNum = 1)
-)
+/** Zmiana funkcji na wolnym slocie. Systemowych nie rusza. */
+fun applyKindChange(slots: List<FnSlot>, index: Int, kind: FnKind): List<FnSlot> {
+    val list = slots.toMutableList()
+    val old = list.getOrNull(index) ?: return slots
+    if (old.isFixed) return slots
+    if (kind != FnKind.USER && kind != FnKind.DISABLED &&
+        list.any { it.id != old.id && it.kind == kind }
+    ) return slots
 
-/** Uzupełnia brakujące wymagane funkcje; nie rusza istniejącego STARTER / LIGHTS OUT. */
+    var slot = old.copy(kind = kind, customName = "")
+    slot = slot.copy(
+        category = when (kind) {
+            FnKind.LEFT, FnKind.RIGHT, FnKind.LIGHTS_1, FnKind.LIGHTS_2, FnKind.STARTER ->
+                FnCategory.BUTTON
+            FnKind.BRAKE_1, FnKind.BRAKE_2, FnKind.NEUTRAL, FnKind.CLUTCH, FnKind.OIL, FnKind.FUEL ->
+                FnCategory.SENSOR
+            FnKind.DISABLED -> FnCategory.DISABLED
+            FnKind.USER -> old.category
+        },
+        isOutLocked = kind == FnKind.BRAKE_2
+    )
+
+    if (kind == FnKind.LIGHTS_2) {
+        val l1 = list.indexOfFirst { it.kind == FnKind.LIGHTS_1 }
+        if (l1 >= 0 && list[l1].outSecondary in 1..10) {
+            slot = slot.copy(outPrimary = list[l1].outSecondary)
+            list[l1] = list[l1].copy(outSecondary = 0)
+        }
+    }
+    if (kind == FnKind.BRAKE_2) {
+        val b1 = list.firstOrNull { it.kind == FnKind.BRAKE_1 }
+        if (b1 != null) slot = slot.copy(outPrimary = b1.outPrimary)
+    }
+    if (old.kind == FnKind.LIGHTS_2 && kind != FnKind.LIGHTS_2) {
+        val l1 = list.indexOfFirst { it.kind == FnKind.LIGHTS_1 }
+        if (l1 >= 0 && list[l1].outSecondary !in 1..10 && old.outPrimary in 1..10) {
+            list[l1] = list[l1].copy(outSecondary = old.outPrimary)
+        }
+    }
+    if (kind == FnKind.DISABLED) {
+        slot = slot.copy(
+            outPrimary = 0,
+            outSecondary = 0,
+            outputEnabled = false,
+            isOutLocked = false
+        )
+    }
+    list[index] = slot
+    return list
+}
+
+/** Uzupełnia listę do 10 slotów */
 fun normalizeSlots(raw: List<FnSlot>): List<FnSlot> {
     val list = raw.take(10).toMutableList()
     while (list.size < 10) {
-        list.add(FnSlot(kind = FnKind.DISABLED, outNum = (list.size + 1).coerceAtMost(10)))
-    }
-
-    fun ensureOne(kind: FnKind, variant: Int = 1, outFallback: Int) {
-        if (list.none { it.kind == kind && it.variant == variant }) {
-            val free = list.indexOfFirst {
-                it.kind == FnKind.DISABLED || it.kind == FnKind.BUTTON
-            }
-            if (free >= 0) {
-                list[free] = FnSlot(kind = kind, variant = variant, outNum = outFallback)
-            }
-        }
-    }
-    ensureOne(FnKind.LEFT, 1, 1)
-    ensureOne(FnKind.RIGHT, 1, 5)
-    ensureOne(FnKind.LIGHTS, 1, 3)
-    ensureOne(FnKind.BRAKE, 1, 4)
-    ensureOne(FnKind.NEUTRAL, 1, 6)
-    ensureOne(FnKind.STARTER, 1, 10)
-
-    var leftSeen = false
-    var rightSeen = false
-    var lights = 0
-    var brakes = 0
-    var neutralSeen = false
-    var starterSeen = false
-    for (i in list.indices) {
-        val s = list[i]
-        when (s.kind) {
-            FnKind.LEFT -> {
-                if (leftSeen) list[i] = FnSlot(kind = FnKind.DISABLED, outNum = s.outNum)
-                else leftSeen = true
-            }
-            FnKind.RIGHT -> {
-                if (rightSeen) list[i] = FnSlot(kind = FnKind.DISABLED, outNum = s.outNum)
-                else rightSeen = true
-            }
-            FnKind.LIGHTS -> {
-                lights++
-                if (lights > 2) list[i] = FnSlot(kind = FnKind.DISABLED, outNum = s.outNum)
-                else list[i] = s.copy(variant = lights)
-            }
-            FnKind.BRAKE -> {
-                brakes++
-                if (brakes > 2) list[i] = FnSlot(kind = FnKind.DISABLED, outNum = s.outNum)
-                else list[i] = s.copy(variant = brakes)
-            }
-            FnKind.NEUTRAL -> {
-                if (neutralSeen) list[i] = FnSlot(kind = FnKind.DISABLED, outNum = s.outNum)
-                else neutralSeen = true
-            }
-            FnKind.STARTER -> {
-                if (starterSeen) list[i] = FnSlot(kind = FnKind.DISABLED, outNum = s.outNum)
-                else starterSeen = true
-            }
-            else -> {}
-        }
-    }
-
-    // Oba BRAKE – ten sam OUT
-    val brakeOut = list.firstOrNull { it.kind == FnKind.BRAKE }?.outNum
-    if (brakeOut != null) {
-        for (i in list.indices) {
-            if (list[i].kind == FnKind.BRAKE) {
-                list[i] = list[i].copy(outNum = brakeOut)
-            }
-        }
+        val n = list.size + 1
+        list.add(FnSlot(inNum = n, category = FnCategory.DISABLED, kind = FnKind.DISABLED))
     }
     return list
 }

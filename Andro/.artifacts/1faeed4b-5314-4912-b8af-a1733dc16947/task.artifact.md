@@ -1,0 +1,11 @@
+- `[/]` **Krok 1: Aktualizacja Firmware ESP (Mózg)**
+    - `[x]` `ble_protocol.cpp`: Usunięcie LIGHTS 1 i BRAKE 1 z menu (`flags=0`)
+    - `[x]` `ble_protocol.cpp`: Dynamiczne ukrywanie LIGHTS 2 i BRAKE 2 po osiągnięciu limitu
+    - `[x]` `input_cfg.cpp`: Ulepszona logika migracji portu LOW BEAM przy przejściu 1x -> 2x
+- `[/]` **Krok 2: Aktualizacja Aplikacji Android (Lustro)**
+    - `[ ]` `InputSlotEditor.kt`: Warunkowe ukrywanie pola "LOW BEAM OUT" w LIGHTS 1
+    - `[ ]` `InputSlotEditor.kt`: Poprawa etykiety dla LIGHTS 2 na "LOW BEAM OUT"
+    - `[ ]` `InputModels.kt`: Poprawa `subtitle` dla trybu dwuslotowego
+- `[ ]` **Krok 3: Weryfikacja i Upload**
+    - `[ ]` Kompilacja obu projektów
+    - `[ ]` Upload na płytkę

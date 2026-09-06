@@ -1,34 +1,43 @@
 #pragma once
 
-// ESP32-S3-LCD-1.47B (TESTY) – bez GPIO 35/36/37 (Octal PSRAM!)
-// LCD: 39,40,41,42,45,46
+// ESP32-S3-LCD-1.47B (WAVESHARE) - Final Safe Pinout
+// Avoiding Octal PSRAM conflicts (GP8-GP13, GP33-GP37)
 
-#define IN_1      7
-#define IN_2      15
-#define IN_3      17
-#define IN_4      18
-#define IN_5      4
-#define IN_6      8
-#define IN_7      16
-#define IN_8      6
-#define IN_9      5
-#define IN_10     0
+// CAN BUS (MCP2515) - Pins 43, 44, 0, 2
+#define CAN_MOSI  43     // TX
+#define CAN_MISO  44     // RX
+#define CAN_SCK   0      // GP0
+#define CAN_CS    2      // GP2
+#define CAN_INT   -1
 
-#define OUT_1     3
-#define OUT_2     10
-#define OUT_3     11
-#define OUT_4     9      // NIE 36
-#define OUT_5     12
-#define OUT_6     47
-#define OUT_7     21     // NIE 35
-#define OUT_8     48     // NIE 37
-#define OUT_9     13
-#define OUT_10    14
+// Waveshare Internal/Fixed
+#define LCD_BL_PIN 48
+#define V_BAT_PIN  1
 
-#define U3_EN     19
-#define I2C_SDA   1
-#define I2C_SCL   2
-#define V_BAT_PIN 20     // ostrożnie – testowo
-#define GPS_RX    2      // tymczasowo (I2C i tak nie używasz)
-#define GPS_TX    1
-#define LED_STATUS 38
+// Dummy GPIO (test board). ESP-IDF abortuje gpio_reset_pin / gpio_set_level poza 0..48.
+static inline bool pinValid(int p) {
+    return p >= 0 && p <= 48;
+}
+
+// Muted IO for testing - set to 254 (unused) to avoid narrowing error
+#define IN_1      254
+#define IN_2      254
+#define IN_3      254
+#define IN_4      254
+#define IN_5      254
+#define IN_6      254
+#define IN_7      254
+#define IN_8      254
+#define IN_9      254
+#define IN_10     254
+
+#define OUT_1     254
+#define OUT_2     254
+#define OUT_3     254
+#define OUT_4     254
+#define OUT_5     254
+#define OUT_6     254
+#define OUT_7     254
+#define OUT_8     254
+#define OUT_9     254
+#define OUT_10    254

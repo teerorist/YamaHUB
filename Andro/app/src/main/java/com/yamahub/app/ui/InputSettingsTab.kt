@@ -1,5 +1,6 @@
 package com.yamahub.app.ui
 
+import android.util.Log
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.foundation.background
@@ -7,20 +8,7 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.gestures.detectTapGestures
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.PaddingValues
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.imePadding
-import androidx.compose.foundation.layout.navigationBarsPadding
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
@@ -29,22 +17,8 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ExpandLess
 import androidx.compose.material.icons.filled.ExpandMore
 import androidx.compose.material.icons.filled.Menu
-import androidx.compose.material3.Button
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
-import androidx.compose.material3.LocalContentColor
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Text
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.DisposableEffect
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableFloatStateOf
-import androidx.compose.runtime.mutableIntStateOf
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
-import androidx.compose.runtime.setValue
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.shadow
@@ -60,61 +34,62 @@ import androidx.compose.ui.zIndex
 import com.yamahub.app.BleHub
 import com.yamahub.app.InputCfgItem
 import kotlinx.coroutines.delay
-import kotlinx.coroutines.launch
 import kotlin.math.round
 
 @Composable
 fun InputSettingsTab() {
     val context = LocalContext.current
     val ble = remember { BleHub.manager(context) }
-    val scope = rememberCoroutineScope()
     val listState = rememberLazyListState()
     val density = LocalDensity.current
 
-    var saved by remember { mutableStateOf(defaultSlots()) }
-    var draft by remember { mutableStateOf(defaultSlots()) }
+    var saved by remember { mutableStateOf<List<FnSlot>?>(null) }
+    var draft by remember { mutableStateOf<List<FnSlot>?>(null) }
     var error by remember { mutableStateOf<String?>(null) }
-    var saving by remember { mutableStateOf(false) }
     var isConnected by remember { mutableStateOf(ble.isConnected) }
     var starterEnabled by remember { mutableStateOf(ble.starterEnabled) }
     var inputStates by remember { mutableStateOf(List(10) { false }) }
+    var modeDefinitions by remember { mutableStateOf(emptyList<com.yamahub.app.ModeDefinition>()) }
     var expandedIdx by remember { mutableIntStateOf(-1) }
 
     var dragId by remember { mutableStateOf(-1L) }
     var dragOffsetY by remember { mutableFloatStateOf(0f) }
 
-    val dirty = draft != saved
     val rowHeightPx = with(density) { (46.dp + 6.dp).toPx() }
-    val lightsCount = draft.count { it.kind == FnKind.LIGHTS }
-    val brakesCount = draft.count { it.kind == FnKind.BRAKE }
+    val currentDraft = draft ?: emptyList()
+    val lightsCount = currentDraft.count { it.kind == FnKind.LIGHTS_1 || it.kind == FnKind.LIGHTS_2 }
+    val brakesCount = currentDraft.count { it.kind == FnKind.BRAKE_1 || it.kind == FnKind.BRAKE_2 }
 
-    fun collectOutClaims(slots: List<FnSlot> = draft): List<Pair<Int, String>> {
+    fun collectOutClaims(slots: List<FnSlot> = draft ?: emptyList()): List<Pair<Int, String>> {
         val claims = mutableListOf<Pair<Int, String>>()
-        val lc = slots.count { it.kind == FnKind.LIGHTS }
+        val lc = slots.count { it.kind == FnKind.LIGHTS_1 || it.kind == FnKind.LIGHTS_2 }
         var brakeDone = false
         slots.forEach { s ->
-            if (!s.hasOutPicker()) return@forEach
-            if (s.kind == FnKind.BRAKE && s.variant > 1) return@forEach
-            if (s.hasOptionalOutputControl() && !s.outputEnabled) return@forEach
+            if (s.kind == FnKind.DISABLED) return@forEach
+            if (s.kind == FnKind.BRAKE_2) return@forEach
+            if (s.category == FnCategory.SENSOR &&
+                s.kind != FnKind.BRAKE_1 && s.kind != FnKind.BRAKE_2 &&
+                !s.outputEnabled
+            ) return@forEach
+            
             when (s.kind) {
-                FnKind.BRAKE -> {
-                    if (!brakeDone) {
-                        claims += s.outputNum.coerceIn(1, 10) to "BRAKE"
+                FnKind.BRAKE_1 -> {
+                    if (!brakeDone && s.outPrimary in 1..10) {
+                        claims += s.outPrimary to "BRAKE"
                         brakeDone = true
                     }
                 }
-                FnKind.LIGHTS -> {
-                    if (lc < 2) {
-                        claims += s.outNum.coerceIn(1, 10) to "LIGHTS HI"
-                        if (s.outNum2 in 1..10) claims += s.outNum2 to "LIGHTS LOW"
-                    } else {
-                        val tag = if (s.variant <= 1) "LIGHTS HI" else "LIGHTS LOW"
-                        claims += s.outNum.coerceIn(1, 10) to tag
-                    }
+                FnKind.LIGHTS_1 -> {
+                    if (s.outPrimary in 1..10) claims += s.outPrimary to "LIGHTS HI"
+                    if (lc < 2 && s.outSecondary in 1..10) claims += s.outSecondary to "LIGHTS LOW"
+                }
+                FnKind.LIGHTS_2 -> {
+                    if (s.outPrimary in 1..10) claims += s.outPrimary to "LIGHTS LOW"
                 }
                 else -> {
-                    val output = if (s.hasOptionalOutputControl()) s.outputNum else s.outNum
-                    claims += output.coerceIn(1, 10) to s.title()
+                    val output = if (s.kind == FnKind.USER) s.outputIndex else s.outPrimary
+                    if (output in 1..10) claims += output to s.title(modeDefinitions, lc,
+                        slots.count { it.kind == FnKind.BRAKE_1 || it.kind == FnKind.BRAKE_2 })
                 }
             }
         }
@@ -124,69 +99,64 @@ fun InputSettingsTab() {
     fun outOccupants(): Map<Int, List<String>> =
         collectOutClaims().groupBy({ it.first }, { it.second })
 
-    fun outsOf(slot: FnSlot, lc: Int): Set<Int> {
-        if (!slot.hasOutPicker()) return emptySet()
-        if (slot.hasOptionalOutputControl() && !slot.outputEnabled)
-            return emptySet() // Return empty set if output is not enabled
-        val selectedOut = if (slot.hasOptionalOutputControl())
-            slot.outputNum else slot.outNum
-        return if (slot.kind == FnKind.LIGHTS && lc < 2) {
-            buildSet {
-                add(slot.outNum.coerceIn(1, 10))
-                if (slot.outNum2 in 1..10) add(slot.outNum2)
-            }
-        } else {
-            setOf(selectedOut.coerceIn(1, 10))
-        }
-    }
-
     fun isOutConflictAt(index: Int): Boolean {
-        val s = draft.getOrNull(index) ?: return false
-        if (!s.hasOutPicker()) return false
-        val lc = lightsCount
-        val mine = outsOf(s, lc)
-        if (mine.isEmpty()) return false
-        if (s.kind == FnKind.LIGHTS && lc < 2 &&
-            s.outNum2 in 1..10 && s.outNum == s.outNum2
-        ) return true
-        for (i in draft.indices) {
-            if (i == index) continue
-            val o = draft[i]
-            if (!o.hasOutPicker()) continue
-            if (s.kind == FnKind.BRAKE && o.kind == FnKind.BRAKE) continue
-            if (mine.any { it in outsOf(o, lc) }) return true
+        val s = currentDraft.getOrNull(index) ?: return false
+        if (s.kind == FnKind.DISABLED) return false
+        val occupants = outOccupants()
+        
+        // Sprawdzamy czy którykolwiek z portów tego slotu jest zajęty przez kogoś innego
+        val myPorts = mutableSetOf<Int>()
+        if (s.kind == FnKind.USER) {
+            val on = s.category == FnCategory.BUTTON || s.outputEnabled
+            if (on && s.outputIndex > 0) myPorts.add(s.outputIndex)
+        } else if (s.category == FnCategory.SENSOR &&
+            s.kind != FnKind.BRAKE_1 && s.kind != FnKind.BRAKE_2
+        ) {
+            if (s.outputEnabled && s.outPrimary > 0) myPorts.add(s.outPrimary)
+        } else {
+            if (s.outPrimary > 0) myPorts.add(s.outPrimary)
+            if (s.kind == FnKind.LIGHTS_1 && lightsCount < 2 && s.outSecondary > 0) myPorts.add(s.outSecondary)
         }
-        return false
+        
+        return myPorts.any { (occupants[it]?.size ?: 0) > 1 }
     }
 
-    fun freeOut(excluding: Set<Int>, preferred: Int = 0, slots: List<FnSlot> = draft): Int {
-        val used = collectOutClaims(slots).map { it.first }.toSet() + excluding
-        if (preferred in 1..10 && preferred !in used) return preferred
-        for (o in 1..10) if (o !in used) return o
-        return preferred.takeIf { it in 1..10 } ?: 1
-    }
+    fun validate(d: List<FnSlot>? = draft): String? {
+        if (d == null) return null
+        val required = listOf(
+            FnKind.LEFT, FnKind.RIGHT, FnKind.LIGHTS_1,
+            FnKind.BRAKE_1, FnKind.NEUTRAL, FnKind.STARTER
+        )
+        required.forEach { k ->
+            if (d.count { it.kind == k } != 1) return "Brak funkcji ${k.name}"
+        }
+        FnKind.entries.filter { it != FnKind.USER && it != FnKind.DISABLED }.forEach { k ->
+            if (d.count { it.kind == k } > 1) return "Tylko jedna funkcja ${kindPickerLabel(k)}"
+        }
+        d.forEach { s ->
+            if (s.kind in required && s.kind != FnKind.NEUTRAL && s.outPrimary !in 1..10)
+                return "${s.kind.name}: wybierz OUT"
+            if (s.kind == FnKind.USER && s.category == FnCategory.BUTTON && s.outputIndex !in 1..10)
+                return "USER: wybierz OUT"
+            if (s.kind == FnKind.USER && s.category == FnCategory.SENSOR &&
+                s.outputEnabled && s.outputIndex !in 1..10
+            ) return "USER: wybierz OUT"
+            if (s.category == FnCategory.SENSOR && s.kind != FnKind.USER &&
+                s.kind != FnKind.BRAKE_1 && s.kind != FnKind.BRAKE_2 &&
+                s.outputEnabled && s.outPrimary !in 1..10
+            ) return "${s.kind.name}: wybierz OUT"
+        }
 
-    fun countKind(kind: FnKind) = draft.count { it.kind == kind }
+        val lc = d.count { it.kind == FnKind.LIGHTS_1 || it.kind == FnKind.LIGHTS_2 }
 
-    fun validate(): String? {
-        if (countKind(FnKind.LEFT) != 1) return "Wymagane dokładnie 1× KIERUNEK L"
-        if (countKind(FnKind.RIGHT) != 1) return "Wymagane dokładnie 1× KIERUNEK P"
-        if (countKind(FnKind.LIGHTS) < 1) return "Wymagane co najmniej 1× LIGHTS"
-        if (countKind(FnKind.BRAKE) < 1) return "Wymagane co najmniej 1× BRAKE"
-        if (countKind(FnKind.NEUTRAL) != 1) return "Wymagane dokładnie 1× NEUTRAL"
-        if (countKind(FnKind.STARTER) != 1) return "Wymagane dokładnie 1× STARTER"
-
-        if (lightsCount < 2) {
-            val lights = draft.firstOrNull { it.kind == FnKind.LIGHTS }
-            if (lights != null && lights.outNum2 !in 1..10) {
+        if (lc < 2) {
+            val lights = d.firstOrNull { it.kind == FnKind.LIGHTS_1 }
+            if (lights != null && lights.outSecondary !in 1..10) {
                 return "LIGHTS: wybierz OUT dla LOW BEAM"
             }
-            if (lights != null && lights.outNum == lights.outNum2) {
-                return "LIGHTS: LOW i HI muszą mieć różne OUT"
-            }
         }
 
-        val dup = collectOutClaims().groupBy { it.first }.filter { it.value.size > 1 }
+        val dup = collectOutClaims(d).groupBy { it.first }.filter { it.value.size > 1 }
         if (dup.isNotEmpty()) {
             return dup.entries.joinToString("; ") { (out, who) ->
                 "OUT %02d: ".format(out) + who.joinToString(", ") { it.second }
@@ -196,32 +166,11 @@ fun InputSettingsTab() {
     }
 
     fun applyFromEsp(list: List<InputCfgItem>) {
+        Log.d("InputSettingsTab", "applyFromEsp called with ${list.size} items")
         if (list.size !in 9..10) return
-        val padded = list.toMutableList()
-        while (padded.size < 10) {
-            val n = padded.size + 1
-            padded.add(InputCfgItem(n, Mode.DISABLED, n.coerceAtMost(10), "DISABLED"))
-        }
-        val slots = normalizeSlots(padded.map { it.toFnSlot() })
+        val slots = list.map { it.toFnSlot() }
         saved = slots
-
-        if (saving) {
-            // Sprawdzamy czy to co przyszło zgadza się z naszym szkicem (draft).
-            // Ignorujemy ID (lokalne), patrzymy na funkcje i piny.
-            val match = slots.size == draft.size && slots.indices.all { i ->
-                val s1 = slots[i]
-                val s2 = draft[i]
-                s1.kind == s2.kind && s1.variant == s2.variant &&
-                    s1.outNum == s2.outNum && s1.outNum2 == s2.outNum2 &&
-                    s1.outputEnabled == s2.outputEnabled && s1.outputNum == s2.outputNum &&
-                    s1.customName == s2.customName
-            }
-            if (match) {
-                saving = false
-            }
-        } else {
-            draft = slots
-        }
+        draft = slots
         error = null
     }
 
@@ -230,6 +179,7 @@ fun InputSettingsTab() {
         val prevConn = ble.onConnectionChanged
         val prevInputStates = ble.onInputStates
         ble.onInputCfg = { list ->
+            Log.d("InputSettingsTab", "onInputCfg callback triggered")
             applyFromEsp(list)
             prevCfg?.invoke(list)
         }
@@ -239,6 +189,7 @@ fun InputSettingsTab() {
             prevConn?.invoke(c)
         }
         ble.onInputStates = { states -> inputStates = states; prevInputStates?.invoke(states) }
+        ble.onModeDefinitions = { defs -> modeDefinitions = defs }
         val prevStarter = ble.onStarterEnabled
         ble.onStarterEnabled = { enabled -> starterEnabled = enabled; prevStarter?.invoke(enabled) }
         onDispose {
@@ -251,151 +202,92 @@ fun InputSettingsTab() {
 
     LaunchedEffect(Unit) {
         delay(300)
+        Log.d("InputSettingsTab", "LaunchedEffect: checking cache and requesting data")
+        
+        // Use cached config if available to avoid hanging on loader
+        ble.lastReceivedInputCfg?.let {
+            Log.d("InputSettingsTab", "Using cached config")
+            applyFromEsp(it)
+        }
+
         if (ble.isConnected) ble.requestInputCfg()
+        if (ble.isConnected) ble.requestModeDefinitions()
     }
 
-    fun saveAll() {
-        val err = validate()
-        if (err != null) {
-            error = err
-            return
+    fun sendSlot(index: Int, slot: FnSlot, lightsCount: Int) {
+        val primary = when {
+            slot.kind == FnKind.DISABLED -> 0
+            slot.kind == FnKind.USER &&
+                (slot.category == FnCategory.BUTTON || slot.outputEnabled) -> slot.outputIndex
+            slot.kind == FnKind.USER -> 0
+            slot.category == FnCategory.SENSOR &&
+                slot.kind != FnKind.BRAKE_1 && slot.kind != FnKind.BRAKE_2 &&
+                !slot.outputEnabled -> 0
+            else -> slot.outPrimary
         }
-        val toSave = draft.toList()
-        val dup = collectOutClaims(toSave).groupBy { it.first }.filter { it.value.size > 1 }
-        if (dup.isNotEmpty()) {
-            error = dup.entries.joinToString("; ") { (out, who) ->
-                "OUT %02d: ".format(out) + who.joinToString(", ") { it.second }
-            }
-            return
+        val outEn = when {
+            slot.kind == FnKind.USER && slot.category == FnCategory.BUTTON -> true
+            slot.category == FnCategory.SENSOR &&
+                slot.kind != FnKind.BRAKE_1 && slot.kind != FnKind.BRAKE_2 -> slot.outputEnabled
+            else -> slot.outputEnabled || primary in 1..10
         }
-        error = null
-        saving = true
-        scope.launch {
-            try {
-                val lc = toSave.count { it.kind == FnKind.LIGHTS }
-                toSave.forEachIndexed { index, slot ->
-                    ble.setInputCfg(
-                        inNum = index + 1,
-                        mode = slot.toMode(),
-                        outNum = slot.outNum.coerceIn(1, 10),
-                        name = slot.toWireName(lc),
-                        outputEnabled = slot.outputEnabled,
-                        outputNum = slot.outputNum.coerceIn(1, 10)
-                    )
-                    delay(80)
-                }
-                delay(250)
-                ble.requestInputCfg()
-                delay(2000)
-                if (saving) {
-                    saved = toSave
-                    saving = false
-                }
-            } catch (e: Exception) {
-                saving = false
-                error = "Błąd zapisu: ${e.message}"
-            }
-        }
+        val secondary = if (slot.kind == FnKind.LIGHTS_1 && lightsCount < 2) slot.outSecondary else 0
+        ble.setInputCfgV4(
+            inNum = index + 1,
+            category = when (slot.category) {
+                FnCategory.BUTTON -> 0
+                FnCategory.SENSOR -> 1
+                else -> 2
+            },
+            functionId = slot.kind.id,
+            outPrimary = primary,
+            outSecondary = secondary,
+            outputEnabled = outEn,
+            outputNum = if (slot.kind == FnKind.USER && outEn) slot.outputIndex else primary,
+            name = slot.customName.ifBlank { slot.category.name }
+                .replace(" ", "_").replace(";", "_").replace(",", "_").take(15)
+        )
     }
 
-    fun setSlot(index: Int, slot: FnSlot) {
-        if (index !in draft.indices) return
-        val list = draft.toMutableList()
-        list[index] = slot
-        if (slot.kind == FnKind.BRAKE) {
-            for (i in list.indices) {
-                if (list[i].kind == FnKind.BRAKE) {
-                    list[i] = list[i].copy(outNum = slot.outNum, outputNum = slot.outputNum)
-                }
-            }
-        }
-        draft = list
-        error = null
+    fun persistDiff(newList: List<FnSlot>) {
+        if (!isConnected) return
+        val old = saved ?: return
+        val lc = newList.count { it.kind == FnKind.LIGHTS_1 || it.kind == FnKind.LIGHTS_2 }
+        val changed = newList.indices.filter { i -> !newList[i].samePersist(old.getOrNull(i)) }
+        if (changed.isEmpty()) return
+        changed.forEach { i -> sendSlot(i, newList[i], lc) }
+        ble.commitInputCfg()
+        saved = newList
     }
 
-    fun changeKind(index: Int, newKind: FnKind) {
-        val cur = draft.getOrNull(index) ?: return
-        if (cur.isFixed()) return
+    fun persistIfValid(newList: List<FnSlot>) {
+        draft = newList
+        val err = validate(newList)
+        error = err
+        if (err == null) persistDiff(newList)
+    }
 
-        val wasLights2 = cur.kind == FnKind.LIGHTS && cur.variant > 1
-        val lowFromRemoved = if (wasLights2) cur.outNum else 0
-
-        val slot = when (newKind) {
-            FnKind.LIGHTS -> {
-                val primary = draft.firstOrNull { it.kind == FnKind.LIGHTS && it.variant <= 1 }
-                val hi = primary?.outNum?.coerceIn(1, 10) ?: 7
-                val low = when {
-                    primary != null && primary.outNum2 in 1..10 && primary.outNum2 != hi ->
-                        primary.outNum2
-                    else -> freeOut(excluding = setOf(hi), preferred = cur.outNum)
-                }
-                FnSlot(FnKind.LIGHTS, variant = 2, outNum = low)
-            }
-            FnKind.BRAKE -> {
-                val shared = draft.firstOrNull { it.kind == FnKind.BRAKE }?.outputNum ?: cur.outputNum
-                FnSlot(FnKind.BRAKE, variant = 2, outNum = cur.outNum,
-                    outputEnabled = cur.outputEnabled, outputNum = shared)
-            }
-            FnKind.BUTTON -> FnSlot(FnKind.BUTTON, outNum = cur.outNum, customName = "BUTTON")
-            FnKind.SENSOR -> FnSlot(FnKind.SENSOR, outNum = cur.outNum, customName = "SENSOR")
-            FnKind.DISABLED -> FnSlot(FnKind.DISABLED, outNum = cur.outNum)
-            else -> cur
-        }
-
-        val list = draft.toMutableList()
-        list[index] = slot
-
-        if (newKind == FnKind.LIGHTS) {
-            for (i in list.indices) {
-                if (list[i].kind == FnKind.LIGHTS && list[i].variant <= 1) {
-                    list[i] = list[i].copy(outNum2 = 0)
-                }
-            }
-        }
-        if (wasLights2 && newKind != FnKind.LIGHTS) {
-            for (i in list.indices) {
-                if (list[i].kind == FnKind.LIGHTS && list[i].variant <= 1) {
-                    val low = lowFromRemoved.takeIf { it in 1..10 } ?: list[i].outNum2
-                    list[i] = list[i].copy(outNum2 = low)
-                }
-            }
-        }
-        if (newKind == FnKind.BRAKE) {
-            val shared = slot.outNum
-            for (i in list.indices) {
-                if (list[i].kind == FnKind.BRAKE) {
-                    list[i] = list[i].copy(outNum = shared, outputNum = slot.outputNum)
-                }
-            }
-        }
-        draft = list
-        error = null
+    fun toggleExpand(index: Int) {
+        if (expandedIdx >= 0) persistIfValid(currentDraft)
+        expandedIdx = if (expandedIdx == index) -1 else index
     }
 
     fun moveSlot(from: Int, to: Int) {
+        val d = draft ?: return
         if (from == to) return
-        if (from !in draft.indices || to !in draft.indices) return
-        if (draft.size != 10) return
-        val list = draft.toMutableList()
+        val list = d.toMutableList()
         val item = list.removeAt(from)
         list.add(to, item)
-        if (list.size != 10) return
-        if (list.map { it.id }.toSet().size != 10) return
-        draft = list
-        when {
-            expandedIdx == from -> expandedIdx = to
-            from < expandedIdx && to >= expandedIdx -> expandedIdx--
-            from > expandedIdx && to <= expandedIdx -> expandedIdx++
-        }
-        error = null
+        persistIfValid(list)
     }
 
     fun endDrag() {
+        val d = draft ?: return
         if (dragId >= 0L && rowHeightPx > 0f) {
-            val from = draft.indexOfFirst { it.id == dragId }
+            val from = d.indexOfFirst { it.id == dragId }
             if (from >= 0) {
                 val steps = round(dragOffsetY / rowHeightPx).toInt()
-                val to = (from + steps).coerceIn(0, draft.lastIndex)
+                val to = (from + steps).coerceIn(0, d.lastIndex)
                 if (to != from) moveSlot(from, to)
             }
         }
@@ -403,257 +295,149 @@ fun InputSettingsTab() {
         dragOffsetY = 0f
     }
 
-    fun cancelDrag() {
-        dragId = -1L
-        dragOffsetY = 0f
-    }
-
-    val liveError = remember(draft) { validate() }
-    val showError = error ?: liveError
-
-    // Przy otwarciu edycji przewiń wiersz nad klawiaturę
-    LaunchedEffect(expandedIdx) {
-        if (expandedIdx in draft.indices) {
-            delay(80)
-            listState.animateScrollToItem(expandedIdx)
-            delay(280) // czas na IME
-            listState.animateScrollToItem(expandedIdx)
+    if (!isConnected) {
+        Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+            Text("Brak połączenia z HUBem", style = MaterialTheme.typography.titleMedium)
         }
+        return
     }
 
-    Column(
-        Modifier
-            .fillMaxSize()
-            .imePadding()
-            .padding(12.dp)
-    ) {
+    if (draft == null) {
+        Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                CircularProgressIndicator()
+                Spacer(Modifier.height(16.dp))
+                Text("Pobieranie ustawień z HUBa...")
+            }
+        }
+        return
+    }
+
+    Column(Modifier.fillMaxSize().imePadding().padding(12.dp)) {
         LazyColumn(
             state = listState,
             verticalArrangement = Arrangement.spacedBy(6.dp),
-            contentPadding = PaddingValues(bottom = 6.dp),
             modifier = Modifier.weight(1f)
         ) {
-            itemsIndexed(
-                items = draft,
-                key = { _, s -> s.id }
-            ) { index, slot ->
-                val inLabel = "IN %02d".format(index + 1)
+            itemsIndexed(currentDraft, key = { _, s -> s.id }) { index, slot ->
                 val isDragging = dragId >= 0L && slot.id == dragId
                 val isExpanded = expandedIdx == index
                 val conflict = isOutConflictAt(index)
-                val sub = slot.subtitle(lightsCount, brakesCount)
-                val slotEnabled = isConnected &&
-                    (slot.kind != FnKind.STARTER || starterEnabled)
-
-                val dragFromIndex = if (dragId >= 0L) draft.indexOfFirst { it.id == dragId } else -1
+                
+                val dragFromIndex = if (dragId >= 0L) currentDraft.indexOfFirst { it.id == dragId } else -1
                 val dragToIndex = if (dragFromIndex >= 0 && rowHeightPx > 0f) {
-                    (dragFromIndex + kotlin.math.round(dragOffsetY / rowHeightPx).toInt())
-                        .coerceIn(0, draft.lastIndex)
+                    (dragFromIndex + round(dragOffsetY / rowHeightPx).toInt()).coerceIn(0, currentDraft.lastIndex)
                 } else -1
 
                 val gapShiftY = when {
                     dragFromIndex < 0 || isDragging -> 0f
-                    dragFromIndex < dragToIndex &&
-                        index in (dragFromIndex + 1)..dragToIndex -> -rowHeightPx
-                    dragToIndex < dragFromIndex &&
-                        index in dragToIndex until dragFromIndex -> rowHeightPx
+                    dragFromIndex < dragToIndex && index in (dragFromIndex + 1)..dragToIndex -> -rowHeightPx
+                    dragToIndex < dragFromIndex && index in dragToIndex until dragFromIndex -> rowHeightPx
                     else -> 0f
                 }
 
-                val cardElevation by animateDpAsState(
-                    if (isDragging) 8.dp else 0.dp, label = "elev"
-                )
-                val cardBg by animateColorAsState(
-                    if (isDragging) MaterialTheme.colorScheme.primaryContainer
-                    else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.55f),
-                    label = "bg"
-                )
-
-                Row(
-                    Modifier.fillMaxWidth(),
-                    verticalAlignment = Alignment.Top
-
-                ) {
-                    var inDown by remember(slot.id) { mutableStateOf(false) }
+                Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.Top) {
+                    // IN Badge (Tappable)
                     Box(
-                        Modifier
-                            .size(width = 46.dp, height = 46.dp)
-                            .background(
-                                when {
-                                    inDown -> Color(0xFF555555)
-                                    inputStates.getOrElse(index) { false } -> Color(0xFF555555)
-                                    slotEnabled && slot.kind != FnKind.DISABLED -> Color(0xFF000000)
-                                    else -> Color(0xFF333333)
-                                },
-                                RoundedCornerShape(8.dp)
-                            )
-                            .border(
-                                1.dp,
-                                MaterialTheme.colorScheme.outline.copy(alpha = 0.45f),
-                                RoundedCornerShape(8.dp)
-                            )
-                            .pointerInput(index, slot.kind, isConnected) {
-                                if (slot.kind == FnKind.DISABLED || !slotEnabled)
-                                    return@pointerInput
-                                detectTapGestures(
-                                    onPress = {
-                                        inDown = true
-                                        ControlBlinkers.onDown(ble, index + 1)
-                                        try {
-                                            awaitRelease()
-                                        } finally {
-                                            inDown = false
-                                            ControlBlinkers.onUp(ble, index + 1)
-                                        }
-                                    }
-                                )
-                            },
+                        Modifier.size(46.dp).background(
+                            if (inputStates.getOrElse(index) { false }) Color.DarkGray else Color.Black, 
+                            RoundedCornerShape(8.dp)
+                        ).border(1.dp, Color.Gray.copy(alpha = 0.5f), RoundedCornerShape(8.dp))
+                        .pointerInput(index) {
+                            detectTapGestures(onPress = {
+                                ble.sendCommand("IN:${index + 1}:1")
+                                try { awaitRelease() } finally { ble.sendCommand("IN:${index + 1}:0") }
+                            })
+                        },
                         contentAlignment = Alignment.Center
                     ) {
-                        Text(
-                            inLabel,
-                            style = MaterialTheme.typography.labelMedium,
-                            fontWeight = FontWeight.Bold,
-                            color = if (inputStates.getOrElse(index) { false })
-                                Color.White else Color(0xFF9E9E9E),
-                            textAlign = TextAlign.Center
-                        )
+                        Text("IN %02d".format(index + 1), style = MaterialTheme.typography.labelSmall, color = Color.LightGray)
                     }
 
                     Spacer(Modifier.width(8.dp))
 
+                    // Slot Card
                     Column(
-                        Modifier
-                            .weight(1f)
-                            .zIndex(if (isDragging) 10f else 0f)
+                        Modifier.weight(1f).zIndex(if (isDragging) 10f else 0f)
                             .graphicsLayer {
-                                if (isDragging) {
-                                    translationY = dragOffsetY
-                                    shadowElevation = 12f
-                                    alpha = 0.95f
-                                } else if (gapShiftY != 0f) {
-                                    translationY = gapShiftY
-                                }
+                                translationY = if (isDragging) dragOffsetY else gapShiftY
+                                shadowElevation = if (isDragging) 12f else 0f
                             }
-                            .shadow(cardElevation, RoundedCornerShape(10.dp))
-                            .background(cardBg, RoundedCornerShape(10.dp))
-                            .border(
-                                1.dp,
-                                MaterialTheme.colorScheme.outline.copy(alpha = 0.25f),
+                            .background(
+                                if (isDragging) MaterialTheme.colorScheme.secondaryContainer 
+                                else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f), 
                                 RoundedCornerShape(10.dp)
                             )
-                            .padding(horizontal = 4.dp, vertical = 4.dp)
+                            .border(1.dp, if (conflict) Color.Red else Color.Transparent, RoundedCornerShape(10.dp))
                     ) {
                         Row(
-                            Modifier
-                                .height(38.dp)
-                                .fillMaxWidth(),
+                            Modifier.fillMaxWidth().height(46.dp).padding(horizontal = 4.dp),
                             verticalAlignment = Alignment.CenterVertically
                         ) {
-                            Box(
-                                Modifier
-                                    .size(36.dp)
-                                    .pointerInput(slot.id) {
-                                        detectDragGestures(
-                                            onDragStart = {
-                                                dragId = slot.id
-                                                dragOffsetY = 0f
-                                                expandedIdx = -1
-                                            },
-                                            onDrag = { change, amount ->
-                                                change.consume()
-                                                dragOffsetY += amount.y
-                                            },
-                                            onDragEnd = { endDrag() },
-                                            onDragCancel = { cancelDrag() }
-                                        )
+                            Icon(Icons.Default.Menu, null, Modifier.size(44.dp).pointerInput(slot.id) {
+                                detectDragGestures(
+                                    onDragStart = {
+                                        if (expandedIdx >= 0) persistIfValid(currentDraft)
+                                        dragId = slot.id; dragOffsetY = 0f; expandedIdx = -1
                                     },
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Default.Menu,
-                                    contentDescription = null,
-
-                                    tint = if (isDragging)
-                                        MaterialTheme.colorScheme.primary
-                                    else
-                                        MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                            }
-
-                            Column(
-                                Modifier
-                                    .weight(1f)
-                                    .clickable {
-                                        expandedIdx = if (isExpanded) -1 else index
-                                    }
-                            ) {
-                                Text(
-                                    text = slot.title(),
-                                    style = MaterialTheme.typography.titleSmall,
-                                    fontWeight = FontWeight.SemiBold,
-                                    color = if (conflict)
-                                        MaterialTheme.colorScheme.error
-                                    else
-                                        LocalContentColor.current
+                                    onDrag = { change, amount -> change.consume(); dragOffsetY += amount.y },
+                                    onDragEnd = { endDrag() },
+                                    onDragCancel = { dragId = -1L }
                                 )
-                                when {
-                                    conflict && slot.hasOutPicker() -> Text(
-                                        text = "OUT %02d  · konflikt".format(slot.outNum),
-                                        style = MaterialTheme.typography.labelSmall,
-                                        color = MaterialTheme.colorScheme.error
-                                    )
-                                    sub != null -> Text(
-                                        text = sub,
-                                        style = MaterialTheme.typography.labelSmall,
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                                    )
-                                }
+                            }.padding(10.dp))
+                            
+                            Column(Modifier.weight(1f).clickable { toggleExpand(index) }) {
+                                Text(slot.title(modeDefinitions, lightsCount, brakesCount), fontWeight = FontWeight.Bold, style = MaterialTheme.typography.titleSmall, maxLines = 1)
+                                slot.subtitle(lightsCount)?.let { Text(it, style = MaterialTheme.typography.labelSmall, color = Color.Gray, maxLines = 1) }
                             }
-
-                            IconButton(onClick = {
-                                expandedIdx = if (isExpanded) -1 else index
-                            }) {
-                                Icon(
-                                    if (isExpanded) Icons.Default.ExpandLess
-                                    else Icons.Default.ExpandMore,
-                                    contentDescription = null
-                                )
+                            IconButton(onClick = { toggleExpand(index) }) {
+                                Icon(if (isExpanded) Icons.Default.ExpandLess else Icons.Default.ExpandMore, null)
                             }
                         }
 
                         if (isExpanded) {
-                            Spacer(Modifier.height(6.dp))
-                            SlotEditor(
-                                slot = slot,
-                                canAddLights2 = countKind(FnKind.LIGHTS) < 2,
-                                canAddBrake2 = countKind(FnKind.BRAKE) < 2,
-                                lightsCount = lightsCount,
-                                outOccupants = outOccupants(),
-                                onChange = { setSlot(index, it) },
-                                onChangeKind = { changeKind(index, it) }
-                            )
+                            Box(Modifier.padding(bottom = 8.dp)) {
+                                SlotEditor(
+                                    slot = slot,
+                                    modeDefinitions = modeDefinitions,
+                                    outOccupants = outOccupants(),
+                                    lightsCount = lightsCount,
+                                    hideKinds = currentDraft
+                                        .filter { it.id != slot.id && it.kind != FnKind.USER && it.kind != FnKind.DISABLED }
+                                        .map { it.kind }
+                                        .toSet(),
+                                    onChange = { s ->
+                                        val newList = currentDraft.toMutableList()
+                                        newList[index] = s
+                                        draft = newList
+                                    },
+                                    onChangeCategory = { c ->
+                                        draft = if (c == FnCategory.DISABLED) {
+                                            applyKindChange(currentDraft, index, FnKind.DISABLED)
+                                        } else {
+                                            currentDraft.toMutableList().also {
+                                                it[index] = slot.copy(
+                                                    category = c,
+                                                    kind = FnKind.USER,
+                                                    customName = "",
+                                                    outputEnabled = c == FnCategory.BUTTON || slot.outputEnabled
+                                                )
+                                            }
+                                        }
+                                    },
+                                    onChangeKind = { k ->
+                                        draft = applyKindChange(currentDraft, index, k)
+                                    }
+                                )
+                            }
                         }
                     }
                 }
             }
         }
 
-        if (showError != null) {
-            Text(
-                showError,
-                color = MaterialTheme.colorScheme.error,
-                style = MaterialTheme.typography.bodySmall,
-                modifier = Modifier.padding(vertical = 4.dp)
-            )
-        }
-
-        Button(
-            onClick = { saveAll() },
-            enabled = dirty && !saving && ble.isConnected && liveError == null,
-            modifier = Modifier.fillMaxWidth()
-        ) {
-            Text(if (saving) "Zapisywanie…" else "Zapisz ustawienia")
+        if (error != null) {
+            Text(error!!, color = Color.Red, style = MaterialTheme.typography.bodySmall, modifier = Modifier.padding(8.dp))
         }
     }
 }

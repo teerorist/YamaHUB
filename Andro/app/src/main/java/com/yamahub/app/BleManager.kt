@@ -12,6 +12,13 @@ import android.util.Log
 import java.util.ArrayDeque
 import java.util.UUID
 
+data class ModeDefinition(
+    val id: Int,
+    val category: Int,
+    val label: String,
+    val flags: Int
+)
+
 class BleManager(private val context: Context) {
 
     companion object {
@@ -27,6 +34,9 @@ class BleManager(private val context: Context) {
 
     private val urgentQueue: ArrayDeque<String> = ArrayDeque()
     private val idleQueue: ArrayDeque<String> = ArrayDeque()
+    private val incomingCfgParts = mutableMapOf<Int, InputCfgItem>()
+    private val incomingModeParts = mutableListOf<ModeDefinition>()
+
     @Volatile private var writeInFlight = false
     private val writeWatchdog = Runnable { finishWrite() }
 
@@ -37,11 +47,15 @@ class BleManager(private val context: Context) {
     var isConnected: Boolean = false
         private set
 
+    var lastReceivedInputCfg: List<InputCfgItem>? = null
+        private set
+
     var onConnectionChanged: ((Boolean) -> Unit)? = null
     var onStateReceived: ((List<Boolean>) -> Unit)? = null
     var onInputStates: ((List<Boolean>) -> Unit)? = null
     var onConfigReceived: ((fade: Int, blinks: Int, curve: Int, acSpeed: Int, autoCancel: Boolean?, autoLights: Boolean?) -> Unit)? = null
     var onInputCfg: ((List<InputCfgItem>) -> Unit)? = null
+    var onModeDefinitions: ((List<ModeDefinition>) -> Unit)? = null
     var starterEnabled: Boolean = false
         private set
     var onStarterEnabled: ((Boolean) -> Unit)? = null
@@ -162,6 +176,24 @@ class BleManager(private val context: Context) {
     fun requestState() = sendCommand("GET")
     fun requestConfig() = sendCommand("GET_CFG")
     fun requestInputCfg() = sendCommand("GET_INCFG")
+    fun requestModeDefinitions() = sendCommand("GET_MODES")
+
+    fun setInputCfgV4(
+        inNum: Int,
+        category: Int,
+        functionId: Int,
+        outPrimary: Int,
+        outSecondary: Int,
+        outputEnabled: Boolean,
+        outputNum: Int,
+        name: String
+    ) {
+        val safe = name.replace(" ", "_").replace(";", "_").replace(",", "_").take(15)
+        sendCommand("SET_INCFG_V4:$inNum,$category,$functionId,$outPrimary," +
+            "$outSecondary,${if (outputEnabled) 1 else 0},$outputNum,$safe")
+    }
+
+    fun commitInputCfg() = sendCommand("SET_INCFG_COMMIT")
 
     fun setConfig(
         fade: Int,
@@ -212,6 +244,61 @@ class BleManager(private val context: Context) {
         mainHandler.post {
             onRawMessage?.invoke(msg)
             when {
+                msg == "MODES_START" -> {
+                    incomingModeParts.clear()
+                    Log.d(TAG, "Mode definitions transfer started")
+                }
+                msg.startsWith("MODEPART:") -> {
+                    val p = msg.removePrefix("MODEPART:").split(",")
+                    if (p.size >= 4) {
+                        val def = ModeDefinition(
+                            id = p[0].toIntOrNull() ?: 0,
+                            category = p[1].toIntOrNull() ?: 0,
+                            label = p[2],
+                            flags = p[3].toIntOrNull() ?: 0
+                        )
+                        incomingModeParts.add(def)
+                        Log.d(TAG, "Mode part received: ${def.label} (cat ${def.category})")
+                    }
+                }
+                msg == "MODES_DONE" -> {
+                    val finalModes = incomingModeParts.toList()
+                    Log.d(TAG, "Mode definitions transfer complete. Total: ${finalModes.size}")
+                    onModeDefinitions?.invoke(finalModes)
+                }
+                msg == "INCFG_START" -> {
+                    incomingCfgParts.clear()
+                }
+                msg.startsWith("INPART:") -> {
+                    val p = msg.removePrefix("INPART:").split(",")
+                    if (p.size >= 10) {
+                        val index = p[0].toIntOrNull() ?: return@post
+                        val item = InputCfgItem(
+                            inNum = index + 1,
+                            mode = p[1].toIntOrNull() ?: 0,
+                            outNum = p[3].toIntOrNull() ?: 0,
+                            functionId = p[2].toIntOrNull() ?: 0,
+                            outSecondary = p[4].toIntOrNull() ?: 0,
+                            outputEnabled = p[5] == "1",
+                            outputNum = p[6].toIntOrNull() ?: 0,
+                            isFixed = p[7] == "1",
+                            isOutLocked = p[8] == "1",
+                            name = p.drop(9).joinToString(",").ifBlank { "IN_${index + 1}" }
+                        )
+                        incomingCfgParts[index] = item
+                        Log.d(TAG, "Config part received: ${incomingCfgParts.size}/10")
+                    }
+                }
+                msg == "INCFG_DONE" -> {
+                    val list = (0 until 10).mapNotNull { incomingCfgParts[it] }
+                    Log.d(TAG, "INCFG transfer complete. Items: ${list.size}/10")
+                    if (list.size == 10) {
+                        lastReceivedInputCfg = list
+                        onInputCfg?.invoke(list)
+                    } else {
+                        Log.e(TAG, "INCFG transfer INCOMPLETE! Missing parts.")
+                    }
+                }
                 msg.startsWith("STATE:") -> {
                     val bits = msg.removePrefix("STATE:")
                     val list = bits.map { it == '1' }
@@ -304,6 +391,7 @@ class BleManager(private val context: Context) {
                 }
                 BluetoothProfile.STATE_DISCONNECTED -> {
                     isConnected = false
+                    lastReceivedInputCfg = null
                     starterEnabled = false
                     characteristic = null
                     urgentQueue.clear()
@@ -338,6 +426,7 @@ class BleManager(private val context: Context) {
                     sendCommand("GET")
                     sendCommand("GET_CFG")
                     sendCommand("GET_INCFG")
+                    sendCommand("GET_MODES")
                 }
             }
         }
@@ -354,6 +443,7 @@ class BleManager(private val context: Context) {
                     sendCommand("GET")
                     sendCommand("GET_CFG")
                     sendCommand("GET_INCFG")
+                    sendCommand("GET_MODES")
                 }
             }
         }

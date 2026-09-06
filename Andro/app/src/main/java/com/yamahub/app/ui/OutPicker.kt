@@ -26,6 +26,7 @@ fun OutPicker(
     outOccupants: Map<Int, List<String>>,
     excludeSelf: Set<Int>,
     modifier: Modifier = Modifier,
+    allowNone: Boolean = false,
     onSelect: (Int) -> Unit
 ) {
     var expanded by remember { mutableStateOf(false) }
@@ -46,6 +47,13 @@ fun OutPicker(
             expanded = expanded,
             onDismissRequest = { expanded = false }
         ) {
+            if (allowNone) {
+                DropdownMenuItem(
+                    modifier = Modifier.height(52.dp),
+                    text = { Text("—") },
+                    onClick = { expanded = false; onSelect(0) }
+                )
+            }
             (1..10).forEach { o ->
                 val holders = outOccupants[o].orEmpty()
                 val takenByOther = holders.isNotEmpty() && o !in excludeSelf

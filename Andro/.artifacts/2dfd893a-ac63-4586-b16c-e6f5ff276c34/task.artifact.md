@@ -1,0 +1,7 @@
+- `[/]` Przywrócenie Logiki "Złotej Wersji" (v4.9)
+    - `[ ]` ESP: Implementacja logiki świateł "One-Button Mode" (v4.6)
+    - `[ ]` ESP: Dopracowanie animacji startowej (v4.8)
+    - `[ ]` ESP: Czyszczenie `main.cpp` z eksperymentalnych warunków
+    - `[ ]` Android: Weryfikacja synchronizacji stanów i efektu Jitter
+- `[ ]` Kompilacja i wgranie (Upload)
+- `[ ]` Weryfikacja końcowa logiki świateł i animacji

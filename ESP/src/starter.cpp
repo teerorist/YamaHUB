@@ -24,28 +24,15 @@ static unsigned long shutdownAt = 0;
 static bool blePressed = false;
 static Output* sdOutputs = nullptr;
 
-static bool nameHas(const char* name, const char* key) {
-    if (!name || !key) return false;
-    size_t keyLength = strlen(key);
-    for (const char* p = name; *p; ++p) {
-        size_t i = 0;
-        while (p[i] && key[i] &&
-               tolower((unsigned char)p[i]) == tolower((unsigned char)key[i])) i++;
-        if (i == keyLength) return true;
-    }
-    return false;
-}
-
 bool isStarterEnabled(Output* outputs) {
     if (!outputs) return false;
 
     if (isNeutralSimulation()) return true;
 
     for (int i = 0; i < INPUT_COUNT; i++) {
-        if (!nameHas(inputCfg[i].name, "neutral") &&
-            !nameHas(inputCfg[i].name, "clutch")) continue;
-
-        if (getEffectiveInputState(i))
+        if ((inputCfg[i].functionId == FN_NEUTRAL ||
+             inputCfg[i].functionId == FN_CLUTCH) &&
+            (getEffectiveInputState(i) || isBleInputPressed(i)))
             return true;
     }
     return false;
@@ -108,6 +95,7 @@ void requestShutdownNow(Output* outputs) {
 
 void starterSet(bool on, Output* outputs, bool& stateChanged) {
     const int soi = starterOutIndex();  // 0..9 z konfiguracji IN
+    if (soi < 0 || soi > 9) return;
 
     if (on) {
         if (!isStarterEnabled(outputs)) {
@@ -282,11 +270,11 @@ void updateShutdown() {
     shutdownPending = false;
     sdOutputs = nullptr;
 
-    Serial.println("deep sleep 8s (po wake: BLE 2s)");
+    Serial.println("deep sleep 5s (po wake: BLE 1s)");
     delay(50);
     Serial.flush();
 
     esp_sleep_disable_wakeup_source(ESP_SLEEP_WAKEUP_ALL);
-    esp_sleep_enable_timer_wakeup(8ULL * 1000000ULL);
+    esp_sleep_enable_timer_wakeup(5ULL * 1000000ULL);
     esp_deep_sleep_start();
 }

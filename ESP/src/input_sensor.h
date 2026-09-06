@@ -4,3 +4,5 @@
 
 /** GR I.5 SENSOR – stan wejścia = stan wyjścia (jeśli ma OUT) */
 void handleSensorInput(int inIndex, Button& btn, Output* outputs, bool& stateChanged);
+/** BRAKE 1/2: wspólny OUT, logika OR. */
+void updateBrakeOutput(Output* outputs, bool& stateChanged);

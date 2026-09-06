@@ -3,7 +3,9 @@
 
 void handleSensorInput(int inIndex, Button& btn, Output* outputs, bool& stateChanged) {
     if (inIndex < 0 || inIndex >= INPUT_COUNT) return;
-    if (inputCfg[inIndex].mode != IN_SENSOR) return;
+    if (inputCfg[inIndex].category != CAT_SENSOR) return;
+    if (inputCfg[inIndex].functionId == FN_BRAKE_1 ||
+        inputCfg[inIndex].functionId == FN_BRAKE_2) return;
 
     static bool last[10] = {false};
     bool pressed = isInputActive(inIndex, btn.isPressed());
@@ -11,10 +13,28 @@ void handleSensorInput(int inIndex, Button& btn, Output* outputs, bool& stateCha
     last[inIndex] = pressed;
 
     if (!inputCfg[inIndex].outputEnabled) return;
-    uint8_t oi = inputCfg[inIndex].outputIndex;
-    if (oi > 9) return;
+    uint8_t oi = inputCfg[inIndex].outPrimary;
+    if (!outAssigned(oi) || !outputs) return;
 
     if (pressed) outputs[oi].on();
     else         outputs[oi].off();
     stateChanged = true;
+}
+
+void updateBrakeOutput(Output* outputs, bool& stateChanged) {
+    if (!outputs) return;
+    int out = -1;
+    bool on = false;
+    for (int i = 0; i < INPUT_COUNT; i++) {
+        uint8_t fn = inputCfg[i].functionId;
+        if (fn != FN_BRAKE_1 && fn != FN_BRAKE_2) continue;
+        if (outAssigned(inputCfg[i].outPrimary))
+            out = (int)inputCfg[i].outPrimary;
+        if (getEffectiveInputState(i)) on = true;
+    }
+    if (out < 0) return;
+    bool was = outputs[out].isOn();
+    if (on) outputs[out].on();
+    else    outputs[out].off();
+    if (was != on) stateChanged = true;
 }

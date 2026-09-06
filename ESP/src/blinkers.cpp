@@ -52,17 +52,15 @@ static int rightGpio   = -1;
 static bool pinsReady  = false;
 
 int blinkerLeftOutIndex() {
-    for (int i = 0; i < INPUT_COUNT; i++)
-        if (inputCfg[i].mode == IN_LEFT)
-            return (int)inputCfg[i].outIndex;
-    return -1;
+    int i = findFunctionInIndex(FN_LEFT);
+    if (i < 0 || !outAssigned(inputCfg[i].outPrimary)) return -1;
+    return (int)inputCfg[i].outPrimary;
 }
 
 int blinkerRightOutIndex() {
-    for (int i = 0; i < INPUT_COUNT; i++)
-        if (inputCfg[i].mode == IN_RIGHT)
-            return (int)inputCfg[i].outIndex;
-    return -1;
+    int i = findFunctionInIndex(FN_RIGHT);
+    if (i < 0 || !outAssigned(inputCfg[i].outPrimary)) return -1;
+    return (int)inputCfg[i].outPrimary;
 }
 
 bool isBlinkerOut(int outIndex0) {
@@ -73,7 +71,7 @@ bool isBlinkerOut(int outIndex0) {
 }
 
 static void hardReleaseGpio(int gpio) {
-    if (gpio < 0) return;
+    if (!pinValid(gpio)) return;
     ledcDetachPin((uint8_t)gpio);
     gpio_reset_pin((gpio_num_t)gpio);
     pinMode((uint8_t)gpio, OUTPUT);
@@ -100,8 +98,8 @@ void refreshBlinkerPins() {
     leftGpio  = (nl >= 0 && nl <= 9) ? (int)OUT_PINS[nl] : -1;
     rightGpio = (nr >= 0 && nr <= 9) ? (int)OUT_PINS[nr] : -1;
 
-    if (leftGpio >= 0)  ledcAttachPin((uint8_t)leftGpio, PWM_CH_LEFT);
-    if (rightGpio >= 0) ledcAttachPin((uint8_t)rightGpio, PWM_CH_RIGHT);
+    if (pinValid(leftGpio))  ledcAttachPin((uint8_t)leftGpio, PWM_CH_LEFT);
+    if (pinValid(rightGpio)) ledcAttachPin((uint8_t)rightGpio, PWM_CH_RIGHT);
 
     ledcWrite(PWM_CH_LEFT, 0);
     ledcWrite(PWM_CH_RIGHT, 0);
@@ -115,7 +113,7 @@ void refreshBlinkerPins() {
 void setLeft(int v) {
     v = constrain(v, 0, 255);
     if (!pinsReady) refreshBlinkerPins();
-    if (leftGpio >= 0) ledcWrite(PWM_CH_LEFT, v);
+    if (pinValid(leftGpio)) ledcWrite(PWM_CH_LEFT, v);
     if (leftOutIdx >= 0) setOutLevel(leftOutIdx, (uint8_t)v);
     // NIGDY nie ruszaj innych indeksów (np. OUT_01 / low beam)
 }
@@ -123,7 +121,7 @@ void setLeft(int v) {
 void setRight(int v) {
     v = constrain(v, 0, 255);
     if (!pinsReady) refreshBlinkerPins();
-    if (rightGpio >= 0) ledcWrite(PWM_CH_RIGHT, v);
+    if (pinValid(rightGpio)) ledcWrite(PWM_CH_RIGHT, v);
     if (rightOutIdx >= 0) setOutLevel(rightOutIdx, (uint8_t)v);
 }
 
@@ -465,12 +463,12 @@ void updateBlinkers(bool& stateChanged) {
 
 static int findLeftBtn() {
     for (int i = 0; i < INPUT_COUNT; i++)
-        if (inputCfg[i].mode == IN_LEFT) return i;
+        if (inputCfg[i].functionId == FN_LEFT) return i;
     return -1;
 }
 static int findRightBtn() {
     for (int i = 0; i < INPUT_COUNT; i++)
-        if (inputCfg[i].mode == IN_RIGHT) return i;
+        if (inputCfg[i].functionId == FN_RIGHT) return i;
     return -1;
 }
 

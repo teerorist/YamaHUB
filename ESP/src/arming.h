@@ -1,6 +1,6 @@
 #pragma once
 
-extern bool hubArmed;
+extern volatile bool hubArmed;
 
 bool tryArm();
 void disarmHub();

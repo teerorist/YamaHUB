@@ -1,0 +1,42 @@
+# YamaHUB - Pełny zapis sesji technicznej (Part 3)
+
+Goal: Moving business logic to ESP firmware (YamaHUB V4) and adapting the Android app as a flexible control terminal.
+
+Recent Milestones:
+- ControlScreen Labels & Colors Update (v4.4)
+- InputSettingsTab UI updates with OUT labels.
+- Independent Blinker Toggle in ControlScreen (v4.5) moved logic to ESP.
+- Headlight Logic (One-Button Mode) with HI PASS/LATCH and Kill (5s).
+- Engine & Gear Simulation (v4.7) on ESP based on GPS Speed.
+- Startup Animation (v4.8 - v4.9) state-based with physical OUT/virtual IN manipulation.
+- CAN Bus Integration troubleshooting for Ford Focus MK2 HS-CAN (500kbps, 8MHz crystal).
+- Debug Console added to Dashboard UI.
+
+Final SPI Hardware Configuration (Safe for Waveshare S3-LCD Octal PSRAM):
+- MOSI: GPIO 43 (TX)
+- MISO: GPIO 44 (RX)
+- SCK: GPIO 0
+- CS: GPIO 2
+- VCC: 3.3V
+- TJA1050 VCC: 5V (VBUS)
+
+Software States:
+- Beams HI switching: Instant (0/1).
+- Beams LOW switching: Faded.
+- Auto-cancel blinker logic: EMA filter on speed, 1.5km/h hysteresis, 2-cycle trend confirm.
+
+Full conversation log (summary):
+User asked to update UI labels for OUTs in Input Settings.
+Assistant implemented dynamic naming for Lights and Brakes.
+User requested independent blinker control in Control Screen.
+Assistant moved blinker toggle logic to ESP to fix latency/sync issues.
+User requested RPM/Gear simulation based on speed for Focus MK2 specs.
+Assistant implemented EngineSim on ESP and updated Smiths Gauge on Android.
+Assistant implemented Startup Animation (sweep + sequential lights) by simulating internal states.
+Assistant helped troubleshoot MCP2515 connectivity, resolving PSRAM conflicts by moving SPI to TX/RX pins.
+Assistant added a Live Debug Console to the Android App to monitor CAN status.
+
+Current File State:
+- ESP/include/pins.h: Configured for TX/RX SPI.
+- ESP/src/can_bus.cpp: CAN driver with loopback test and auto-detetion.
+- Andro/app/src/main/java/com/yamahub/app/ui/DashboardScreen.kt: Dashboard with Debug Console and Gauge.

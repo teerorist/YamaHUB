@@ -2,10 +2,16 @@
 Hardware/
 dodatki/
 b-up/
+kontekst/
+*.gitignore
+*.gitattributes
 
 # === Android ===
+Andro/.artifacts/
 Andro/.gradle/
+Andro/gradle/
 Andro/.idea/
+Andro/.kotlin
 Andro/build/
 Andro/app/build/
 Andro/local.properties
@@ -32,3 +38,4 @@ ESP/.DS_Store
 *.tmp
 .DS_Store
 Thumbs.db
+*.md

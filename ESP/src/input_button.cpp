@@ -4,11 +4,14 @@
 
 void handleButtonInput(int inIndex, Button& btn, Output* outputs, bool& stateChanged) {
     if (inIndex < 0 || inIndex >= INPUT_COUNT) return;
-    if (inputCfg[inIndex].mode != IN_TOGGLE) return;
+    if (inputCfg[inIndex].category != CAT_BUTTON) return;
+    uint8_t fn = inputCfg[inIndex].functionId;
+    if (fn == FN_LEFT || fn == FN_RIGHT || fn == FN_STARTER ||
+        fn == FN_LIGHTS_1 || fn == FN_LIGHTS_2) return;
 
     if (!inputCfg[inIndex].outputEnabled) return;
-    uint8_t oi = inputCfg[inIndex].outputIndex;
-    if (oi > 9) return;
+    uint8_t oi = inputCfg[inIndex].outPrimary;
+    if (!outAssigned(oi)) return;
 
     static bool bleWas[INPUT_COUNT] = {false};
     bool ble = isBleInputPressed(inIndex);

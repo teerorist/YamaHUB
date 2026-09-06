@@ -2,9 +2,6 @@
 #include "inputs.h"
 #include "blinkers.h"
 #include <LovyanGFX.hpp>
-#include <string.h>
-#include <stdlib.h>
-#include <ctype.h>
 
 class LGFX : public lgfx::LGFX_Device {
     lgfx::Panel_ST7789 _panel;
@@ -62,8 +59,10 @@ public:
 
 static LGFX tft;
 uint8_t outLevel[10] = {0};
-static uint8_t prevLevel[10] = {255};
-static bool prevUsed[10] = {false};
+extern int currentRpm;
+extern int canFuelPct;
+static uint8_t prevLevel[20] = {255};
+static bool prevUsed[20] = {false};
 static int prevSpeedShown = -1;
 
 static const uint16_t COL_OFF = 0x18C3;
@@ -77,23 +76,29 @@ static const uint16_t COL_DARK = 0x4208;
 static const uint16_t COL_X = 0x8410;
 static const uint16_t COL_NUM = 0xC618;
 
-static bool nameHas(const char* n, const char* key) {
-    if (!n || !key) return false;
-    size_t klen = strlen(key);
-    for (const char* p = n; *p; ++p) {
-        size_t i = 0;
-        while (p[i] && key[i] &&
-               tolower((unsigned char)p[i]) == tolower((unsigned char)key[i])) i++;
-        if (i == klen) return true;
+static void drawPortCircle(int x, int y, int portNo, bool used,
+                           uint16_t fillColor, uint16_t textColor,
+                           bool crossed) {
+    const int r = 13;
+    tft.fillCircle(x, y, r, fillColor);
+    tft.drawCircle(x, y, r, COL_DARK);
+    tft.setTextDatum(MC_DATUM);
+    tft.setTextColor(textColor);
+    tft.setFont(&fonts::Font2);
+    tft.drawNumber(portNo + 1, x, y - 1);
+    if (crossed) {
+        tft.drawLine(x - 8, y - 8, x + 8, y + 8, COL_WHITE);
+        tft.drawLine(x + 8, y - 8, x - 8, y + 8, COL_WHITE);
     }
-    return false;
 }
 
 static bool outIsUsed(int oi) {
     for (int j = 0; j < INPUT_COUNT; j++) {
-        uint8_t m = inputCfg[j].mode;
-        if (m == IN_DISABLED || m == IN_SENSOR) continue;
-        if ((int)inputCfg[j].outIndex == oi) return true;
+        if (inputCfg[j].functionId == FN_NONE) continue;
+        if (outAssigned(inputCfg[j].outPrimary) && (int)inputCfg[j].outPrimary == oi)
+            return true;
+        if (outAssigned(inputCfg[j].outSecondary) && (int)inputCfg[j].outSecondary == oi)
+            return true;
     }
     return false;
 }
@@ -103,14 +108,16 @@ static uint16_t colorForOut(int oi) {
         return COL_ORANGE;
 
     for (int j = 0; j < INPUT_COUNT; j++) {
-        if ((int)inputCfg[j].outIndex != oi) continue;
-        uint8_t m = inputCfg[j].mode;
-        const char* n = inputCfg[j].name;
-        if (m == IN_STARTER) return COL_GREEN;
-        if (nameHas(n, "brake")) return COL_RED;
-        if (nameHas(n, "hi") || nameHas(n, "hibeam")) return COL_BLUE;
-        if (nameHas(n, "low") || nameHas(n, "light")) return COL_WHITE;
-        if (m == IN_TOGGLE || m == IN_SENSOR) return COL_CYAN;
+        if ((int)inputCfg[j].outPrimary != oi &&
+            (int)inputCfg[j].outSecondary != oi) continue;
+        uint8_t f = inputCfg[j].functionId;
+        if (f == FN_NEUTRAL || f == FN_STARTER) return COL_GREEN;
+        if (f == FN_BRAKE_1 || f == FN_BRAKE_2) return COL_RED;
+        if (f == FN_LIGHTS_1 && (int)inputCfg[j].outPrimary == oi) return COL_BLUE;
+        if (f == FN_LIGHTS_1 && (int)inputCfg[j].outSecondary == oi) return COL_WHITE;
+        if (f == FN_LIGHTS_2) return COL_WHITE;
+        if (f == FN_OIL || f == FN_FUEL) return COL_RED;
+        return COL_CYAN;
     }
     return COL_CYAN;
 }
@@ -139,44 +146,44 @@ void setOutLevel(int index, uint8_t level) {
 }
 
 void drawOutputs(bool force) {
-    const int cols = 2, r = 22;
-    const int marginX = 28, marginY = 20;
-    const int stepX = 116, stepY = 58;
+    const int inputX = 16;
+    const int outputX = 172 - 3 - 13;
+    const int startY = 15;
+    const int stepY = 26;
 
     for (int i = 0; i < 10; i++) {
+        const int y = startY + i * stepY;
+
+        // Pokaż wszystkie wejścia (nie skreślaj ich, jeśli są DISABLED w configu, dla lepszej diagnostyki)
+        bool inputActive = getEffectiveInputState(i);
+        bool inputChanged = force || (inputActive ? 1 : 0) != prevLevel[i];
+
+        if (inputChanged) {
+            prevLevel[i] = inputActive ? 1 : 0;
+            drawPortCircle(inputX, y, i, true,
+                           inputActive ? COL_NUM : COL_OFF,
+                           inputActive ? 0x0000 : COL_WHITE,
+                           false);
+        }
+
         bool used = outIsUsed(i);
         uint8_t level = outLevel[i];
         int neutralIndex = findNeutralInIndex();
-        if (neutralIndex >= 0 && (int)inputCfg[neutralIndex].outIndex == i) {
+        if (neutralIndex >= 0 && (int)inputCfg[neutralIndex].outPrimary == i) {
             bool neutralOn = isNeutralSimulation() || outLevel[i] > 20;
             level = neutralOn ? 255 : 0;
         }
-        if (!force && level == prevLevel[i] && used == prevUsed[i]) continue;
-        prevLevel[i] = level;
-        prevUsed[i] = used;
-
-        int x = marginX + (i % cols) * stepX;
-        int y = marginY + (i / cols) * stepY;
+        if (!force && level == prevLevel[i + 10] && used == prevUsed[i + 10]) continue;
+        prevLevel[i + 10] = level;
+        prevUsed[i + 10] = used;
 
         if (!used) {
-            tft.fillCircle(x, y, r, COL_OFF);
-            tft.drawCircle(x, y, r, COL_DARK);
-            tft.setTextDatum(MC_DATUM);
-            tft.setTextColor(COL_X);
-            tft.setFont(&fonts::Font2);
-            tft.drawNumber(i + 1, x, y - 2);
-            tft.drawLine(x - 8, y - 8, x + 8, y + 8, COL_X);
-            tft.drawLine(x + 8, y - 8, x - 8, y + 8, COL_X);
+            drawPortCircle(outputX, y, i, false, COL_OFF, COL_WHITE, true);
             continue;
         }
 
         uint16_t c = dimColor(colorForOut(i), level);
-        tft.fillCircle(x, y, r, c);
-        tft.drawCircle(x, y, r, COL_DARK);
-        tft.setTextDatum(MC_DATUM);
-        tft.setTextColor(level > 180 ? (uint16_t)0x0000 : COL_NUM);
-        tft.setFont(&fonts::Font2);
-        tft.drawNumber(i + 1, x, y);
+        drawPortCircle(outputX, y, i, true, c, COL_WHITE, false);
     }
 
     // prędkość między OUT 9 i 10 (ostatni rząd)
@@ -184,9 +191,9 @@ void drawOutputs(bool force) {
     if (sp < 0) sp = 0;
     if (force || sp != prevSpeedShown) {
         prevSpeedShown = sp;
-        const int x9 = marginX;
-        const int x10 = marginX + stepX;
-        const int y = marginY + 4 * stepY;
+        const int x9 = 28;
+        const int x10 = 144;
+        const int y = 20 + 4 * 58;
         const int cx = (x9 + x10) / 2;
         tft.fillRect(cx - 34, y - 16, 68, 36, 0x0000);
         tft.setTextDatum(MC_DATUM);

@@ -5,16 +5,7 @@ import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.gestures.detectDragGestures
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Menu
@@ -24,13 +15,14 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.zIndex
-import androidx.compose.ui.Modifier
 
 @Composable
 fun ControlInItem(
@@ -46,12 +38,12 @@ fun ControlInItem(
     onDragEnd: () -> Unit,
     onDragCancel: () -> Unit
 ) {
-    val unused = row.mode < 0
+    val isUnused = row.inNum == 0
 
     val cardBg by animateColorAsState(
         when {
             isDragging -> MaterialTheme.colorScheme.primaryContainer
-            unused -> MaterialTheme.colorScheme.surface.copy(alpha = 0.35f)
+            isUnused -> MaterialTheme.colorScheme.surface.copy(alpha = 0.35f)
             else -> MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.55f)
         },
         label = "card${row.primaryOut}"
@@ -62,32 +54,26 @@ fun ControlInItem(
         Modifier.fillMaxWidth(),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        // Etykieta z uchwytem DnD w środku (jak InputSettings)
         Row(
             Modifier
                 .weight(1f)
                 .height(46.dp)
                 .zIndex(if (isDragging) 10f else 0f)
                 .graphicsLayer {
-                    if (isDragging) {
-                        translationY = dragOffsetY
-                        shadowElevation = 12f
-                        alpha = 0.95f
-                    } else if (gapShiftY != 0f) {
-                        translationY = gapShiftY
-                    }
+                    translationY = if (isDragging) dragOffsetY else gapShiftY
+                    shadowElevation = if (isDragging) 12f else 0f
+                    alpha = if (isDragging) 0.95f else 1f
                 }
                 .shadow(elev, RoundedCornerShape(10.dp))
                 .background(cardBg, RoundedCornerShape(10.dp))
                 .border(
                     1.dp,
-                    MaterialTheme.colorScheme.outline.copy(alpha = if (unused) 0.15f else 0.25f),
+                    MaterialTheme.colorScheme.outline.copy(alpha = if (isUnused) 0.15f else 0.25f),
                     RoundedCornerShape(10.dp)
                 )
                 .padding(horizontal = 4.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            // Uchwyt DnD – wewnątrz karty
             Box(
                 Modifier
                     .size(44.dp)
@@ -106,33 +92,25 @@ fun ControlInItem(
             ) {
                 Icon(
                     imageVector = Icons.Default.Menu,
-                    contentDescription = "Przenieś",
-                    tint = when {
-                        unused -> MaterialTheme.colorScheme.onSurface.copy(alpha = 0.25f)
-                        isDragging -> MaterialTheme.colorScheme.primary
-                        else -> MaterialTheme.colorScheme.onSurfaceVariant
-                    }
+                    contentDescription = null,
+                    tint = if (isDragging) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }
 
             Column(
                 Modifier
                     .weight(1f)
-                    .fillMaxWidth()
-                    .padding(end = 10.dp, top = 8.dp, bottom = 8.dp),
+                    .padding(end = 10.dp),
                 verticalArrangement = Arrangement.Center
             ) {
                 Text(
-                    if (unused) "—" else row.title,
+                    row.title,
                     style = MaterialTheme.typography.titleSmall,
                     fontWeight = FontWeight.SemiBold,
                     maxLines = 1,
-                    color = if (unused)
-                        MaterialTheme.colorScheme.onSurface.copy(alpha = 0.35f)
-                    else
-                        MaterialTheme.colorScheme.onSurface
+                    color = if (isUnused) MaterialTheme.colorScheme.onSurface.copy(alpha = 0.35f) else MaterialTheme.colorScheme.onSurface
                 )
-                if (!unused && row.subtitle != null) {
+                if (row.subtitle != null) {
                     Text(
                         row.subtitle,
                         style = MaterialTheme.typography.labelSmall,
@@ -145,16 +123,12 @@ fun ControlInItem(
 
         Spacer(Modifier.width(8.dp))
 
-        // Kwadrat OUT – zawsze OUT_xx
-        row.outNums.forEachIndexed { i, out ->
-            if (i > 0) Spacer(Modifier.width(6.dp))
-            OutSquare(
-                label = "OUT %02d".format(out),
-                level = if (unused) 0f else levelForOut(out),
-                onColor = colorForRow(row, i),
-                isAssigned = row.inNum > 0,
-                onTap = if (!unused && enabled) onOutTap else null
-            )
-        }
+        OutSquare(
+            label = "OUT %02d".format(row.primaryOut),
+            level = if (isUnused) 0f else levelForOut(row.primaryOut),
+            onColor = colorForRow(row),
+            isAssigned = row.inNum > 0,
+            onTap = if (!isUnused && enabled) onOutTap else null
+        )
     }
 }

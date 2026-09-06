@@ -25,6 +25,7 @@ fun CompactOutlinedTextField(
     readOnly: Boolean = false,
     singleLine: Boolean = true,
     textStyle: TextStyle = LocalTextStyle.current,
+    placeholder: String? = null,
     trailingIcon: @Composable (() -> Unit)? = null
 ) {
     val interactionSource = remember { MutableInteractionSource() }
@@ -41,13 +42,17 @@ fun CompactOutlinedTextField(
         interactionSource = interactionSource,
         decorationBox = { innerTextField ->
             OutlinedTextFieldDefaults.DecorationBox(
-                value = value,
+                // Niepusty value trzyma label na ramce, jak Type / Function / Output
+                value = if (value.isEmpty()) " " else value,
                 innerTextField = innerTextField,
                 enabled = true,
                 singleLine = singleLine,
                 visualTransformation = VisualTransformation.None,
                 interactionSource = interactionSource,
                 label = { Text(label) },
+                placeholder = if (placeholder != null) {
+                    { Text(placeholder, style = MaterialTheme.typography.titleSmall) }
+                } else null,
                 trailingIcon = trailingIcon,
                 contentPadding = PaddingValues(horizontal = 8.dp, vertical = 8.dp)
             )

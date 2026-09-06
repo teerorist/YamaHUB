@@ -135,8 +135,8 @@ fun DashboardScreen(
     val scope = rememberCoroutineScope()
 
     var speedKmh by remember { mutableFloatStateOf(0f) }
-    var lastDisplaySpeed by remember { mutableFloatStateOf(0f) }
     var rpm by remember { mutableIntStateOf(0) }
+    var animOil by remember { mutableStateOf(false) }
     var pressed by remember { mutableStateOf(false) }
     var isConnected by remember { mutableStateOf(ble.isConnected) }
     var starterEnabled by remember { mutableStateOf(ble.starterEnabled) }
@@ -147,66 +147,80 @@ fun DashboardScreen(
 
     var states by remember { mutableStateOf(List(10) { false }) }
     var inputStates by remember { mutableStateOf(List(10) { false }) }
-    var leftOut by remember { mutableIntStateOf(1) }
-    var rightOut by remember { mutableIntStateOf(5) }
+    var leftOut by remember { mutableIntStateOf(0) }
+    var rightOut by remember { mutableIntStateOf(0) }
     var neutralOut by remember { mutableIntStateOf(0) }
     var neutralInNum by remember { mutableIntStateOf(0) }
     var oilInNum by remember { mutableIntStateOf(0) }
     var starterInNum by remember { mutableIntStateOf(0) }
+    var clutchInNum by remember { mutableIntStateOf(0) }
+    var fuelInNum by remember { mutableIntStateOf(0) }
     var oilOut by remember { mutableIntStateOf(0) }
+    var fuelOut by remember { mutableIntStateOf(0) }
     var lowBeamOut by remember { mutableIntStateOf(0) }
     var hiBeamOut by remember { mutableIntStateOf(0) }
     var fadeSpeed by remember { mutableIntStateOf(12) }
     var fadeCurve by remember { mutableIntStateOf(1) }
-    var acSpeedThreshold by remember { mutableIntStateOf(20) }
-    var autoLights by remember { mutableStateOf(false) }
+    var isCfgReady by remember { mutableStateOf(false) }
 
-    val leftActive = states.getOrElse(leftOut - 1) { false }
-    val rightActive = states.getOrElse(rightOut - 1) { false }
-    val hazard = leftActive && rightActive && leftOut != rightOut
+    val leftActive = if (leftOut in 1..10) states.getOrElse(leftOut - 1) { false } else false
+    val rightActive = if (rightOut in 1..10) states.getOrElse(rightOut - 1) { false } else false
+    val hazard = leftActive && rightActive && leftOut != rightOut && leftOut > 0
     val hazardOn = hazard
     val blink = rememberBlinkPair(leftActive, rightActive, hazardOn, fadeSpeed, fadeCurve)
-    val leftLevel = blink.left
-    val rightLevel = blink.right
+    val leftLevel = if (isCfgReady) blink.left else 0f
+    val rightLevel = if (isCfgReady) blink.right else 0f
 
-    val neutralOn = if (neutralInNum in 1..10) inputStates.getOrElse(neutralInNum - 1) { false }
+    val neutralOn = isCfgReady && (if (neutralInNum in 1..10) inputStates.getOrElse(neutralInNum - 1) { false }
         else if (neutralOut in 1..10) states.getOrElse(neutralOut - 1) { false }
-        else DashboardTestState.neutral
-    val oilOn = if (oilInNum in 1..10) inputStates.getOrElse(oilInNum - 1) { false }
+        else false)
+    val oilOn = animOil || (isCfgReady && (if (oilInNum in 1..10) inputStates.getOrElse(oilInNum - 1) { false }
         else if (oilOut in 1..10) states.getOrElse(oilOut - 1) { false }
-        else DashboardTestState.oil
-    val hiBeamOn = if (hiBeamOut in 1..10) states.getOrElse(hiBeamOut - 1) { false } else false
-    val lowBeamOn = if (lowBeamOut in 1..10) states.getOrElse(lowBeamOut - 1) { false } else false
+        else false))
+    val fuelOn = isCfgReady && (if (fuelInNum in 1..10) inputStates.getOrElse(fuelInNum - 1) { false }
+        else if (fuelOut in 1..10) states.getOrElse(fuelOut - 1) { false }
+        else DashboardTestState.fuelLevel < 0.15f)
+    val clutchOn = isCfgReady && (if (clutchInNum in 1..10) inputStates.getOrElse(clutchInNum - 1) { false } else false)
+    val starterAllowed = neutralOn || clutchOn
+    
+    val hiBeamOn = isCfgReady && (if (hiBeamOut in 1..10) states.getOrElse(hiBeamOut - 1) { false } else false)
+    val lowBeamOn = isCfgReady && (if (lowBeamOut in 1..10) states.getOrElse(lowBeamOut - 1) { false } else false)
 
     val displaySpeed = if (DashboardTestState.useSimSpeed) DashboardTestState.simSpeed else speedKmh
-    val displayRpm = if (DashboardTestState.useSimRpm) DashboardTestState.simRpm.toInt() else rpm
+    val displayRpm = when {
+        isConnected -> rpm
+        DashboardTestState.useSimRpm -> DashboardTestState.simRpm.toInt()
+        else -> 0
+    }
 
     fun applyCfg(list: List<InputCfgItem>) {
         cfg = list
         rows = buildRows(list)
-        leftOut = list.firstOrNull { it.mode == 2 }?.outNum?.coerceIn(1, 10) ?: 1
-        rightOut = list.firstOrNull { it.mode == 3 }?.outNum?.coerceIn(1, 10) ?: 5
-        val neutral = list.firstOrNull {
-            (it.mode == 1 || it.mode == 4) &&
-                (it.name.lowercase().contains("neutral") || it.name.lowercase().contains("luz"))
-        }
-        val neutralSensor = list.firstOrNull {
-            it.mode == 4 && (it.name.lowercase().contains("neutral") || it.name.lowercase().contains("luz"))
-        }
-        neutralInNum = (neutralSensor ?: neutral)?.inNum ?: 0
-        val oilSensor = list.firstOrNull {
-            it.mode == 4 && (it.name.lowercase().contains("oil") || it.name.lowercase().contains("olej"))
-        }
-        oilInNum = oilSensor?.inNum ?: 0
-        starterInNum = list.firstOrNull { it.mode == 6 }?.inNum ?: 0
-        neutralOut = neutral?.outNum?.coerceIn(1, 10) ?: 0
-        val oil = list.firstOrNull {
-            it.mode == 1 && (it.name.lowercase().contains("oil") || it.name.lowercase().contains("olej"))
-        }
-        oilOut = oil?.outNum?.coerceIn(1, 10) ?: 0
+        
+        val slots = list.map { it.toFnSlot() }
+        
+        leftOut = slots.find { it.kind == FnKind.LEFT }?.outPrimary ?: 0
+        rightOut = slots.find { it.kind == FnKind.RIGHT }?.outPrimary ?: 0
+        
+        val neutral = slots.find { it.kind == FnKind.NEUTRAL }
+        neutralInNum = neutral?.inNum ?: 0
+        neutralOut = neutral?.outPrimary ?: 0
+        
+        val oil = slots.find { it.kind == FnKind.OIL }
+        oilInNum = oil?.inNum ?: 0
+        oilOut = oil?.outPrimary ?: 0
+
+        val fuel = slots.find { it.kind == FnKind.FUEL }
+        fuelInNum = fuel?.inNum ?: 0
+        fuelOut = fuel?.outPrimary ?: 0
+        
+        clutchInNum = slots.find { it.kind == FnKind.CLUTCH }?.inNum ?: 0
+        starterInNum = slots.find { it.kind == FnKind.STARTER }?.inNum ?: 0
+        
         val (low, hi) = lightsOutsFromCfg(list)
         lowBeamOut = low
         hiBeamOut = hi
+        isCfgReady = true
     }
 
     DisposableEffect(Unit) {
@@ -215,7 +229,12 @@ fun DashboardScreen(
         val prevCfg = ble.onInputCfg
         val prevBlink = ble.onConfigReceived
         val prevRaw = ble.onRawMessage
-        ble.onConnectionChanged = { c -> isConnected = c; HubNotification.update(context, c); prevConn?.invoke(c) }
+        ble.onConnectionChanged = { c ->
+            isConnected = c
+            if (!c) animOil = false
+            HubNotification.update(context, c)
+            prevConn?.invoke(c)
+        }
         ble.onStateReceived = { list -> 
             if (list.size >= 10) {
                 val next = list.take(10)
@@ -233,25 +252,23 @@ fun DashboardScreen(
         ble.onConfigReceived = { fade, blinks, curve, ac, acOn, lightsOn ->
             fadeSpeed = fade.coerceIn(4, 60)
             fadeCurve = curve.coerceIn(0, 2)
-            acSpeedThreshold = ac.coerceIn(5, 30)
-            if (lightsOn != null) autoLights = lightsOn
             prevBlink?.invoke(fade, blinks, curve, ac, acOn, lightsOn)
         }
-        ble.onRawMessage = { msg -> if (msg.startsWith("RPM:") && !DashboardTestState.useSimRpm) rpm = msg.removePrefix("RPM:").trim().toIntOrNull() ?: 0; prevRaw?.invoke(msg) }
+        ble.onRawMessage = { msg ->
+            when {
+                msg.startsWith("RPM:") ->
+                    rpm = msg.removePrefix("RPM:").trim().toIntOrNull() ?: 0
+                msg.startsWith("OIL:") ->
+                    animOil = msg.removePrefix("OIL:").trim() == "1"
+                msg.startsWith("FUEL:") -> {
+                    val pct = msg.removePrefix("FUEL:").trim().toIntOrNull() ?: 100
+                    DashboardTestState.fuelLevel = (pct / 100f).coerceIn(0f, 1f)
+                }
+            }
+            prevRaw?.invoke(msg)
+        }
         if (ble.isConnected) { ble.requestState(); ble.requestInputCfg(); ble.sendCommand("GET_CFG") }
         onDispose { ble.onConnectionChanged = prevConn; ble.onStateReceived = prevState; ble.onInputCfg = prevCfg; ble.onConfigReceived = prevBlink; ble.onRawMessage = prevRaw; ble.onStarterEnabled = prevStarter; ble.onInputStates = prevInputStates }
-    }
-
-    // Auto lights and blinker cancellation logic
-    LaunchedEffect(displaySpeed, autoLights, acSpeedThreshold) {
-        if (isConnected) {
-            if (autoLights && displaySpeed >= acSpeedThreshold &&
-                lowBeamOut in 1..10 && !lowBeamOn
-            ) {
-                ble.setOutput(lowBeamOut, true)
-            }
-        }
-        lastDisplaySpeed = displaySpeed
     }
 
     DisposableEffect(isConnected, DashboardTestState.useSimSpeed) {
@@ -293,7 +310,7 @@ fun DashboardScreen(
                     hiBeamOn = hiBeamOn,
                     neutralOn = neutralOn,
                     oilOn = oilOn,
-                    fuelLevel = DashboardTestState.fuelLevel,
+                    fuelLevel = if (fuelOn) 0.1f else DashboardTestState.fuelLevel,
                     ambientBrightness = DashboardTestState.actualScreenBrightness
                 )
             }
@@ -302,15 +319,14 @@ fun DashboardScreen(
 
             // Starter Button
             Box(
-                modifier = Modifier.size(100.dp).pointerInput(isConnected) {
+                modifier = Modifier.size(100.dp).pointerInput(isConnected, starterEnabled, starterAllowed) {
                     detectTapGestures(onPress = {
-                        if (!isConnected || !starterEnabled || starterInNum !in 1..10)
+                        if (!isConnected || !starterEnabled || starterInNum !in 1..10 || !starterAllowed)
                             return@detectTapGestures
                         pressed = true; ble.sendCommand("IN:$starterInNum:1")
                         try { awaitRelease() } finally {
                             pressed = false
                             scope.launch {
-                                delay(40); ble.sendCommand("IN:$starterInNum:0")
                                 delay(40); ble.sendCommand("IN:$starterInNum:0")
                             }
                         }
@@ -318,8 +334,25 @@ fun DashboardScreen(
                 },
                 contentAlignment = Alignment.Center
             ) {
-                Surface(shape = CircleShape, color = when { pressed -> MaterialTheme.colorScheme.primary; !DashboardTestState.neutral -> MaterialTheme.colorScheme.surfaceVariant; else -> MaterialTheme.colorScheme.secondaryContainer }, modifier = Modifier.fillMaxSize()) {}
-                Text(when { pressed -> "ON"; !DashboardTestState.neutral -> "N?"; else -> "START" }, fontWeight = FontWeight.Bold)
+                Surface(
+                    shape = CircleShape,
+                    color = when {
+                        pressed -> MaterialTheme.colorScheme.primary
+                        !isConnected || !starterEnabled || !starterAllowed -> Color.Gray
+                        else -> MaterialTheme.colorScheme.secondaryContainer
+                    },
+                    modifier = Modifier.fillMaxSize()
+                ) {}
+                Text(
+                    text = when {
+                        pressed -> "ON"
+                        !isConnected || !starterEnabled -> "N?"
+                        !starterAllowed -> "Luz/Sprz"
+                        else -> "START"
+                    },
+                    fontWeight = FontWeight.Bold,
+                    color = if (!isConnected || !starterEnabled || !starterAllowed) Color.Black else LocalContentColor.current
+                )
             }
 
             Spacer(Modifier.height(16.dp))
@@ -375,31 +408,24 @@ fun DashboardScreen(
                             Row(Modifier.fillMaxWidth().height(24.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceEvenly) {
                                 Row(verticalAlignment = Alignment.CenterVertically) {
                                     Text("OIL", style = tiny)
-                                    Switch(checked = DashboardTestState.oil, onCheckedChange = { DashboardTestState.oil = it; if (oilInNum in 1..10) ble.sendCommand("IN:$oilInNum:${if (it) 1 else 0}") }, modifier = Modifier.scale(0.5f).height(16.dp))
+                                    Switch(checked = oilOn, onCheckedChange = { if (oilInNum in 1..10) ble.sendCommand("IN:$oilInNum:${if (it) 1 else 0}") }, modifier = Modifier.scale(0.5f).height(16.dp))
                                 }
                                 Row(verticalAlignment = Alignment.CenterVertically) {
                                     Text("NEUT", style = tiny)
-                                    Switch(checked = DashboardTestState.neutral, onCheckedChange = { DashboardTestState.neutral = it; if (neutralInNum in 1..10) ble.sendCommand("IN:$neutralInNum:${if (it) 1 else 0}") }, modifier = Modifier.scale(0.5f).height(16.dp))
+                                    Switch(checked = neutralOn, onCheckedChange = { if (neutralInNum in 1..10) ble.sendCommand("IN:$neutralInNum:${if (it) 1 else 0}") }, modifier = Modifier.scale(0.5f).height(16.dp))
                                 }
                             }
-                            // 7. Beams – dwa IN → LOW+HI; jeden wspólny IN → LIGHTS
-                            val lightsRows = rows.filter { it.title == "LIGHTS" && it.inNum in 1..10 }
-                            val lightsIns = lightsRows.map { it.inNum }.distinct()
+                            // 7. Beams
+                            val lightsRows = rows.filter { it.functionId == FnKind.LIGHTS_1.id || it.functionId == FnKind.LIGHTS_2.id }
                             Row(Modifier.fillMaxWidth().height(24.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceEvenly) {
-                                if (lightsIns.size >= 2) {
-                                    val rowHi = lightsRows.find { it.subtitle?.contains("HI", true) == true }
-                                        ?: lightsRows.minByOrNull { it.inNum }
-                                    val rowLow = lightsRows.find { it.subtitle?.contains("LOW", true) == true }
-                                        ?: lightsRows.maxByOrNull { it.inNum }
-                                    DashboardTestButton("LOW", rowLow, ble)
-                                    DashboardTestButton("HI", rowHi, ble)
-                                } else {
-                                    DashboardTestButton("LIGHTS", lightsRows.firstOrNull(), ble)
-                                }
+                                val rowHi = lightsRows.find { it.functionId == FnKind.LIGHTS_1.id }
+                                val rowLow = lightsRows.find { it.functionId == FnKind.LIGHTS_2.id }
+                                if (rowLow != null) DashboardTestButton("LOW", rowLow, ble)
+                                if (rowHi != null) DashboardTestButton("HI", rowHi, ble)
                             }
                             // 8. Turns
-                            val rowL = rows.find { it.mode == 2 }
-                            val rowP = rows.find { it.mode == 3 }
+                            val rowL = rows.find { it.functionId == FnKind.LEFT.id }
+                            val rowP = rows.find { it.functionId == FnKind.RIGHT.id }
                             Row(Modifier.fillMaxWidth().height(24.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceEvenly) {
                                 DashboardTestButton("L", rowL, ble)
                                 DashboardTestButton("P", rowP, ble)
@@ -702,26 +728,20 @@ private fun DashboardTestButton(
     ble: com.yamahub.app.BleManager
 ) {
     var pressed by remember { mutableStateOf(false) }
-    val currentBle by rememberUpdatedState(ble)
-    val currentRow by rememberUpdatedState(row)
 
     Surface(
         shape = RoundedCornerShape(4.dp),
         color = if (pressed) MaterialTheme.colorScheme.primary.copy(alpha = 0.4f) else MaterialTheme.colorScheme.surfaceVariant,
         modifier = Modifier
             .size(width = 44.dp, height = 21.dp)
-            .pointerInput(Unit) {
+            .pointerInput(row) {
                 detectTapGestures(
                     onPress = {
-                        val inNum = currentRow?.inNum ?: return@detectTapGestures
+                        val inNum = row?.inNum ?: return@detectTapGestures
                         if (inNum !in 1..10) return@detectTapGestures
-                        pressed = true
-                        ControlBlinkers.onDown(currentBle, inNum)
-                        try {
-                            awaitRelease()
-                        } finally {
-                            pressed = false
-                            ControlBlinkers.onUp(currentBle, inNum)
+                        pressed = true; ble.sendCommand("IN:$inNum:1")
+                        try { awaitRelease() } finally {
+                            pressed = false; ble.sendCommand("IN:$inNum:0")
                         }
                     }
                 )

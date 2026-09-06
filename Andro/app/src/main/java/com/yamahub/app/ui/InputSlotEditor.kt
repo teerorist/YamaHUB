@@ -1,32 +1,16 @@
 package com.yamahub.app.ui
 
 import androidx.compose.foundation.ExperimentalFoundationApi
-import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.relocation.BringIntoViewRequester
 import androidx.compose.foundation.relocation.bringIntoViewRequester
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.offset
-import androidx.compose.material3.DropdownMenuItem
-import androidx.compose.material3.Checkbox
-import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.ExposedDropdownMenuBox
-import androidx.compose.material3.ExposedDropdownMenuDefaults
-import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.Text
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.rememberCoroutineScope
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.onFocusEvent
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
@@ -34,144 +18,176 @@ import kotlinx.coroutines.launch
 @Composable
 fun SlotEditor(
     slot: FnSlot,
-    canAddLights2: Boolean,
-    canAddBrake2: Boolean,
-    lightsCount: Int,
+    modeDefinitions: List<com.yamahub.app.ModeDefinition>,
     outOccupants: Map<Int, List<String>>,
+    lightsCount: Int,
+    hideKinds: Set<FnKind> = emptySet(),
     onChange: (FnSlot) -> Unit,
+    onPersist: (FnSlot) -> Unit = onChange,
+    onChangeCategory: (FnCategory) -> Unit,
     onChangeKind: (FnKind) -> Unit
 ) {
+    val h = 46.dp
     Column(
         Modifier.padding(horizontal = 8.dp, vertical = 2.dp),
-        verticalArrangement = Arrangement.spacedBy(8.dp)
+        verticalArrangement = Arrangement.spacedBy(6.dp)
     ) {
-        if (!slot.isFixed()) {
-            var kindExpanded by remember { mutableStateOf(false) }
-            val options = buildList {
-                add(FnKind.BUTTON to "BUTTON")
-                add(FnKind.SENSOR to "SENSOR")
-                add(FnKind.DISABLED to "DISABLED")
-                if (canAddLights2) add(FnKind.LIGHTS to "LIGHTS 2")
-                if (canAddBrake2) add(FnKind.BRAKE to "BRAKE 2")
-            }
+        if (!slot.isFixed) {
+            // 1. Typ (Category)
+            var categoryExpanded by remember { mutableStateOf(false) }
             ExposedDropdownMenuBox(
-                expanded = kindExpanded,
-                onExpandedChange = { kindExpanded = it }
+                expanded = categoryExpanded,
+                onExpandedChange = { categoryExpanded = it }
             ) {
                 CompactOutlinedTextField(
-                    value = when (slot.kind) {
-                        FnKind.BUTTON -> "BUTTON"
-                        FnKind.SENSOR -> "SENSOR"
-                        FnKind.DISABLED -> "DISABLED"
-                        FnKind.LIGHTS -> "LIGHTS 2"
-                        FnKind.BRAKE -> "BRAKE 2"
-                        else -> slot.title()
-                    },
+                    value = slot.category.name,
                     onValueChange = {},
                     readOnly = true,
-                    label = "Funkcja",
-                    textStyle = MaterialTheme.typography.titleSmall,
-                    modifier = Modifier.menuAnchor().fillMaxWidth().height(52.dp),
-                    trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(kindExpanded) }
+                    label = "Type",
+                    modifier = Modifier.menuAnchor().fillMaxWidth().height(h),
+                    trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(categoryExpanded) }
                 )
-                ExposedDropdownMenu(
-                    expanded = kindExpanded,
-                    onDismissRequest = { kindExpanded = false }
-                ) {
-                    options.forEach { (k, label) ->
+                ExposedDropdownMenu(expanded = categoryExpanded, onDismissRequest = { categoryExpanded = false }) {
+                    listOf(FnCategory.BUTTON, FnCategory.SENSOR, FnCategory.DISABLED).forEach { category ->
                         DropdownMenuItem(
-                            text = { Text(label) },
-                            onClick = {
-                                kindExpanded = false
-                                onChangeKind(k)
-                            }
+                            text = { Text(category.name) },
+                            onClick = { categoryExpanded = false; onChangeCategory(category) }
                         )
                     }
                 }
             }
-        }
 
-        if (slot.kind == FnKind.BUTTON || slot.kind == FnKind.SENSOR) {
-            val bringIntoViewRequester = remember { BringIntoViewRequester() }
-            val scope = rememberCoroutineScope()
-            CompactOutlinedTextField(
-                value = slot.customName,
-                onValueChange = { onChange(slot.copy(customName = it.take(15))) },
-                label = "Nazwa",
-                singleLine = true,
-                textStyle = MaterialTheme.typography.titleSmall,
-                modifier = Modifier
-                    .fillMaxWidth().height(52.dp)
-                    .bringIntoViewRequester(bringIntoViewRequester)
-                    .onFocusEvent { state ->
-                        if (state.isFocused) {
-                            scope.launch {
-                                delay(300)
-                                bringIntoViewRequester.bringIntoView()
-                            }
+            // 2. Funkcja (Kind)
+            if (slot.category != FnCategory.DISABLED) {
+                var kindExpanded by remember { mutableStateOf(false) }
+                
+                val options = modeDefinitions
+                    .filter { it.category == slot.category.ordinal }
+                    .mapNotNull { def ->
+                        val kind = FnKind.entries.find { k -> k.id == def.id } ?: return@mapNotNull null
+                        if (kind != FnKind.USER && kind != FnKind.DISABLED && kind in hideKinds) {
+                            return@mapNotNull null
+                        }
+                        val addable = def.flags == 1 ||
+                            kind == FnKind.LIGHTS_2 || kind == FnKind.BRAKE_2
+                        if (!addable) return@mapNotNull null
+                        kind to kindPickerLabel(kind, def.label)
+                    }
+
+                val currentLabel = kindPickerLabel(
+                    slot.kind,
+                    modeDefinitions.find {
+                        it.id == slot.kind.id && it.category == slot.category.ordinal
+                    }?.label
+                )
+
+                ExposedDropdownMenuBox(
+                    expanded = kindExpanded,
+                    onExpandedChange = { kindExpanded = it }
+                ) {
+                    CompactOutlinedTextField(
+                        value = currentLabel,
+                        onValueChange = {},
+                        readOnly = true,
+                        label = "Function",
+                        modifier = Modifier.menuAnchor().fillMaxWidth().height(h),
+                        trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(kindExpanded) }
+                    )
+                    ExposedDropdownMenu(expanded = kindExpanded, onDismissRequest = { kindExpanded = false }) {
+                        options.forEach { (k, label) ->
+                            DropdownMenuItem(
+                                text = { Text(label) },
+                                onClick = { kindExpanded = false; onChangeKind(k) }
+                            )
                         }
                     }
-            )
-
-        }
-
-        if (slot.hasOptionalOutputControl()) {
-            Row(
-                modifier = Modifier.fillMaxWidth().height(52.dp),
-                verticalAlignment = androidx.compose.ui.Alignment.CenterVertically
-            ) {
-                Checkbox(
-                    modifier = Modifier.offset(x = (-12).dp),
-                    checked = slot.outputEnabled,
-                    onCheckedChange = { onChange(slot.copy(outputEnabled = it)) }
-                )
-                if (slot.outputEnabled) {
-                    OutPicker(
-                        label = "Wyjście",
-                        selected = slot.outputNum,
-                        outOccupants = outOccupants,
-                        excludeSelf = setOf(slot.outputNum),
-                        modifier = Modifier.weight(1f),
-                        onSelect = { onChange(slot.copy(outputNum = it)) }
-                    )
-                } else {
-                    Text("Steruj wyjściem")
                 }
             }
         }
 
-        if (slot.hasOutPicker() && !slot.hasOptionalOutputControl() &&
-            !(slot.kind == FnKind.BRAKE && slot.variant > 1)) {
-            val dualLights = slot.kind == FnKind.LIGHTS && lightsCount < 2
-            if (dualLights) {
+        // 3. Nazwa (Custom Name dla USER)
+        if (slot.kind == FnKind.USER) {
+            val requester = remember { BringIntoViewRequester() }
+            val scope = rememberCoroutineScope()
+            CompactOutlinedTextField(
+                value = slot.customName,
+                onValueChange = { onChange(slot.copy(customName = it.take(15))) },
+                label = "Name",
+                placeholder = slot.category.name,
+                singleLine = true,
+                modifier = Modifier
+                    .fillMaxWidth().height(h)
+                    .bringIntoViewRequester(requester)
+                    .onFocusEvent { if (it.isFocused) scope.launch { delay(300); requester.bringIntoView() } }
+            )
+        }
+
+        // 4. Porty OUT: BUTTON zawsze Output; SENSOR (poza BRAKE) — checkbox
+        if (slot.kind != FnKind.DISABLED && !slot.isOutLocked) {
+            val sensorOptional = slot.category == FnCategory.SENSOR &&
+                slot.kind != FnKind.BRAKE_1 && slot.kind != FnKind.BRAKE_2
+            if (slot.kind == FnKind.LIGHTS_1 && lightsCount < 2) {
                 OutPicker(
-                    label = "OUT · HI BEAM",
-                    selected = slot.outNum,
+                    label = "Output (Hi Beam)",
+                    selected = slot.outPrimary,
                     outOccupants = outOccupants,
-                    excludeSelf = setOf(slot.outNum),
-                    onSelect = { onChange(slot.copy(outNum = it)) }
+                    excludeSelf = setOf(slot.outPrimary, slot.outSecondary),
+                    onSelect = { onPersist(slot.copy(outPrimary = it)) }
                 )
+                Spacer(Modifier.height(6.dp))
                 OutPicker(
-                    label = "OUT · LOW BEAM",
-                    selected = slot.outNum2.takeIf { it in 1..10 } ?: 0,
+                    label = "Output (Low Beam)",
+                    selected = slot.outSecondary,
                     outOccupants = outOccupants,
-                    excludeSelf = setOf(slot.outNum2),
-                    onSelect = { onChange(slot.copy(outNum2 = it)) }
+                    excludeSelf = setOf(slot.outPrimary, slot.outSecondary),
+                    onSelect = { onPersist(slot.copy(outSecondary = it)) }
                 )
-            } else {
-                val label = when {
-                    slot.kind == FnKind.LIGHTS && slot.variant <= 1 -> "OUT · HI BEAM"
-                    slot.kind == FnKind.LIGHTS -> "OUT · LOW BEAM"
-                    slot.kind == FnKind.BRAKE -> "OUT · BRAKE"
-                    slot.kind == FnKind.NEUTRAL -> "OUT · NEUTRAL"
-                    else -> "Wyjście"
+            } else if (sensorOptional) {
+                val selected = if (slot.kind == FnKind.USER) slot.outputIndex else slot.outPrimary
+                Row(modifier = Modifier.height(h), verticalAlignment = Alignment.CenterVertically) {
+                    Checkbox(
+                        checked = slot.outputEnabled,
+                        onCheckedChange = {
+                            onPersist(
+                                if (slot.kind == FnKind.USER) slot.copy(outputEnabled = it)
+                                else slot.copy(outputEnabled = it, outPrimary = if (it) slot.outPrimary else 0)
+                            )
+                        }
+                    )
+                    if (slot.outputEnabled) {
+                        OutPicker(
+                            label = "Output",
+                            selected = selected,
+                            outOccupants = outOccupants,
+                            excludeSelf = setOf(selected),
+                            onSelect = {
+                                onPersist(
+                                    if (slot.kind == FnKind.USER)
+                                        slot.copy(outputIndex = it, outputEnabled = true)
+                                    else slot.copy(outPrimary = it, outputEnabled = true)
+                                )
+                            },
+                            modifier = Modifier.weight(1f)
+                        )
+                    } else {
+                        Text("Manage Output Port", fontSize = 12.sp)
+                    }
                 }
+            } else {
                 OutPicker(
-                    label = label,
-                    selected = slot.outNum,
+                    label = "Output",
+                    selected = if (slot.kind == FnKind.USER) slot.outputIndex else slot.outPrimary,
                     outOccupants = outOccupants,
-                    excludeSelf = setOf(slot.outNum),
-                    onSelect = { onChange(slot.copy(outNum = it)) }
+                    excludeSelf = setOf(
+                        if (slot.kind == FnKind.USER) slot.outputIndex else slot.outPrimary
+                    ),
+                    onSelect = {
+                        onPersist(
+                            if (slot.kind == FnKind.USER)
+                                slot.copy(outputIndex = it, outputEnabled = true)
+                            else slot.copy(outPrimary = it, outputEnabled = true)
+                        )
+                    }
                 )
             }
         }

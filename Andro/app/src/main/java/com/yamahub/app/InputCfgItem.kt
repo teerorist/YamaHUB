@@ -6,7 +6,11 @@ data class InputCfgItem(
     val outNum: Int,
     val name: String,
     val outputEnabled: Boolean = false,
-    val outputNum: Int = outNum
+    val outputNum: Int = outNum,
+    val functionId: Int = 0,
+    val outSecondary: Int = 0,
+    val isFixed: Boolean = false,
+    val isOutLocked: Boolean = false
 )
 
 fun InputCfgItem.displayName(): String =
