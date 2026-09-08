@@ -1,6 +1,7 @@
 #include "display_hub.h"
 #include "inputs.h"
 #include "blinkers.h"
+#include "pins.h"
 #include <LovyanGFX.hpp>
 
 class LGFX : public lgfx::LGFX_Device {
@@ -18,17 +19,17 @@ public:
             cfg.spi_3wire = true;
             cfg.use_lock = true;
             cfg.dma_channel = SPI_DMA_CH_AUTO;
-            cfg.pin_sclk = 40;
-            cfg.pin_mosi = 45;
+            cfg.pin_sclk = LCD_SCLK;
+            cfg.pin_mosi = LCD_MOSI;
             cfg.pin_miso = -1;
-            cfg.pin_dc = 41;
+            cfg.pin_dc = LCD_DC;
             _bus.config(cfg);
             _panel.setBus(&_bus);
         }
         {
             auto cfg = _panel.config();
-            cfg.pin_cs = 42;
-            cfg.pin_rst = 39;
+            cfg.pin_cs = LCD_CS;
+            cfg.pin_rst = LCD_RST;
             cfg.pin_busy = -1;
             cfg.panel_width = 172;
             cfg.panel_height = 320;
@@ -46,7 +47,7 @@ public:
         }
         {
             auto cfg = _light.config();
-            cfg.pin_bl = 46;
+            cfg.pin_bl = LCD_BL;
             cfg.invert = false;
             cfg.freq = 44100;
             cfg.pwm_channel = 7;

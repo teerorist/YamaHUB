@@ -23,6 +23,7 @@ enum class FnKind(val id: Int) {
     OIL(10),
     FUEL(11),
     USER(12),
+    KILL_SWITCH(13),
     DISABLED(0)
 }
 
@@ -35,6 +36,13 @@ fun modeToCategory(mode: Int): FnCategory = when (mode) {
 }
 
 var nextSlotId = 1L
+
+private data class PairedKinds(val first: FnKind, val second: FnKind)
+
+private val pairedKinds = listOf(
+    PairedKinds(FnKind.LIGHTS_1, FnKind.LIGHTS_2),
+    PairedKinds(FnKind.STARTER, FnKind.KILL_SWITCH)
+)
 
 data class FnSlot(
     val inNum: Int,
@@ -72,6 +80,7 @@ fun FnSlot.samePersist(other: FnSlot?): Boolean {
 fun kindPickerLabel(kind: FnKind, hubLabel: String? = null): String = when (kind) {
     FnKind.LIGHTS_2 -> "LOW BEAM"
     FnKind.BRAKE_2 -> "BRAKE"
+    FnKind.KILL_SWITCH -> "KILL SWITCH"
     else -> hubLabel ?: kind.name
 }
 
@@ -94,13 +103,18 @@ fun FnSlot.title(
 }
 
 /** Tekst pod tytułem: pokazuje tylko porty OUT */
-fun FnSlot.subtitle(lightsCount: Int): String? {
+fun FnSlot.subtitle(lightsCount: Int, hasKillSwitch: Boolean = false): String? {
     if (kind == FnKind.DISABLED) return null
     
     // Dla świateł w trybie 1x pokazujemy oba porty
     if (kind == FnKind.LIGHTS_1 && lightsCount < 2) {
         val lowStr = if (outSecondary > 0) " · OUT %02d".format(outSecondary) else ""
         return "OUT %02d%s".format(outPrimary, lowStr)
+    }
+
+    if (kind == FnKind.STARTER && !hasKillSwitch) {
+        val killStr = if (outSecondary > 0) " · OUT %02d".format(outSecondary) else ""
+        return "OUT %02d%s".format(outPrimary, killStr)
     }
     
     if (kind == FnKind.USER) {
@@ -143,11 +157,21 @@ fun applyKindChange(slots: List<FnSlot>, index: Int, kind: FnKind): List<FnSlot>
         list.any { it.id != old.id && it.kind == kind }
     ) return slots
 
+    pairedKinds.forEach { pair ->
+        if (old.kind == pair.second && kind != pair.second) {
+            val first = list.indexOfFirst { it.kind == pair.first }
+            if (first >= 0 && list[first].outSecondary !in 1..10 && old.outPrimary in 1..10) {
+                list[first] = list[first].copy(outSecondary = old.outPrimary)
+            }
+        }
+    }
+
     var slot = old.copy(kind = kind, customName = "")
     slot = slot.copy(
         category = when (kind) {
             FnKind.LEFT, FnKind.RIGHT, FnKind.LIGHTS_1, FnKind.LIGHTS_2, FnKind.STARTER ->
                 FnCategory.BUTTON
+            FnKind.KILL_SWITCH -> FnCategory.BUTTON
             FnKind.BRAKE_1, FnKind.BRAKE_2, FnKind.NEUTRAL, FnKind.CLUTCH, FnKind.OIL, FnKind.FUEL ->
                 FnCategory.SENSOR
             FnKind.DISABLED -> FnCategory.DISABLED
@@ -156,22 +180,18 @@ fun applyKindChange(slots: List<FnSlot>, index: Int, kind: FnKind): List<FnSlot>
         isOutLocked = kind == FnKind.BRAKE_2
     )
 
-    if (kind == FnKind.LIGHTS_2) {
-        val l1 = list.indexOfFirst { it.kind == FnKind.LIGHTS_1 }
-        if (l1 >= 0 && list[l1].outSecondary in 1..10) {
-            slot = slot.copy(outPrimary = list[l1].outSecondary)
-            list[l1] = list[l1].copy(outSecondary = 0)
+    pairedKinds.forEach { pair ->
+        if (kind == pair.second) {
+            val first = list.indexOfFirst { it.kind == pair.first }
+            if (first >= 0 && list[first].outSecondary in 1..10) {
+                slot = slot.copy(outPrimary = list[first].outSecondary, outputEnabled = true)
+                list[first] = list[first].copy(outSecondary = 0)
+            }
         }
     }
     if (kind == FnKind.BRAKE_2) {
         val b1 = list.firstOrNull { it.kind == FnKind.BRAKE_1 }
         if (b1 != null) slot = slot.copy(outPrimary = b1.outPrimary)
-    }
-    if (old.kind == FnKind.LIGHTS_2 && kind != FnKind.LIGHTS_2) {
-        val l1 = list.indexOfFirst { it.kind == FnKind.LIGHTS_1 }
-        if (l1 >= 0 && list[l1].outSecondary !in 1..10 && old.outPrimary in 1..10) {
-            list[l1] = list[l1].copy(outSecondary = old.outPrimary)
-        }
     }
     if (kind == FnKind.DISABLED) {
         slot = slot.copy(

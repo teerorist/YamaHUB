@@ -10,3 +10,5 @@ void requestShutdownNow(Output* outputs);
 void setBleStarterPressed(bool pressed);
 bool isStarterEnabled(Output* outputs);
 void updateStarterInterlock(Output* outputs, bool& stateChanged);
+void syncStarterKillOutput(Output* outputs, bool& stateChanged);
+void handleKillSwitch(Button* buttons, Output* outputs, bool& stateChanged);

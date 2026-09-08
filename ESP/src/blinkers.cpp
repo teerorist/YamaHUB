@@ -197,6 +197,35 @@ void forceMode(BlinkerMode mode) {
     else if (mode == MODE_HAZARD) enter(RunMode::HAZARD);
 }
 
+void toggleBlinkerFromControl(int outIndex0) {
+    const bool isLeft = outIndex0 == blinkerLeftOutIndex();
+    const bool isRight = outIndex0 == blinkerRightOutIndex();
+    if (!isLeft && !isRight) return;
+
+    pending = Pending::NONE;
+    ignoreInputUntil = millis() + IGNORE_MS;
+
+    if (isLeft) {
+        switch (runMode) {
+            case RunMode::OFF:      enter(RunMode::LEFT_NS); break;
+            case RunMode::LEFT_N:
+            case RunMode::LEFT_NS:  enter(RunMode::OFF); break;
+            case RunMode::RIGHT_N:
+            case RunMode::RIGHT_NS: enter(RunMode::HAZARD); break;
+            case RunMode::HAZARD:   enter(RunMode::RIGHT_NS); break;
+        }
+    } else {
+        switch (runMode) {
+            case RunMode::OFF:      enter(RunMode::RIGHT_NS); break;
+            case RunMode::RIGHT_N:
+            case RunMode::RIGHT_NS: enter(RunMode::OFF); break;
+            case RunMode::LEFT_N:
+            case RunMode::LEFT_NS:  enter(RunMode::HAZARD); break;
+            case RunMode::HAZARD:   enter(RunMode::LEFT_NS); break;
+        }
+    }
+}
+
 /*
  * Tabela (ustalona, gdy działało „jak trzeba”):
  *

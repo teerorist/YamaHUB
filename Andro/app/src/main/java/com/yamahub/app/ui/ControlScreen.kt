@@ -123,7 +123,9 @@ fun ControlScreen() {
 
     Column(Modifier.fillMaxSize().padding(12.dp)) {
         LazyColumn(state = listState, verticalArrangement = Arrangement.spacedBy(6.dp), modifier = Modifier.weight(1f)) {
-            itemsIndexed(rows, key = { _, r -> r.primaryOut }) { _, row ->
+            itemsIndexed(rows, key = { index, r ->
+                "${r.inNum}:${r.functionId}:${r.primaryOut}:$index"
+            }) { _, row ->
                 val out = row.primaryOut
                 val isDragging = dragFromOut == out
                 val gapShiftY = when {
@@ -147,11 +149,7 @@ fun ControlScreen() {
                     gapShiftY = gapShiftY,
                     dragOffsetY = if (isDragging) dragOffsetY else 0f,
                     onOutTap = {
-                        when (row.functionId) {
-                            1 -> ble.sendCommand("LEFT:TOGGLE")
-                            2 -> ble.sendCommand("RIGHT:TOGGLE")
-                            else -> ble.setOutput(out, !states.getOrElse(out - 1) { false })
-                        }
+                        ble.toggleOutput(out)
                     },
                     onDragStart = { dragFromOut = out; dragOffsetY = 0f },
                     onDrag = { dy -> dragOffsetY += dy },

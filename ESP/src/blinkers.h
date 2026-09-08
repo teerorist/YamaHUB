@@ -20,6 +20,8 @@ int blinkerRightOutIndex();
 bool isBlinkerOut(int outIndex0);
 
 void forceMode(BlinkerMode mode);
+/** Przełącza kierunek z ControlScreen: NS, HAZARD albo wyłączenie. */
+void toggleBlinkerFromControl(int outIndex0);
 /** Jak fizyczny short/long – tabela stanów (N z cfg.blinkCount / NS). */
 void applyLeftShort();
 void applyLeftLong();

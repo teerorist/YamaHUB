@@ -21,6 +21,7 @@ fun SlotEditor(
     modeDefinitions: List<com.yamahub.app.ModeDefinition>,
     outOccupants: Map<Int, List<String>>,
     lightsCount: Int,
+    hasKillSwitch: Boolean = false,
     hideKinds: Set<FnKind> = emptySet(),
     onChange: (FnSlot) -> Unit,
     onPersist: (FnSlot) -> Unit = onChange,
@@ -126,7 +127,15 @@ fun SlotEditor(
         if (slot.kind != FnKind.DISABLED && !slot.isOutLocked) {
             val sensorOptional = slot.category == FnCategory.SENSOR &&
                 slot.kind != FnKind.BRAKE_1 && slot.kind != FnKind.BRAKE_2
-            if (slot.kind == FnKind.LIGHTS_1 && lightsCount < 2) {
+            if (slot.kind == FnKind.KILL_SWITCH) {
+                OutPicker(
+                    label = "Output",
+                    selected = slot.outPrimary,
+                    outOccupants = outOccupants,
+                    excludeSelf = setOf(slot.outPrimary),
+                    onSelect = { onPersist(slot.copy(outPrimary = it, outputEnabled = true)) }
+                )
+            } else if (slot.kind == FnKind.LIGHTS_1 && lightsCount < 2) {
                 OutPicker(
                     label = "Output (Hi Beam)",
                     selected = slot.outPrimary,
@@ -137,6 +146,22 @@ fun SlotEditor(
                 Spacer(Modifier.height(6.dp))
                 OutPicker(
                     label = "Output (Low Beam)",
+                    selected = slot.outSecondary,
+                    outOccupants = outOccupants,
+                    excludeSelf = setOf(slot.outPrimary, slot.outSecondary),
+                    onSelect = { onPersist(slot.copy(outSecondary = it)) }
+                )
+            } else if (slot.kind == FnKind.STARTER && !hasKillSwitch) {
+                OutPicker(
+                    label = "Output (Starter)",
+                    selected = slot.outPrimary,
+                    outOccupants = outOccupants,
+                    excludeSelf = setOf(slot.outPrimary, slot.outSecondary),
+                    onSelect = { onPersist(slot.copy(outPrimary = it)) }
+                )
+                Spacer(Modifier.height(6.dp))
+                OutPicker(
+                    label = "Output (Kill Switch)",
                     selected = slot.outSecondary,
                     outOccupants = outOccupants,
                     excludeSelf = setOf(slot.outPrimary, slot.outSecondary),

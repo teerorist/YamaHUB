@@ -39,6 +39,7 @@ fun ControlInItem(
     onDragCancel: () -> Unit
 ) {
     val isUnused = row.inNum == 0
+    val isStarter = row.functionId == FnKind.STARTER.id
 
     val cardBg by animateColorAsState(
         when {
@@ -125,9 +126,9 @@ fun ControlInItem(
 
         OutSquare(
             label = "OUT %02d".format(row.primaryOut),
-            level = if (isUnused) 0f else levelForOut(row.primaryOut),
+            level = if (isUnused || isStarter) 0f else levelForOut(row.primaryOut),
             onColor = colorForRow(row),
-            isAssigned = row.inNum > 0,
+            isAssigned = !isUnused && !isStarter,
             onTap = if (!isUnused && enabled) onOutTap else null
         )
     }

@@ -24,7 +24,8 @@ enum InputFunction : uint8_t {
     FN_STARTER = 9,
     FN_OIL = 10,
     FN_FUEL = 11,
-    FN_USER = 12
+    FN_USER = 12,
+    FN_KILL_SWITCH = 13
 };
 
 /** Wynik zapisu konfiguracji (transakcja 10 slotów). */
@@ -71,6 +72,7 @@ bool outAssigned(uint8_t outIndex);
 int findFunctionInIndex(uint8_t functionId);  // 0..9 lub -1
 int findStarterInIndex();
 int starterOutIndex();                        // 0..9 lub -1
+int starterKillOutIndex();                    // 0..9 lub -1
 int findNeutralInIndex();
 int findOilInIndex();
 int findFuelInIndex();

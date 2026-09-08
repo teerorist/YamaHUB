@@ -231,6 +231,10 @@ class BleManager(private val context: Context) {
         sendCommand("OUT:$num:${if (on) 1 else 0}")
     }
 
+    fun toggleOutput(num: Int) {
+        sendCommand("OUT_TOGGLE:$num")
+    }
+
     fun setHazard(on: Boolean) {
         sendCommand("HAZARD:${if (on) 1 else 0}")
     }

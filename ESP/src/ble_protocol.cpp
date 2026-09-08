@@ -145,6 +145,7 @@ void sendModesV4() {
         {3, 0, "LIGHTS", 0},
         {4, 0, "LOW BEAM", canAddLight2},
         {12, 0, "USER DEFINED", 1},
+        {13, 0, "KILL SWITCH", 1},
 
         {7, 1, "NEUTRAL", 0},
         {5, 1, "BRAKES", 0},
@@ -236,6 +237,19 @@ static void applyDigitalOrBeam(Output* outputs, int oi, bool on) {
     if (on) outputs[oi].on();
     else    outputs[oi].off();
     setOutLevel(oi, on ? 255 : 0);
+}
+
+static void toggleOutputFromControl(Output* outputs, int oi) {
+    if (oi < 0 || oi > 9 || !outputs) return;
+
+    if (isBlinkerOut(oi)) {
+        connectionBlink = false;
+        toggleBlinkerFromControl(oi);
+    } else if (isBeamOutput(oi)) {
+        requestBeamLevel(oi, outLevel[oi] > 20 ? 0 : 255);
+    } else {
+        applyDigitalOrBeam(outputs, oi, !outputs[oi].isOn());
+    }
 }
 
 void handleBleCommand(const char* value) {
@@ -432,6 +446,16 @@ void handleBleCommand(const char* value) {
     }
 
     // OUT:n:0/1 — wg inputCfg, BEZ twardego OUT_10 = starter
+    if (strncmp(value, "OUT_TOGGLE:", 11) == 0) {
+        int num = 0;
+        if (sscanf(value + 11, "%d", &num) == 1 &&
+            num >= 1 && num <= 10 && gOutputs) {
+            toggleOutputFromControl(gOutputs, num - 1);
+            sendState(gOutputs);
+        }
+        return;
+    }
+
     if (strncmp(value, "OUT:", 4) == 0) {
         int num = 0, state = 0;
         if (sscanf(value + 4, "%d:%d", &num, &state) == 2 &&
@@ -450,14 +474,14 @@ void handleBleCommand(const char* value) {
 
             if (isLeft && !isRight) {
                 connectionBlink = false;
-                if (state) applyLeftShort();
+                if (state) applyLeftHoldLong();
                 else forceMode(MODE_OFF);
-                Serial.println(state ? "LEFT SHORT/N" : "LEFT OFF");
+                Serial.println(state ? "LEFT TOGGLE/NS" : "LEFT OFF");
             } else if (isRight && !isLeft) {
                 connectionBlink = false;
-                if (state) applyRightShort();
+                if (state) applyRightHoldLong();
                 else forceMode(MODE_OFF);
-                Serial.println(state ? "RIGHT SHORT/N" : "RIGHT OFF");
+                Serial.println(state ? "RIGHT TOGGLE/NS" : "RIGHT OFF");
             } else if (isStarterOut) {
                 // tylko OUT przypisany do STARTER w InputSettings
                 setBleStarterPressed(state != 0);

@@ -12,6 +12,7 @@ void handleConfigurableInputs(Button* buttons, Output* outputs, bool& stateChang
             case FN_LEFT:
             case FN_RIGHT:
             case FN_STARTER:
+            case FN_KILL_SWITCH:
             case FN_BRAKE_1:
             case FN_BRAKE_2:
             case FN_NONE:

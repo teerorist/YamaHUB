@@ -11,6 +11,7 @@ bool tryArm() {
         return true;
     }
     Serial.println("Zablokowane – połącz apkę");
+    delay(500);
     return false;
 }
 

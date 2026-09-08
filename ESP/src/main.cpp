@@ -27,12 +27,12 @@ Output outputs[10] = {
 
 void setup() {
     Serial.begin(115200);
-    delay(500);
+    delay(200);
+    Serial.println();
+    Serial.println("=== YamaHub ESP32-S3-DevKitC-1 N16R8 ===");
 
     loadConfig();
     loadInputModes();
-
-    Serial.println("=== YamaHub v1.5 Restoration ===");
 
     for (int i = 0; i < 10; i++) {
         // buttons[i].begin() woła pinMode. Robimy to tylko dla rzeczywistych pinów.
@@ -42,9 +42,16 @@ void setup() {
     }
 
     setupBlinkers();
+    Serial.println("Blinkers OK");
     setupBeams();
+    Serial.println("Beams OK");
+#ifdef YAMAHUB_SKIP_LCD
+    Serial.println("LCD skipped (DevKit, no panel)");
+#else
     setupDisplay();
-    // setupCAN(); // Wyłączone
+    Serial.println("Display OK");
+#endif
+    // setupCAN(); // wyłączone — obiekt MCP2515 nie startuje przy boot
 
     setupBLE(outputs, buttons);
     Serial.println("System Ready");
@@ -119,6 +126,7 @@ void loop() {
         handleBlinkerButtons(buttons, stateChanged);
         handleConfigurableInputs(buttons, outputs, stateChanged);
         updateStarterInterlock(outputs, stateChanged);
+        handleKillSwitch(buttons, outputs, stateChanged);
         sendInputStatesIfChanged(buttons);
 
         int si = findStarterInIndex();
@@ -126,6 +134,8 @@ void loop() {
 
         updateBlinkers(stateChanged);
     }
+
+    syncStarterKillOutput(outputs, stateChanged);
 
     if (stateChanged) sendState(outputs);
 
@@ -136,6 +146,7 @@ void loop() {
         // if (!isAnimationRunning) sendFuel(canFuelPct); // Wyłączone
     }
 
+#ifndef YAMAHUB_SKIP_LCD
     static unsigned long lastDraw = 0;
     if (millis() - lastDraw >= 40) {
         lastDraw = millis();
@@ -146,5 +157,6 @@ void loop() {
         }
         drawOutputs();
     }
+#endif
     delay(2);
 }

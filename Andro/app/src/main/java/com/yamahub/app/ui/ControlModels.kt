@@ -31,42 +31,64 @@ fun lightsOutsFromCfg(cfg: List<InputCfgItem>): Pair<Int, Int> {
     }
 }
 
-/** 
- * Buduje listę wierszy sterowania. 
- * Jeden slot może wygenerować dwa wiersze (np. LIGHTS 1x generuje HI i LOW).
+/**
+ * Buduje listę wierszy sterowania.
+ * Jeden slot może wygenerować dwa wiersze (LIGHTS/LOW lub STARTER/KILL).
  */
 fun buildRows(cfg: List<InputCfgItem>): List<ControlInRow> {
-    val rows = mutableListOf<ControlInRow>()
     val slots = cfg.map { it.toFnSlot() }
-    
     val lc = slots.count { it.kind == FnKind.LIGHTS_1 || it.kind == FnKind.LIGHTS_2 }
     val bc = slots.count { it.kind == FnKind.BRAKE_1 || it.kind == FnKind.BRAKE_2 }
+    val rowsByOut = mutableMapOf<Int, ControlInRow>()
 
     slots.forEach { s ->
         if (s.kind == FnKind.DISABLED) return@forEach
 
-        // Główne wyjście slotu - używamy tytułu prosto z HUBa
-        rows.add(ControlInRow(
-            inNum = s.inNum,
-            functionId = s.kind.id,
-            title = s.title(emptyList(), lc, bc), 
-            subtitle = null, // Subtitle niepotrzebny, nazwa z HUBa wystarczy
-            primaryOut = s.outPrimary
-        ))
-        
-        // Wirtualne wyjście dodatkowe (tylko dla 1x LIGHTS)
-        if (s.kind == FnKind.LIGHTS_1 && lc < 2 && s.outSecondary > 0) {
-            rows.add(ControlInRow(
+        if (s.outPrimary in 1..10) {
+            rowsByOut.putIfAbsent(s.outPrimary, ControlInRow(
+                inNum = s.inNum,
+                functionId = s.kind.id,
+                title = when (s.kind) {
+                    FnKind.LIGHTS_1 -> "HI BEAM"
+                    FnKind.STARTER -> "STARTER"
+                    FnKind.KILL_SWITCH -> "KILL SWITCH"
+                    else -> s.title(emptyList(), lc, bc)
+                },
+                subtitle = null,
+                primaryOut = s.outPrimary
+            ))
+        }
+
+        if (s.kind == FnKind.LIGHTS_1 && lc < 2 && s.outSecondary in 1..10) {
+            rowsByOut.putIfAbsent(s.outSecondary, ControlInRow(
                 inNum = s.inNum,
                 functionId = FnKind.LIGHTS_2.id,
-                title = "LOW BEAM", // To jedyny wyjątek "myślenia", ale tylko gdy HUB wysyła 1x LIGHTS
+                title = "LOW BEAM",
                 subtitle = null,
                 primaryOut = s.outSecondary
             ))
         }
+
+        if (s.kind == FnKind.STARTER && s.outSecondary in 1..10) {
+            rowsByOut.putIfAbsent(s.outSecondary, ControlInRow(
+                inNum = s.inNum,
+                functionId = FnKind.KILL_SWITCH.id,
+                title = "KILL SWITCH",
+                subtitle = null,
+                primaryOut = s.outSecondary
+            ))
+        }
+
     }
-    
-    return rows.sortedBy { it.primaryOut }
+    return (1..10).map { out ->
+        rowsByOut[out] ?: ControlInRow(
+            inNum = 0,
+            functionId = 0,
+            title = "DISABLED",
+            subtitle = null,
+            primaryOut = out
+        )
+    }
 }
 
 /** 
@@ -82,12 +104,18 @@ fun swapOutAssignment(
 
     val list = cfg.map { it.copy() }.toMutableList()
     
+    fun swapPort(port: Int): Int = when (port) {
+        outFrom -> outTo
+        outTo -> outFrom
+        else -> port
+    }
+
     for (i in list.indices) {
-        if (list[i].outNum == outFrom) {
-            list[i] = list[i].copy(outNum = outTo)
-        } else if (list[i].outNum == outTo) {
-            list[i] = list[i].copy(outNum = outFrom)
-        }
+        val item = list[i]
+        list[i] = item.copy(
+            outNum = swapPort(item.outNum),
+            outSecondary = swapPort(item.outSecondary)
+        )
     }
     
     return list
@@ -107,7 +135,7 @@ fun colorForRow(row: ControlInRow): Color = when (row.functionId) {
     4 -> COL_WHITE     // LOW Beam
     5, 6 -> COL_RED    // Hamulce
     7, 9 -> COL_GREEN  // Neutral, Starter
-    10, 11 -> COL_RED  // Oil, Fuel
+    10, 11, 13 -> COL_RED  // Oil, Fuel, Kill Switch
     12 -> COL_CYAN     // User defined
     else -> COL_CYAN
 }

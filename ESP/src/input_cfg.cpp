@@ -86,6 +86,16 @@ int starterOutIndex() {
     return (int)inputCfg[si].outPrimary;
 }
 
+int starterKillOutIndex() {
+    int ki = findFunctionInIndex(FN_KILL_SWITCH);
+    if (ki >= 0 && outAssigned(inputCfg[ki].outPrimary))
+        return (int)inputCfg[ki].outPrimary;
+
+    int si = findStarterInIndex();
+    if (si < 0 || !outAssigned(inputCfg[si].outSecondary)) return -1;
+    return (int)inputCfg[si].outSecondary;
+}
+
 static uint8_t canonicalCategory(uint8_t functionId, uint8_t fallback) {
     switch (functionId) {
         case FN_LEFT:
@@ -93,6 +103,7 @@ static uint8_t canonicalCategory(uint8_t functionId, uint8_t fallback) {
         case FN_LIGHTS_1:
         case FN_LIGHTS_2:
         case FN_STARTER:
+        case FN_KILL_SWITCH:
             return CAT_BUTTON;
         case FN_BRAKE_1:
         case FN_BRAKE_2:
@@ -124,6 +135,7 @@ static const char* defaultName(uint8_t functionId, uint8_t category) {
         case FN_OIL:      return "OIL";
         case FN_FUEL:     return "FUEL";
         case FN_USER:     return (category == CAT_SENSOR) ? "SENSOR" : "BUTTON";
+        case FN_KILL_SWITCH: return "KILL SWITCH";
         default:          return "DISABLED";
     }
 }
@@ -147,6 +159,52 @@ static uint8_t clampOut(uint8_t v) {
     return (v <= 9) ? v : OUT_NONE;
 }
 
+struct PairedFunctions {
+    uint8_t first;
+    uint8_t second;
+    const char* singleFirstName;
+    const char* splitFirstName;
+    const char* splitSecondName;
+};
+
+static const PairedFunctions pairedFunctions[] = {
+    {FN_LIGHTS_1, FN_LIGHTS_2, "LIGHTS", "HI BEAM", "LOW BEAM"},
+    {FN_STARTER, FN_KILL_SWITCH, "STARTER", "STARTER", "KILL SWITCH"},
+};
+
+static void derivePairedFunctions(InputCfgItem* arr) {
+    for (const PairedFunctions& pair : pairedFunctions) {
+        int first = indexOfFn(arr, pair.first);
+        int second = indexOfFn(arr, pair.second);
+        if (first >= 0 && second >= 0) {
+            if (!outAssigned(arr[second].outPrimary) &&
+                outAssigned(arr[first].outSecondary)) {
+                arr[second].outPrimary = arr[first].outSecondary;
+                arr[second].outputEnabled = true;
+            }
+            arr[first].outSecondary = OUT_NONE;
+            strncpy(arr[first].name, pair.splitFirstName, 15);
+            strncpy(arr[second].name, pair.splitSecondName, 15);
+            arr[first].name[15] = arr[second].name[15] = '\0';
+        } else if (first >= 0) {
+            strncpy(arr[first].name, pair.singleFirstName, 15);
+            arr[first].name[15] = '\0';
+        }
+    }
+}
+
+static void restorePairedSecondary(InputCfgItem* arr, uint8_t oldFunction,
+                                   uint8_t newFunction, uint8_t oldPrimary) {
+    for (const PairedFunctions& pair : pairedFunctions) {
+        if (oldFunction != pair.second || newFunction == pair.second) continue;
+        int first = indexOfFn(arr, pair.first);
+        if (first >= 0 && !outAssigned(arr[first].outSecondary) &&
+            outAssigned(oldPrimary)) {
+            arr[first].outSecondary = oldPrimary;
+        }
+    }
+}
+
 /** Nazwy / locki / współdzielony OUT hamulca. Bez kradzieży portów. */
 static void deriveDerived(InputCfgItem* arr) {
     for (int i = 0; i < INPUT_COUNT; i++) {
@@ -161,6 +219,14 @@ static void deriveDerived(InputCfgItem* arr) {
         it.category = canonicalCategory(it.functionId, it.category);
         it.fixed = isSystemFunction(it.functionId);
         it.outLocked = false;
+
+        if (it.functionId == FN_KILL_SWITCH) {
+            it.outputEnabled = outAssigned(it.outPrimary);
+            it.outSecondary = OUT_NONE;
+            strncpy(it.name, defaultName(it.functionId, it.category), 15);
+            it.name[15] = '\0';
+            continue;
+        }
 
         const bool sensorOptional =
             (it.functionId == FN_USER && it.category == CAT_SENSOR) ||
@@ -180,28 +246,16 @@ static void deriveDerived(InputCfgItem* arr) {
             it.outputEnabled = outAssigned(it.outPrimary);
             strncpy(it.name, defaultName(it.functionId, it.category), 15);
             it.name[15] = '\0';
-            if (it.functionId != FN_LIGHTS_1) it.outSecondary = OUT_NONE;
+            if (it.functionId != FN_LIGHTS_1 && it.functionId != FN_STARTER)
+                it.outSecondary = OUT_NONE;
         }
     }
 
-    int l1 = indexOfFn(arr, FN_LIGHTS_1);
-    int l2 = indexOfFn(arr, FN_LIGHTS_2);
-    if (l1 >= 0 && l2 >= 0) {
-        if (!outAssigned(arr[l2].outPrimary) && outAssigned(arr[l1].outSecondary)) {
-            arr[l2].outPrimary = arr[l1].outSecondary;
-            arr[l2].outputEnabled = true;
-        }
-        arr[l1].outSecondary = OUT_NONE;
-        strncpy(arr[l1].name, "HI BEAM", 15);
-        strncpy(arr[l2].name, "LOW BEAM", 15);
-        arr[l1].name[15] = arr[l2].name[15] = '\0';
-    } else if (l1 >= 0) {
-        strncpy(arr[l1].name, "LIGHTS", 15);
-        arr[l1].name[15] = '\0';
-    }
+    derivePairedFunctions(arr);
 
     int b1 = indexOfFn(arr, FN_BRAKE_1);
     int b2 = indexOfFn(arr, FN_BRAKE_2);
+
     if (b1 >= 0 && b2 >= 0) {
         arr[b2].outPrimary = arr[b1].outPrimary;
         arr[b2].outSecondary = OUT_NONE;
@@ -227,7 +281,8 @@ static bool occupiedOut(const InputCfgItem* arr, uint8_t out, int skipA, int ski
              arr[i].functionId == FN_CLUTCH || arr[i].functionId == FN_OIL ||
              arr[i].functionId == FN_FUEL)) continue;
         if (arr[i].outPrimary == out) return true;
-        if (arr[i].functionId == FN_LIGHTS_1 && arr[i].outSecondary == out) return true;
+        if ((arr[i].functionId == FN_LIGHTS_1 || arr[i].functionId == FN_STARTER) &&
+            arr[i].outSecondary == out) return true;
     }
     return false;
 }
@@ -248,7 +303,7 @@ static bool validateCfg(const InputCfgItem* arr) {
     }
 
     const uint8_t atMostOne[] = {
-        FN_LIGHTS_2, FN_BRAKE_2, FN_CLUTCH, FN_OIL, FN_FUEL
+        FN_LIGHTS_2, FN_BRAKE_2, FN_CLUTCH, FN_OIL, FN_FUEL, FN_KILL_SWITCH
     };
     for (uint8_t fn : atMostOne) {
         if (countFn(arr, fn) > 1) {
@@ -269,7 +324,8 @@ static bool validateCfg(const InputCfgItem* arr) {
         const bool needsOut =
             it.functionId == FN_LEFT || it.functionId == FN_RIGHT ||
             it.functionId == FN_STARTER || it.functionId == FN_LIGHTS_1 ||
-            it.functionId == FN_LIGHTS_2 || it.functionId == FN_BRAKE_1;
+            it.functionId == FN_LIGHTS_2 || it.functionId == FN_BRAKE_1 ||
+            it.functionId == FN_BRAKE_2 || it.functionId == FN_KILL_SWITCH;
         if (needsOut && !outAssigned(it.outPrimary)) {
             snprintf(rejectReason, sizeof(rejectReason),
                      "fn %u needs OUT", it.functionId);
@@ -282,6 +338,10 @@ static bool validateCfg(const InputCfgItem* arr) {
         if (it.functionId == FN_USER && it.category == CAT_BUTTON &&
             !outAssigned(it.outPrimary)) {
             snprintf(rejectReason, sizeof(rejectReason), "USER BUTTON needs OUT");
+            return false;
+        }
+        if (it.functionId == FN_KILL_SWITCH && !outAssigned(it.outPrimary)) {
+            snprintf(rejectReason, sizeof(rejectReason), "KILL SWITCH needs OUT");
             return false;
         }
         if (sensorOptional && it.outputEnabled && !outAssigned(it.outPrimary)) {
@@ -316,7 +376,8 @@ static bool validateCfg(const InputCfgItem* arr) {
                      "OUT %u conflict", it.outPrimary + 1);
             return false;
         }
-        if (it.functionId == FN_LIGHTS_1 && outAssigned(it.outSecondary) &&
+        if ((it.functionId == FN_LIGHTS_1 || it.functionId == FN_STARTER) &&
+            outAssigned(it.outSecondary) &&
             occupiedOut(arr, it.outSecondary, i, -1)) {
             snprintf(rejectReason, sizeof(rejectReason),
                      "OUT %u conflict", it.outSecondary + 1);
@@ -327,11 +388,11 @@ static bool validateCfg(const InputCfgItem* arr) {
 }
 
 static void dedupe(InputCfgItem* arr) {
-    bool seen[FN_USER + 1] = {false};
+    bool seen[FN_KILL_SWITCH + 1] = {false};
     for (int i = 0; i < INPUT_COUNT; i++) {
         uint8_t fn = arr[i].functionId;
         if (fn == FN_NONE || fn == FN_USER) continue;
-        if (fn > FN_USER) {
+        if (fn > FN_KILL_SWITCH) {
             clearSlot(arr[i]);
             continue;
         }
@@ -366,7 +427,7 @@ static void ensureSystem(InputCfgItem* arr) {
         {FN_LEFT,     0, OUT_NONE, "LEFT BLINKER"},
         {FN_RIGHT,    1, OUT_NONE, "RIGHT BLINKER"},
         {FN_BRAKE_1,  2, OUT_NONE, "BRAKES"},
-        {FN_STARTER,  3, OUT_NONE, "STARTER"},
+        {FN_STARTER,  3, 7, "STARTER"},
         {FN_NEUTRAL,  4, OUT_NONE, "NEUTRAL"},
         {FN_LIGHTS_1, 5, 6,        "LIGHTS"},
     };
@@ -391,7 +452,7 @@ static void setDefaults(InputCfgItem* arr) {
     setSlot(arr[0], CAT_BUTTON, FN_LEFT,     0, OUT_NONE, "LEFT BLINKER", true, true, false);
     setSlot(arr[1], CAT_BUTTON, FN_RIGHT,    1, OUT_NONE, "RIGHT BLINKER", true, true, false);
     setSlot(arr[2], CAT_SENSOR, FN_BRAKE_1,  2, OUT_NONE, "BRAKES",       true, true, false);
-    setSlot(arr[3], CAT_BUTTON, FN_STARTER,  3, OUT_NONE, "STARTER",      true, true, false);
+    setSlot(arr[3], CAT_BUTTON, FN_STARTER,  3, 7,        "STARTER",      true, true, false);
     setSlot(arr[4], CAT_SENSOR, FN_NEUTRAL,  4, OUT_NONE, "NEUTRAL",      true, true, false);
     setSlot(arr[5], CAT_BUTTON, FN_LIGHTS_1, 5, 6,        "LIGHTS",       true, true, false);
     deriveDerived(arr);
@@ -436,7 +497,7 @@ InCfgApply stageInputCfgV4(int inIndex, uint8_t category, uint8_t functionId,
                            uint8_t outPrimary, uint8_t outSecondary,
                            bool outputEnabled, uint8_t outputIndex, const char* name) {
     if (inIndex < 0 || inIndex >= INPUT_COUNT) return INCFG_REJECTED;
-    if (category > CAT_DISABLED || functionId > FN_USER) return INCFG_REJECTED;
+    if (category > CAT_DISABLED || functionId > FN_KILL_SWITCH) return INCFG_REJECTED;
 
     beginTxnIfNeeded();
     txnDeadline = millis() + TXN_MS;
@@ -459,6 +520,7 @@ InCfgApply stageInputCfgV4(int inIndex, uint8_t category, uint8_t functionId,
     }
 
     InputCfgItem& it = pendingCfg[inIndex];
+    restorePairedSecondary(pendingCfg, it.functionId, functionId, it.outPrimary);
     it.category = category;
     it.functionId = functionId;
     it.outPrimary = pri;

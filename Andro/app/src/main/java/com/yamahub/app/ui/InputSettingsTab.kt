@@ -59,6 +59,7 @@ fun InputSettingsTab() {
     val currentDraft = draft ?: emptyList()
     val lightsCount = currentDraft.count { it.kind == FnKind.LIGHTS_1 || it.kind == FnKind.LIGHTS_2 }
     val brakesCount = currentDraft.count { it.kind == FnKind.BRAKE_1 || it.kind == FnKind.BRAKE_2 }
+    val hasKillSwitch = currentDraft.any { it.kind == FnKind.KILL_SWITCH }
 
     fun collectOutClaims(slots: List<FnSlot> = draft ?: emptyList()): List<Pair<Int, String>> {
         val claims = mutableListOf<Pair<Int, String>>()
@@ -82,6 +83,14 @@ fun InputSettingsTab() {
                 FnKind.LIGHTS_1 -> {
                     if (s.outPrimary in 1..10) claims += s.outPrimary to "LIGHTS HI"
                     if (lc < 2 && s.outSecondary in 1..10) claims += s.outSecondary to "LIGHTS LOW"
+                }
+                FnKind.STARTER -> {
+                    if (s.outPrimary in 1..10) claims += s.outPrimary to "STARTER"
+                    if (!slots.any { it.kind == FnKind.KILL_SWITCH } && s.outSecondary in 1..10)
+                        claims += s.outSecondary to "KILL"
+                }
+                FnKind.KILL_SWITCH -> {
+                    if (s.outPrimary in 1..10) claims += s.outPrimary to "KILL"
                 }
                 FnKind.LIGHTS_2 -> {
                     if (s.outPrimary in 1..10) claims += s.outPrimary to "LIGHTS LOW"
@@ -116,6 +125,8 @@ fun InputSettingsTab() {
         } else {
             if (s.outPrimary > 0) myPorts.add(s.outPrimary)
             if (s.kind == FnKind.LIGHTS_1 && lightsCount < 2 && s.outSecondary > 0) myPorts.add(s.outSecondary)
+            if (s.kind == FnKind.STARTER && !hasKillSwitch && s.outSecondary > 0)
+                myPorts.add(s.outSecondary)
         }
         
         return myPorts.any { (occupants[it]?.size ?: 0) > 1 }
@@ -136,6 +147,8 @@ fun InputSettingsTab() {
         d.forEach { s ->
             if (s.kind in required && s.kind != FnKind.NEUTRAL && s.outPrimary !in 1..10)
                 return "${s.kind.name}: wybierz OUT"
+            if (s.kind == FnKind.KILL_SWITCH && s.outPrimary !in 1..10)
+                return "KILL SWITCH: wybierz OUT"
             if (s.kind == FnKind.USER && s.category == FnCategory.BUTTON && s.outputIndex !in 1..10)
                 return "USER: wybierz OUT"
             if (s.kind == FnKind.USER && s.category == FnCategory.SENSOR &&
@@ -214,7 +227,7 @@ fun InputSettingsTab() {
         if (ble.isConnected) ble.requestModeDefinitions()
     }
 
-    fun sendSlot(index: Int, slot: FnSlot, lightsCount: Int) {
+    fun sendSlot(index: Int, slot: FnSlot, lightsCount: Int, hasKillSwitch: Boolean) {
         val primary = when {
             slot.kind == FnKind.DISABLED -> 0
             slot.kind == FnKind.USER &&
@@ -231,7 +244,11 @@ fun InputSettingsTab() {
                 slot.kind != FnKind.BRAKE_1 && slot.kind != FnKind.BRAKE_2 -> slot.outputEnabled
             else -> slot.outputEnabled || primary in 1..10
         }
-        val secondary = if (slot.kind == FnKind.LIGHTS_1 && lightsCount < 2) slot.outSecondary else 0
+        val secondary = when {
+            slot.kind == FnKind.STARTER && !hasKillSwitch -> slot.outSecondary
+            slot.kind == FnKind.LIGHTS_1 && lightsCount < 2 -> slot.outSecondary
+            else -> 0
+        }
         ble.setInputCfgV4(
             inNum = index + 1,
             category = when (slot.category) {
@@ -253,9 +270,10 @@ fun InputSettingsTab() {
         if (!isConnected) return
         val old = saved ?: return
         val lc = newList.count { it.kind == FnKind.LIGHTS_1 || it.kind == FnKind.LIGHTS_2 }
+        val hasKillSwitch = newList.any { it.kind == FnKind.KILL_SWITCH }
         val changed = newList.indices.filter { i -> !newList[i].samePersist(old.getOrNull(i)) }
         if (changed.isEmpty()) return
-        changed.forEach { i -> sendSlot(i, newList[i], lc) }
+        changed.forEach { i -> sendSlot(i, newList[i], lc, hasKillSwitch) }
         ble.commitInputCfg()
         saved = newList
     }
@@ -323,6 +341,7 @@ fun InputSettingsTab() {
                 val isDragging = dragId >= 0L && slot.id == dragId
                 val isExpanded = expandedIdx == index
                 val conflict = isOutConflictAt(index)
+                val isDisabled = slot.kind == FnKind.DISABLED
                 
                 val dragFromIndex = if (dragId >= 0L) currentDraft.indexOfFirst { it.id == dragId } else -1
                 val dragToIndex = if (dragFromIndex >= 0 && rowHeightPx > 0f) {
@@ -340,9 +359,17 @@ fun InputSettingsTab() {
                     // IN Badge (Tappable)
                     Box(
                         Modifier.size(46.dp).background(
-                            if (inputStates.getOrElse(index) { false }) Color.DarkGray else Color.Black, 
+                            when {
+                                isDisabled -> Color(0xFF333333)
+                                inputStates.getOrElse(index) { false } -> Color.DarkGray
+                                else -> Color.Black
+                            },
                             RoundedCornerShape(8.dp)
-                        ).border(1.dp, Color.Gray.copy(alpha = 0.5f), RoundedCornerShape(8.dp))
+                        ).border(
+                            1.dp,
+                            MaterialTheme.colorScheme.outline.copy(alpha = if (isDisabled) 0.45f else 0.5f),
+                            RoundedCornerShape(8.dp)
+                        )
                         .pointerInput(index) {
                             detectTapGestures(onPress = {
                                 ble.sendCommand("IN:${index + 1}:1")
@@ -351,7 +378,12 @@ fun InputSettingsTab() {
                         },
                         contentAlignment = Alignment.Center
                     ) {
-                        Text("IN %02d".format(index + 1), style = MaterialTheme.typography.labelSmall, color = Color.LightGray)
+                        Text(
+                            "IN %02d".format(index + 1),
+                            style = if (isDisabled) MaterialTheme.typography.labelMedium else MaterialTheme.typography.labelSmall,
+                            fontWeight = if (isDisabled) FontWeight.Bold else FontWeight.Normal,
+                            color = if (isDisabled) Color.White.copy(alpha = 0.45f) else Color.LightGray
+                        )
                     }
 
                     Spacer(Modifier.width(8.dp))
@@ -388,7 +420,7 @@ fun InputSettingsTab() {
                             
                             Column(Modifier.weight(1f).clickable { toggleExpand(index) }) {
                                 Text(slot.title(modeDefinitions, lightsCount, brakesCount), fontWeight = FontWeight.Bold, style = MaterialTheme.typography.titleSmall, maxLines = 1)
-                                slot.subtitle(lightsCount)?.let { Text(it, style = MaterialTheme.typography.labelSmall, color = Color.Gray, maxLines = 1) }
+                                slot.subtitle(lightsCount, hasKillSwitch)?.let { Text(it, style = MaterialTheme.typography.labelSmall, color = Color.Gray, maxLines = 1) }
                             }
                             IconButton(onClick = { toggleExpand(index) }) {
                                 Icon(if (isExpanded) Icons.Default.ExpandLess else Icons.Default.ExpandMore, null)
@@ -402,6 +434,7 @@ fun InputSettingsTab() {
                                     modeDefinitions = modeDefinitions,
                                     outOccupants = outOccupants(),
                                     lightsCount = lightsCount,
+                                    hasKillSwitch = hasKillSwitch,
                                     hideKinds = currentDraft
                                         .filter { it.id != slot.id && it.kind != FnKind.USER && it.kind != FnKind.DISABLED }
                                         .map { it.kind }

@@ -28,13 +28,17 @@ void updateBrakeOutput(Output* outputs, bool& stateChanged) {
     for (int i = 0; i < INPUT_COUNT; i++) {
         uint8_t fn = inputCfg[i].functionId;
         if (fn != FN_BRAKE_1 && fn != FN_BRAKE_2) continue;
-        if (outAssigned(inputCfg[i].outPrimary))
-            out = (int)inputCfg[i].outPrimary;
+        if (!inputCfg[i].outputEnabled || !outAssigned(inputCfg[i].outPrimary)) continue;
+        out = (int)inputCfg[i].outPrimary;
         if (getEffectiveInputState(i)) on = true;
     }
     if (out < 0) return;
-    bool was = outputs[out].isOn();
+
+    static bool lastOn[10] = {false};
+    if (on == lastOn[out]) return;
+    lastOn[out] = on;
+
     if (on) outputs[out].on();
     else    outputs[out].off();
-    if (was != on) stateChanged = true;
+    stateChanged = true;
 }

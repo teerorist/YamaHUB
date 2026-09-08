@@ -17,6 +17,7 @@ static const unsigned long MIN_SHORT_MS = 40;
 static const unsigned long SHUTDOWN_DELAY_MS = 10000;
 
 static bool starterActive = false;
+static bool starterPrepared = false;
 static bool savedOn[10] = {false};       // digital Output
 static uint8_t savedBeam[10] = {0};      // poziom beamów 0/255
 static bool shutdownPending = false;
@@ -45,6 +46,35 @@ void updateStarterInterlock(Output* outputs, bool& stateChanged) {
     }
 }
 
+void syncStarterKillOutput(Output* outputs, bool& stateChanged) {
+    const int koi = starterKillOutIndex();
+    if (!outputs || koi < 0 || koi > 9) return;
+
+    const bool on = hubArmed && !shutdownPending;
+    if (outputs[koi].isOn() == on) return;
+    if (on) outputs[koi].on();
+    else    outputs[koi].off();
+    setOutLevel(koi, on ? 255 : 0);
+    stateChanged = true;
+}
+
+void handleKillSwitch(Button* buttons, Output* outputs, bool& stateChanged) {
+    if (!buttons || !outputs) return;
+
+    static bool wasPressed[INPUT_COUNT] = {false};
+    for (int i = 0; i < INPUT_COUNT; i++) {
+        if (inputCfg[i].functionId != FN_KILL_SWITCH) continue;
+        const bool pressed = buttons[i].isPressed() || isBleInputPressed(i);
+        if (pressed && !wasPressed[i]) {
+            disarmHub();
+            requestShutdownNow(outputs);
+            stateChanged = true;
+            Serial.println("KILL SWITCH -> immediate shutdown");
+        }
+        wasPressed[i] = pressed;
+    }
+}
+
 void setBleStarterPressed(bool pressed) {
     blePressed = pressed;
 }
@@ -56,6 +86,32 @@ static void allBeamsOff() {
             setOutLevel(i, 0);
         }
     }
+}
+
+static void prepareStarterOutputs(int soi, Output* outputs, bool& stateChanged) {
+    if (starterPrepared) return;
+
+    starterPrepared = true;
+    suspendBlinkers();
+
+    for (int i = 0; i < 10; i++) {
+        if (i == soi) continue;
+
+        if (isBeamOutput(i)) {
+            savedBeam[i] = (outLevel[i] > 20) ? 255 : 0;
+            savedOn[i] = false;
+            requestBeamLevel(i, 0);
+            setOutLevel(i, 0);
+        } else {
+            savedOn[i] = outputs[i].isOn();
+            savedBeam[i] = 0;
+            outputs[i].off();
+            setOutLevel(i, 0);
+        }
+    }
+
+    stateChanged = true;
+    Serial.printf("STARTER prepare (OUT_%d) - saved others (incl. beams)\n", soi + 1);
 }
 
 static void beginShutdown(Output* outputs, bool& stateChanged) {
@@ -107,33 +163,16 @@ void starterSet(bool on, Output* outputs, bool& stateChanged) {
             Serial.println("STARTER ON → anulowano shutdown");
         }
         if (!starterActive) {
+            prepareStarterOutputs(soi, outputs, stateChanged);
             starterActive = true;
-            suspendBlinkers();
-
-            for (int i = 0; i < 10; i++) {
-                if (i == soi) continue;
-
-                if (isBeamOutput(i)) {
-                    // zapamiętaj jasność beamu i zgaś
-                    savedBeam[i] = (outLevel[i] > 20) ? 255 : 0;
-                    savedOn[i] = false;
-                    requestBeamLevel(i, 0);
-                    setOutLevel(i, 0);
-                } else {
-                    savedOn[i] = outputs[i].isOn();
-                    savedBeam[i] = 0;
-                    outputs[i].off();
-                    setOutLevel(i, 0);
-                }
-            }
-
             outputs[soi].on();
             setOutLevel(soi, 255);
             stateChanged = true;
-            Serial.printf("STARTER ON (OUT_%d) – saved others (incl. beams)\n", soi + 1);
+            Serial.printf("STARTER ON (OUT_%d)\n", soi + 1);
         }
-    } else if (!on && starterActive) {
+    } else if (!on && (starterActive || starterPrepared)) {
         starterActive = false;
+        starterPrepared = false;
         outputs[soi].off();
         setOutLevel(soi, 0);
 
@@ -188,6 +227,10 @@ void handleStarter(Button& btn, Output* outputs, bool& stateChanged) {
     if (pressedEdge) {
         downAt = millis();
         longDone = false;
+        const int soi = starterOutIndex();
+        if (soi >= 0 && soi < 10 && isStarterEnabled(outputs)) {
+            prepareStarterOutputs(soi, outputs, stateChanged);
+        }
     }
 
     if (active && !longDone && downAt > 0 && (millis() - downAt) > LONG_MS) {
@@ -204,10 +247,11 @@ void handleStarter(Button& btn, Output* outputs, bool& stateChanged) {
     if (releasedEdge) {
         unsigned long held = millis() - downAt;
 
+        if (starterActive || starterPrepared) {
+            starterSet(false, outputs, stateChanged);
+        }
+
         if (longDone) {
-            if (starterActive) {
-                starterSet(false, outputs, stateChanged);
-            }
             ignoreUntil = millis() + COOLDOWN_MS;
             Serial.println("LONG done – cooldown");
         } else if (held >= MIN_SHORT_MS && held <= LONG_MS) {
