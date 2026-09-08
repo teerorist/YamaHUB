@@ -249,10 +249,10 @@ fun DashboardScreen(
         ble.onInputCfg = { list -> if (list.size in 9..10) applyCfg(list); prevCfg?.invoke(list) }
         val prevStarter = ble.onStarterEnabled
         ble.onStarterEnabled = { enabled -> starterEnabled = enabled; prevStarter?.invoke(enabled) }
-        ble.onConfigReceived = { fade, blinks, curve, ac, acOn, lightsOn ->
+        ble.onConfigReceived = { fade, blinks, curve, ac, acOn, lightsOn, commonWireOn, brightness ->
             fadeSpeed = fade.coerceIn(4, 60)
             fadeCurve = curve.coerceIn(0, 2)
-            prevBlink?.invoke(fade, blinks, curve, ac, acOn, lightsOn)
+            prevBlink?.invoke(fade, blinks, curve, ac, acOn, lightsOn, commonWireOn, brightness)
         }
         ble.onRawMessage = { msg ->
             when {

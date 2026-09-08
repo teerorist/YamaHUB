@@ -109,9 +109,9 @@ void updateStartupAnimation() {
         fuelOn = currentRpm >= 11000;
     } else {
         fuelOn = currentRpm >= 11000;
-        hiOn = currentRpm >= 9000;
+        hiOn = currentRpm >= 10000;
         oilOn = currentRpm >= 6000;
-        lowOn = currentRpm >= 3000;
+        lowOn = currentRpm >= 4500;
         nOn = currentRpm >= 1000;
     }
 

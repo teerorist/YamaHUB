@@ -7,7 +7,9 @@ BlinkerConfig cfg = {
     .curve = 1,
     .autoCancelSpeed = 20,
     .autoCancel = 1,
-    .autoLights = 0
+    .autoLights = 0,
+    .commonBrakePositionWire = 0,
+    .positionBrightness = 50
 };
 
 void loadConfig() {
@@ -22,6 +24,8 @@ void loadConfig() {
     uint8_t ac          = p.getUChar("acSpeed", 20);
     cfg.autoCancel      = p.getUChar("acOn", ac == 0 ? 0 : 1);
     cfg.autoLights      = p.getUChar("acLights", 0);
+    cfg.commonBrakePositionWire = p.getUChar("brakePos", 0);
+    cfg.positionBrightness = p.getUChar("posBright", 50);
 
     if (cfg.fadeSpeed < 4) cfg.fadeSpeed = 4;
     if (cfg.fadeSpeed > 40) cfg.fadeSpeed = 40;
@@ -31,6 +35,9 @@ void loadConfig() {
     else cfg.autoCancelSpeed = ac;
     if (cfg.autoCancel > 1) cfg.autoCancel = 1;
     if (cfg.autoLights > 1) cfg.autoLights = 0;
+    if (cfg.commonBrakePositionWire > 1) cfg.commonBrakePositionWire = 0;
+    if (cfg.positionBrightness < 1 || cfg.positionBrightness > 99)
+        cfg.positionBrightness = 50;
 
     p.end();
     Serial.println("Config: loaded");
@@ -45,6 +52,8 @@ void saveConfig() {
     p.putUChar("acSpeed", cfg.autoCancelSpeed);
     p.putUChar("acOn", cfg.autoCancel);
     p.putUChar("acLights", cfg.autoLights);
+    p.putUChar("brakePos", cfg.commonBrakePositionWire);
+    p.putUChar("posBright", cfg.positionBrightness);
     p.end();
     Serial.println("Config: saved");
 }

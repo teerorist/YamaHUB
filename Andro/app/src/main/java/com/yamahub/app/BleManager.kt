@@ -53,7 +53,7 @@ class BleManager(private val context: Context) {
     var onConnectionChanged: ((Boolean) -> Unit)? = null
     var onStateReceived: ((List<Boolean>) -> Unit)? = null
     var onInputStates: ((List<Boolean>) -> Unit)? = null
-    var onConfigReceived: ((fade: Int, blinks: Int, curve: Int, acSpeed: Int, autoCancel: Boolean?, autoLights: Boolean?) -> Unit)? = null
+    var onConfigReceived: ((fade: Int, blinks: Int, curve: Int, acSpeed: Int, autoCancel: Boolean?, autoLights: Boolean?, commonBrakePositionWire: Boolean?, positionBrightness: Int?) -> Unit)? = null
     var onInputCfg: ((List<InputCfgItem>) -> Unit)? = null
     var onModeDefinitions: ((List<ModeDefinition>) -> Unit)? = null
     var starterEnabled: Boolean = false
@@ -124,6 +124,10 @@ class BleManager(private val context: Context) {
             cmd.startsWith("OUT:") -> {
                 val n = cmd.removePrefix("OUT:").substringBefore(':')
                 urgentQueue.removeAll { it.startsWith("OUT:$n:") }
+                urgentQueue.addLast(cmd)
+            }
+            cmd.startsWith("SET_CFG:") -> {
+                urgentQueue.removeAll { it.startsWith("SET_CFG:") }
                 urgentQueue.addLast(cmd)
             }
             else -> urgentQueue.addLast(cmd)
@@ -201,11 +205,14 @@ class BleManager(private val context: Context) {
         curve: Int,
         acSpeed: Int,
         autoCancel: Boolean,
-        autoLights: Boolean
+        autoLights: Boolean,
+        commonBrakePositionWire: Boolean,
+        positionBrightness: Int
     ) {
         sendCommand(
             "SET_CFG:$fade,$blinks,$curve,$acSpeed," +
-                "${if (autoCancel) 1 else 0},${if (autoLights) 1 else 0}"
+                "${if (autoCancel) 1 else 0},${if (autoLights) 1 else 0}," +
+                "${if (commonBrakePositionWire) 1 else 0},${positionBrightness.coerceIn(1, 99)}"
         )
     }
 
@@ -325,6 +332,11 @@ class BleManager(private val context: Context) {
                             (p[5].toIntOrNull() ?: 0) != 0
                         else
                             null
+                        val commonWire = if (p.size >= 7)
+                            (p[6].toIntOrNull() ?: 0) != 0
+                        else
+                            null
+                        val brightness = p.getOrNull(7)?.toIntOrNull()?.coerceIn(1, 99)
                         val ac = if (rawAc in 5..30) rawAc else 20
                         onConfigReceived?.invoke(
                             p[0].toIntOrNull() ?: 12,
@@ -332,7 +344,9 @@ class BleManager(private val context: Context) {
                             p[2].toIntOrNull() ?: 1,
                             ac,
                             autoCancel,
-                            autoLights
+                            autoLights,
+                            commonWire,
+                            brightness
                         )
                     }
                 }

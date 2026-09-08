@@ -23,19 +23,23 @@ fun BlinkerSettingsTab() {
     var acSpeed by remember { mutableFloatStateOf(20f) }
     var autoCancel by remember { mutableStateOf(false) }
     var autoLights by remember { mutableStateOf(false) }
+    var commonBrakePositionWire by remember { mutableStateOf(false) }
+    var positionBrightness by remember { mutableFloatStateOf(50f) }
     var cfgReady by remember { mutableStateOf(false) }
 
     DisposableEffect(Unit) {
         val prev = ble.onConfigReceived
-        ble.onConfigReceived = { f, b, c, a, acOn, lightsOn ->
+        ble.onConfigReceived = { f, b, c, a, acOn, lightsOn, commonWireOn, brightness ->
             fadeSpeed = f.toFloat()
             blinkCount = b.toFloat()
             curve = c.coerceIn(0, 2)
             acSpeed = a.coerceIn(5, 30).toFloat()
             if (acOn != null) autoCancel = acOn
             if (lightsOn != null) autoLights = lightsOn
+            if (commonWireOn != null) commonBrakePositionWire = commonWireOn
+            if (brightness != null) positionBrightness = brightness.toFloat()
             cfgReady = true
-            prev?.invoke(f, b, c, a, acOn, lightsOn)
+            prev?.invoke(f, b, c, a, acOn, lightsOn, commonWireOn, brightness)
         }
         onDispose { ble.onConfigReceived = prev }
     }
@@ -56,6 +60,8 @@ fun BlinkerSettingsTab() {
     fun pushCfg(
         cancel: Boolean = autoCancel,
         lights: Boolean = autoLights,
+        commonWire: Boolean = commonBrakePositionWire,
+        brightness: Int = positionBrightness.toInt(),
         curveVal: Int = curve
     ) {
         if (!cfgReady || curveVal !in 0..2) return
@@ -65,7 +71,9 @@ fun BlinkerSettingsTab() {
             curveVal,
             acSpeed.toInt().coerceIn(5, 30),
             cancel,
-            lights
+            lights,
+            commonWire,
+            brightness
         )
     }
 
@@ -155,6 +163,35 @@ fun BlinkerSettingsTab() {
             steps = 24,
             enabled = cfgReady
         )
+        Row(
+            Modifier
+                .fillMaxWidth()
+                .clickable(enabled = cfgReady) {
+                    commonBrakePositionWire = !commonBrakePositionWire
+                    pushCfg(commonWire = commonBrakePositionWire)
+                },
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Checkbox(
+                checked = cfgReady && commonBrakePositionWire,
+                onCheckedChange = null,
+                enabled = cfgReady
+            )
+            Text("common wire for brake and position lights")
+        }
+        if (commonBrakePositionWire) {
+            Text("Position light brightness: ${if (cfgReady) "${positionBrightness.toInt()}%" else "-"}")
+            Slider(
+                value = positionBrightness,
+                onValueChange = {
+                    positionBrightness = it
+                    pushCfg(brightness = it.toInt())
+                },
+                valueRange = 1f..99f,
+                steps = 97,
+                enabled = cfgReady
+            )
+        }
 
     }
 }

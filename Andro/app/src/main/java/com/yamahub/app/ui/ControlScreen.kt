@@ -100,9 +100,9 @@ fun ControlScreen() {
         ble.onConnectionChanged = { c -> isConnected = c; prevConn?.invoke(c) }
         ble.onStateReceived = { list -> if (list.size >= 10) states = list.take(10); prevState?.invoke(list) }
         ble.onInputCfg = { list -> if (list.size in 9..10 && !saving) applyCfg(list); prevCfg?.invoke(list) }
-        ble.onConfigReceived = { fade, _, curve, _, _, _ ->
+        ble.onConfigReceived = { fade, blinks, curve, acSpeed, autoCancel, autoLights, commonWire, brightness ->
             fadeSpeed = fade.coerceIn(4, 60); fadeCurve = curve.coerceIn(0, 2)
-            prevBlinkCfg?.invoke(fade, 3, curve, 20, true, true)
+            prevBlinkCfg?.invoke(fade, blinks, curve, acSpeed, autoCancel, autoLights, commonWire, brightness)
         }
         ble.onStarterEnabled = { enabled -> starterEnabled = enabled; prevStarter?.invoke(enabled) }
 

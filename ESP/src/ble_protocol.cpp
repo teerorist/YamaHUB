@@ -89,10 +89,11 @@ void sendInputStatesIfChanged(Button* buttons) {
 
 void sendConfig() {
     if (!deviceConnected || !pCharacteristic) return;
-    char msg[40];
-    snprintf(msg, sizeof(msg), "CFG:%d,%d,%d,%d,%d,%d",
+    char msg[48];
+    snprintf(msg, sizeof(msg), "CFG:%d,%d,%d,%d,%d,%d,%d,%d",
              cfg.fadeSpeed, cfg.blinkCount, cfg.curve,
-             cfg.autoCancelSpeed, cfg.autoCancel, cfg.autoLights);
+             cfg.autoCancelSpeed, cfg.autoCancel, cfg.autoLights,
+             cfg.commonBrakePositionWire, cfg.positionBrightness);
     pCharacteristic->setValue(msg);
     pCharacteristic->notify();
     Serial.printf("CFG: %s\n", msg);
@@ -320,8 +321,10 @@ void handleBleCommand(const char* value) {
 
     if (strncmp(value, "SET_CFG:", 8) == 0) {
         int fade = 12, blinks = 3, curve = 1, ac = 20, acOn = 1, lightsOn = 0;
-        int n = sscanf(value + 8, "%d,%d,%d,%d,%d,%d",
-                       &fade, &blinks, &curve, &ac, &acOn, &lightsOn);
+        int commonWire = 0, positionBrightness = 50;
+        int n = sscanf(value + 8, "%d,%d,%d,%d,%d,%d,%d,%d",
+                       &fade, &blinks, &curve, &ac, &acOn, &lightsOn,
+                       &commonWire, &positionBrightness);
         if (n >= 4) {
             cfg.fadeSpeed = (uint8_t)constrain(fade, 4, 40);
             cfg.blinkCount = (uint8_t)constrain(blinks, 2, 6);
@@ -334,6 +337,9 @@ void handleBleCommand(const char* value) {
                 cfg.autoCancelSpeed = (uint8_t)constrain(ac, 5, 30);
                 cfg.autoCancel = acOn ? 1 : 0;
                 if (n >= 6) cfg.autoLights = lightsOn ? 1 : 0;
+                if (n >= 7) cfg.commonBrakePositionWire = commonWire ? 1 : 0;
+                if (n >= 8)
+                    cfg.positionBrightness = (uint8_t)constrain(positionBrightness, 1, 99);
             }
             saveConfig();
             sendConfig();
